@@ -65,13 +65,17 @@
     const h = health[server.id];
     if (!force && h && Date.now() - h.at < HEALTH_TTL) return Promise.resolve(h);
     if (probing[server.id]) return probing[server.id];
-    const ctrl = new AbortController();
     const t0 = performance.now();
-    const timer = setTimeout(() => ctrl.abort(), 5000);
-    const p = fetch(server.origin + "/favicon.ico", { mode: "no-cors", cache: "no-store", signal: ctrl.signal, referrerPolicy: "no-referrer" })
+    // Slow isn't down: allow 9 s, and one retry, before calling a host unreachable (a busy 2Embed takes 3–4 s).
+    const once = () => {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 9000);
+      return fetch(server.origin + "/favicon.ico", { mode: "no-cors", cache: "no-store", signal: ctrl.signal, referrerPolicy: "no-referrer" })
+        .finally(() => clearTimeout(timer));
+    };
+    const p = once().catch(() => new Promise((res) => setTimeout(res, 600)).then(once))
       .then(() => ({ ok: true, ms: Math.round(performance.now() - t0) }), () => ({ ok: false, ms: 0 }))
       .then((r) => {
-        clearTimeout(timer);
         r.at = Date.now();
         health[server.id] = r;
         session.set(HEALTH_KEY, health);

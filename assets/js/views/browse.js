@@ -63,6 +63,8 @@
       list.map(([v, l]) => '<option value="' + esc(v) + '"' + (String(v) === String(value) ? " selected" : "") + ">" + esc(l) + "</option>").join("");
   }
 
+  const activeCount = (s) => ["year", "genre", "region", "minRating", "status"].filter((k) => s[k] && s[k] !== "all" && s[k] !== "0").length;
+
   function controls(s) {
     const genres = FL.catalogue.genresFor(s.lang).map((g) => [g, g]);
     const sorts = (s.q ? ["relevance"] : []).concat(["popular", "rating", "newest", "oldest", "title"]).map((k) => [k, SORT_LABELS[k]]);
@@ -70,8 +72,10 @@
       '<div class="search-field"><span class="search-field-icon">' + icon("search") + '</span>' +
         '<input type="search" data-f="q" value="' + esc(s.q) + '" placeholder="Search 15,000+ titles, genres, years…" aria-label="Search films" autocomplete="off" spellcheck="false">' +
         '<kbd class="hide-sm">/</kbd></div>' + recentChips(s) +
-      '<div class="filter-row">' + segmented("lang", CATEGORIES, s.lang) + "</div>" +
-      '<div class="filter-row">' +
+      '<div class="filter-row filter-main">' + segmented("lang", CATEGORIES, s.lang) +
+        '<button type="button" class="icon-btn filters-toggle" data-ftoggle aria-expanded="false" aria-label="More filters">' + icon("sliders") +
+        (activeCount(s) ? "<b>" + activeCount(s) + "</b>" : "") + "</button></div>" +
+      '<div class="filter-row filter-more">' +
         select("year", "Year", yearOptions(s.year)) +
         select("genre", "Genre", opts(genres, s.genre, "Any genre")) +
         (s.lang === "OtherIndian" ? select("region", "Language", opts(FL.catalogue.regions().map((r) => [r, r]), s.region, "Any language")) : "") +
@@ -227,6 +231,14 @@
       }
 
       function onClick(e) {
+        const tog = e.target.closest("[data-ftoggle]");
+        if (tog) {
+          const box = tog.closest(".filters");
+          const open = !box.classList.contains("is-open");
+          box.classList.toggle("is-open", open);
+          tog.setAttribute("aria-expanded", open);
+          return;
+        }
         const seg = e.target.closest("[data-seg]");
         if (seg) {
           const name = seg.dataset.seg;

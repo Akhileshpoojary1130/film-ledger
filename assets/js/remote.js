@@ -53,7 +53,7 @@
     if (!local) return null;
     if (!local.imdbId && !FL.meta.idFor(local)) FL.meta.setImdb(local, d.imdbId);
     FL.catalogue.linkImdb(local, d.imdbId);
-    if (!local.rating && d.rating) local.rating = d.rating;
+    if (d.rating) FL.catalogue.setRating(local, d.rating);
     if (local.remote && d.tmdbPop && d.tmdbPop > (local.pop || 0)) local.pop = d.tmdbPop;
     if (!local.genres.length && d.genres.length) local.genres = d.genres.slice(0, 4);
     if (!local.poster && d.poster) FL.meta.notePoster(local, d.poster);
@@ -164,7 +164,7 @@
     const url = CINEMETA + "/catalog/movie/year/genre=" + year + (page ? "&skip=" + page * 50 : "") + ".json";
     const p = queue(() => fetchJSON(url, { timeout: 15000 }))
       // Not sorted by popularity for older years, so each title's own popularity is used; position is the fallback.
-      .then((d) => ingest((d && d.metas) || [], { type: "movie", offset: page * 50, pop: (i) => Math.max(3, 52 - i * 0.1) }))
+      .then((d) => ingest((d && d.metas) || [], { type: "movie", offset: page * 50, pop: (i) => Math.max(3, 46 - i * 0.1) }))
       .catch(() => { yearPages.delete(key); return []; });
     yearPages.set(key, p);
     return p;
@@ -318,5 +318,5 @@
 
   restore();
 
-  FL.remote = { search, cached, touch, yearPage, wikiYear, show, realityShows, showCatalog, byId, WIKI_LISTS };
+  FL.remote = { search, cached, touch, ingest, yearPage, wikiYear, show, realityShows, showCatalog, byId, WIKI_LISTS };
 })(window.FL = window.FL || {});

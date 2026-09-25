@@ -1,0 +1,175 @@
+/* Iris — people: small portraits for cast and crew, and their other films.
+   Portraits come from Wikipedia (one request covers up to 40 names; a page only counts if its description
+   says actor/director/writer…, so "Lal" never shows a random lal). Filmographies come from Cinemeta search,
+   which indexes cast and crew; only titles that actually credit the person are kept. */
+(function (FL) {
+  "use strict";
+
+  const { storage, fetchJSON, limiter, normalize, esc, hash, debounce } = FL.util;
+
+  const KEY = "film_ledger_people_v1";
+  const TTL = 30 * 864e5;
+  const CAP = 1500;
+  const ROLE = /\b(actor|actress|director|film|cinema|screenwriter|writer|producer|filmmaker|comedian|singer|composer|cinematographer|lyricist|model|television|presenter|dancer|choreographer|playwright|author|novelist|musician|rapper|host|personality|anchor)\b/i;
+
+  let cache = storage.get(KEY, {}); // name -> { u: thumbnail url or "", d: short description, t: page title, at }
+  const queue = limiter(2);
+  const waiting = new Map();
+
+  const save = debounce(() => {
+    const names = Object.keys(cache);
+    if (names.length > CAP) {
+      names.sort((a, b) => cache[a].at - cache[b].at).slice(0, names.length - CAP).forEach((n) => delete cache[n]);
+    }
+    storage.set(KEY, cache);
+  }, 1200);
+
+  const fresh = (e) => e && Date.now() - e.at < TTL;
+
+  function lookup(titles) {
+    const url = "https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1&prop=pageimages%7Cdescription" +
+      "&piprop=thumbnail&pithumbsize=160&titles=" + encodeURIComponent(titles.join("|"));
+    return queue(() => fetchJSON(url, { timeout: 12000 })).then((data) => {
+      const q = (data && data.query) || {};
+      const alias = {};
+      (q.normalized || []).forEach((n) => { alias[n.from] = n.to; });
+      (q.redirects || []).forEach((r) => { alias[r.from] = r.to; });
+      const pages = {};
+      Object.values(q.pages || {}).forEach((p) => { pages[p.title] = p; });
+      return (t) => {
+        let cur = t;
+        for (let i = 0; i < 3 && alias[cur]; i++) cur = alias[cur];
+        const p = pages[cur];
+        return p && !("missing" in p) && ROLE.test(p.description || "") ? p : null;
+      };
+    });
+  }
+
+  /* Resolves once every name has an entry (a portrait or a known miss). `roles` (name -> "Director"/"Writer"/"Cast")
+     decides which disambiguation to try first: "Siddique (director)" for a writer, "Siddique (actor)" for cast. */
+  function photos(names, roles) {
+    const want = Array.from(new Set(names.filter(Boolean))).filter((n) => !fresh(cache[n]) && !waiting.has(n));
+    const jobs = [];
+    for (let i = 0; i < want.length; i += 40) {
+      const batch = want.slice(i, i + 40);
+      const job = lookup(batch).then((find) => {
+        const missing = [];
+        batch.forEach((n) => {
+          const p = find(n);
+          if (p) cache[n] = { u: (p.thumbnail && p.thumbnail.source) || "", d: p.description || "", t: p.title, at: Date.now() };
+          else missing.push(n);
+        });
+        // Second try for common names: "Govinda (actor)", "Lal (director)".
+        if (!missing.length) return;
+        const suffixes = (n) => (/Director|Writer/.test((roles && roles[n]) || "") ? ["director", "filmmaker", "screenwriter", "actor"] : ["actor", "actress", "director", "filmmaker"]);
+        const alt = [];
+        missing.forEach((n) => suffixes(n).forEach((r) => alt.push(n + " (" + r + ")")));
+        const second = [];
+        for (let j = 0; j < alt.length; j += 48) second.push(lookup(alt.slice(j, j + 48)));
+        return Promise.all(second).then((finds) => {
+          missing.forEach((n) => {
+            let p = null;
+            suffixes(n).some((r) => finds.some((f) => (p = f(n + " (" + r + ")"))));
+            cache[n] = p ? { u: (p.thumbnail && p.thumbnail.source) || "", d: p.description || "", t: p.title, at: Date.now() }
+              : { u: "", d: "", t: "", at: Date.now() };
+          });
+        });
+      }).catch(() => { /* offline — initials for now, try again next time */ })
+        .finally(() => { batch.forEach((n) => waiting.delete(n)); save(); });
+      batch.forEach((n) => waiting.set(n, job));
+      jobs.push(job);
+    }
+    names.forEach((n) => { if (waiting.has(n) && jobs.indexOf(waiting.get(n)) === -1) jobs.push(waiting.get(n)); });
+    return Promise.all(jobs).then(() => {
+      const out = {};
+      names.forEach((n) => { out[n] = cache[n] || null; });
+      return out;
+    });
+  }
+
+  const info = (name) => cache[name] || null;
+  const initials = (name) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+  const href = (name) => "#/person/" + encodeURIComponent(name);
+
+  function face(name, size) {
+    const e = cache[name];
+    return '<span class="avatar" style="--ph:' + (hash(name) % 360) + ";--sz:" + (size || 36) + 'px" data-face="' + esc(name) + '">' +
+      "<span>" + esc(initials(name)) + "</span>" +
+      (e && e.u ? '<img src="' + esc(e.u) + '" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.remove()">' : "") + "</span>";
+  }
+
+  function chip(name, role) {
+    return '<a class="person" href="' + href(name) + '">' + face(name, 36) +
+      '<span class="person-text"><b>' + esc(name) + "</b>" + (role ? "<small>" + esc(role) + "</small>" : "") + "</span></a>";
+  }
+
+  /* Fill in portraits that arrived after the markup was drawn. */
+  function paint(root) {
+    (root || document).querySelectorAll(".avatar[data-face]").forEach((el) => {
+      if (el.querySelector("img")) return;
+      const e = cache[el.dataset.face];
+      if (!e || !e.u) return;
+      const img = new Image();
+      img.alt = "";
+      img.decoding = "async";
+      img.referrerPolicy = "no-referrer";
+      img.onerror = () => img.remove();
+      img.src = e.u;
+      el.appendChild(img);
+    });
+  }
+
+  /* ---------- filmographies ---------- */
+
+  const works = new Map(); // name -> Promise<[{ film, role }]>
+
+  function filmography(name) {
+    if (works.has(name)) return works.get(name);
+    const key = normalize(name);
+    const credited = (list) => (list || []).some((x) => normalize(x) === key);
+    const p = Promise.all(["movie", "series"].map((type) => FL.meta.cinemetaSearch(name, true, type).catch(() => [])))
+      .then(([movies, shows]) => {
+        const out = [];
+        const add = (metas, type) => metas.forEach((m) => {
+          const role = credited(m.director) ? "Director" : credited(m.cast) ? "Cast" : credited(m.writer) ? "Writer" : "";
+          if (!role) return;
+          const [film] = FL.remote.ingest([m], { type, keepBare: true });
+          if (film) out.push({ film, role });
+        });
+        add(movies, "movie");
+        add(shows, "series");
+        return out.sort((a, b) => (b.film.year || 9999) - (a.film.year || 9999));
+      });
+    works.set(name, p);
+    // An empty answer is usually a failed request — don't remember it.
+    p.then((list) => { if (!list.length) works.delete(name); }, () => works.delete(name));
+    return p;
+  }
+
+  /* The people behind what you watch and rate highly: directors count most, then the first-billed cast. */
+  function favourites(limit) {
+    const score = {};
+    const seen = {};
+    FL.store.watched().forEach((e) => {
+      const film = FL.catalogue.get(e.id);
+      const m = film && FL.meta.cached(film);
+      if (!m) return;
+      const st = FL.store.state(film.id);
+      const w = (st.rating ? st.rating / 5 : 1) + (st.fav ? 1 : 0) + (st.count > 1 ? 0.5 : 0);
+      const credit = (name, k, role) => {
+        score[name] = (score[name] || 0) + k * w;
+        seen[name] = seen[name] || { role, films: 0 };
+        seen[name].films++;
+      };
+      (m.directors || []).slice(0, 2).forEach((n) => credit(n, 3, "Director"));
+      (m.cast || []).slice(0, 4).forEach((n, i) => credit(n, i < 2 ? 1.5 : 1, "Cast"));
+    });
+    return Object.keys(score)
+      .filter((n) => seen[n].films >= 2 || score[n] >= 5)
+      .sort((a, b) => score[b] - score[a])
+      .slice(0, limit || 3)
+      .map((n) => ({ name: n, role: seen[n].role, films: seen[n].films }));
+  }
+
+  FL.people = { photos, info, face, chip, paint, href, filmography, favourites };
+})(window.FL = window.FL || {});

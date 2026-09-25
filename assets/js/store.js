@@ -12,9 +12,10 @@
 
   const DEFAULT_PREFS = {
     name: "",
-    appearance: { theme: "cinema", mode: "dark", accent: "" },
+    appearance: { theme: "cinema", mode: "dark", accent: "", palette: "default", glass: "off", ambient: "off", motion: "full" },
+    home: { continueMax: 3 },
     browse: { lang: "all", year: "all", genre: "", region: "", minRating: 0, status: "all", sort: "popular", view: "grid" },
-    years: { lang: "all", show: "all", sort: "popular", view: "grid" },
+    years: { lang: "all", show: "all", order: "rating", view: "grid" },
     library: { sort: "recent", view: "grid" },
     recent: [],
     searches: [],
@@ -34,13 +35,23 @@
     if (saved && saved.films && typeof saved.films === "object") {
       lib = saved;
       Object.values(lib.films).forEach((e) => { if (!e.episodes) e.episodes = {}; if (!e.watches) e.watches = []; });
+      // Titles merged in the catalogue since this was saved (a film listed under two languages) move to the kept id.
+      let moved = false;
+      Object.keys(lib.films).forEach((id) => {
+        const to = FL.catalogue.canonical(id);
+        if (to === id) return;
+        if (!lib.films[to]) lib.films[to] = Object.assign(lib.films[id], { id: to });
+        delete lib.films[id];
+        moved = true;
+      });
+      if (moved) storage.set(LIB_KEY, lib);
     } else {
       migrateLegacy();
     }
     const savedPrefs = storage.get(PREFS_KEY, null);
     if (savedPrefs) {
       prefs = Object.assign({}, prefs, savedPrefs);
-      ["appearance", "browse", "years", "library"].forEach((k) => { prefs[k] = Object.assign({}, DEFAULT_PREFS[k], savedPrefs[k]); });
+      ["appearance", "home", "browse", "years", "library"].forEach((k) => { prefs[k] = Object.assign({}, DEFAULT_PREFS[k], savedPrefs[k]); });
     } else {
       migrateLegacyPrefs();
     }

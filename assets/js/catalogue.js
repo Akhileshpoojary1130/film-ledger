@@ -124,10 +124,11 @@
       desc = row[6] || "";
       imdbId = /^tt\d+$/.test(row[8] || "") ? row[8] : "";
       votes = typeof row[7] === "number" ? row[7] : null;
-      // Regional rows carry a synthetic 5000-vote / 6.4 / June-1st placeholder set; keep only real figures.
+      // Regional rows carry synthetic figures (5000 votes, ratings of 6.4 / 7.4 / 8.4, June-1st dates): drop them all.
+      // The live IMDb rating arrives from Cinemeta the first time the film is looked up or its year is opened.
       if (lang === "OtherIndian") {
         votes = null;
-        if (rating === 6.4) rating = null;
+        rating = null;
         if (/-06-01$/.test(date)) date = "";
       } else if (!votes) {
         rating = null;
@@ -199,6 +200,27 @@
       hero.lang = "English";
       hero.id = id;
       register(hero);
+    });
+    // The same film listed under two languages (My Name Is Khan as Hindi and English): keep one, alias the other.
+    const LANG_RANK = { Hindi: 0, OtherIndian: 1, English: 2, Global: 3 };
+    const byTt = new Map();
+    films.forEach((f) => {
+      if (!f.imdbId) return;
+      if (!byTt.has(f.imdbId)) byTt.set(f.imdbId, []);
+      byTt.get(f.imdbId).push(f);
+    });
+    byTt.forEach((group, tt) => {
+      if (group.length < 2) return;
+      group.sort((a, b) => (LANG_RANK[a.lang] - LANG_RANK[b.lang]) || (b.votes || 0) - (a.votes || 0));
+      const keep = group[0];
+      byImdb.set(tt, keep);
+      group.slice(1).forEach((f) => {
+        films.splice(films.indexOf(f), 1);
+        byId.delete(f.id);
+        aliases.set(f.id, keep.id);
+        const same = byKey.get(f.key);
+        if (same) same.splice(same.indexOf(f), 1);
+      });
     });
     let minY = 9999;
     let maxY = 0;
@@ -798,6 +820,13 @@
     franchises, franchiseOf, langLabel, filmLang, yearLabel, legacyId, SORTS,
     addRemote, updateRemote, findLocal,
     linkImdb(f, tt) { if (f && tt && !byImdb.has(tt)) byImdb.set(tt, f); },
+    /* The live IMDb rating (via Cinemeta) wins over the bundled snapshot. */
+    setRating(f, r) {
+      r = Math.round(parseFloat(r) * 10) / 10;
+      if (!f || !(r > 0 && r <= 10) || f.rating === r) return;
+      f.rating = r;
+      version++;
+    },
     version: () => version,
     get yearRange() { return yearRange; },
   };

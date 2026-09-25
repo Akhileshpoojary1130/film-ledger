@@ -157,6 +157,11 @@
   document.addEventListener("error", (e) => {
     const img = e.target;
     if (img.tagName !== "IMG" || !img.parentNode || !img.parentNode.classList || !img.parentNode.classList.contains("art")) return;
+    fallback(img);
+  }, true);
+
+  /* Next artwork source for a poster that failed (or hung). */
+  function fallback(img) {
     const rest = (img.dataset.alt || "").split("|").filter(Boolean);
     if (rest.length) {
       img.dataset.alt = rest.slice(1).join("|");
@@ -167,7 +172,20 @@
     img.remove();
     const film = FL.catalogue.get(wrap.dataset.pid);
     if (film) FL.meta.requestPoster(film);
-  }, true);
+  }
+
+  /* An image host that answers slowly shouldn't leave a blank tile: after 7 s on screen, move on to the next source. */
+  const slowObserver = "IntersectionObserver" in window ? new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      if (!en.isIntersecting) return;
+      const img = en.target;
+      slowObserver.unobserve(img);
+      const src = img.src;
+      setTimeout(() => {
+        if (img.isConnected && img.src === src && !(img.complete && img.naturalWidth) && img.parentNode) fallback(img);
+      }, 7000);
+    });
+  }, { rootMargin: "0px" }) : null;
 
   /* Only placeholders that scroll near the viewport trigger a lookup. */
   const needObserver = "IntersectionObserver" in window ? new IntersectionObserver((entries) => {
@@ -184,6 +202,7 @@
       if (needObserver) needObserver.observe(el);
       else { const f = FL.catalogue.get(el.dataset.pid); if (f) FL.meta.requestPoster(f); }
     });
+    if (slowObserver) $$(".art img:not(.is-in)", root).forEach((img) => { if (!(img.complete && img.naturalWidth)) slowObserver.observe(img); });
     reveal(root);
   }
 
@@ -213,7 +232,7 @@
   }, { rootMargin: "0px 0px -6% 0px" }) : null;
 
   function reveal(root) {
-    if (!revealObserver || reduced.matches) return;
+    if (!revealObserver || reduced.matches || (FL.theme && FL.theme.calm())) return;
     $$(".rail, .panel, .month, .collections > *, .glance, .tonight, .show-season, .year-summary", root || document).forEach((el) => {
       if (el.dataset.revealed) return;
       el.dataset.revealed = "1";
@@ -232,7 +251,7 @@
       if (tiltFrame) return;
       tiltFrame = requestAnimationFrame(() => {
         tiltFrame = 0;
-        if (reduced.matches) return;
+        if (reduced.matches || FL.theme.calm()) return;
         const link = tiltEvt.target.closest && tiltEvt.target.closest(".card-link, .tilt");
         const target = link && (link.querySelector(".art") || link);
         if (tiltEl && tiltEl !== target) { tiltEl.style.removeProperty("--rx"); tiltEl.style.removeProperty("--ry"); }
@@ -241,8 +260,8 @@
         const r = target.getBoundingClientRect();
         const x = (tiltEvt.clientX - r.left) / r.width - 0.5;
         const y = (tiltEvt.clientY - r.top) / r.height - 0.5;
-        target.style.setProperty("--ry", (x * 10).toFixed(2) + "deg");
-        target.style.setProperty("--rx", (-y * 10).toFixed(2) + "deg");
+        target.style.setProperty("--ry", (x * 6).toFixed(2) + "deg");
+        target.style.setProperty("--rx", (-y * 6).toFixed(2) + "deg");
       });
     }, { passive: true });
   }

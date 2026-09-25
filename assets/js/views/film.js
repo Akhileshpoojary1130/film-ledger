@@ -68,16 +68,32 @@
     return '<dl class="details">' + rows.map(([k, v]) => "<dt>" + k + "</dt><dd>" + esc(v) + "</dd>").join("") + "</dl>";
   }
 
+  /* Cast & crew as small portrait chips; each opens that person's films. */
   function credits(m) {
-    if (!m) return '<div class="credits"><div class="skeleton-line"></div><div class="skeleton-line short"></div></div>';
-    const out = [];
-    if (m.directors.length) out.push(["Director", m.directors]);
-    if (m.writers.length) out.push(["Writers", m.writers]);
-    if (m.cast.length) out.push(["Cast", m.cast]);
-    if (!out.length) return "";
-    return '<div class="credits">' + out.map(([k, names]) => '<div><span class="label">' + k + "</span><p>" +
-      names.map(esc).join(", ") + "</p></div>").join("") + "</div>";
+    if (!m) return '<h2 class="label">Cast &amp; crew</h2><div class="people"><span class="skeleton-line"></span></div>';
+    const roles = new Map();
+    const add = (name, role) => {
+      if (!name) return;
+      const r = roles.get(name) || [];
+      if (r.indexOf(role) === -1) r.push(role);
+      roles.set(name, r);
+    };
+    m.directors.forEach((n) => add(n, "Director"));
+    m.writers.forEach((n) => add(n, "Writer"));
+    m.cast.forEach((n) => add(n, "Cast"));
+    if (!roles.size) return "";
+    return '<h2 class="label">Cast &amp; crew</h2><div class="people">' +
+      Array.from(roles).map(([name, r]) => FL.people.chip(name, r.join(" · "))).join("") + "</div>";
   }
+
+  const castNames = (m) => (m ? m.directors.concat(m.writers, m.cast) : []);
+  const castRoles = (m) => {
+    const r = {};
+    m.cast.forEach((n) => { r[n] = "Cast"; });
+    m.writers.forEach((n) => { r[n] = "Writer"; });
+    m.directors.forEach((n) => { r[n] = "Director"; });
+    return r;
+  };
 
   function links(film) {
     const tt = FL.meta.idFor(film);
@@ -179,6 +195,7 @@
           "</aside>" +
         "</div>" +
         '<div class="container" data-slot="series">' + seriesRail(film) + "</div>" +
+        '<div class="container" data-slot="people"></div>' +
         '<div class="container" data-slot="similar">' + rail("More like this", FL.catalogue.similar(film, 18)) + "</div>" +
       "</article>";
 
@@ -203,6 +220,10 @@
       slot("scores").innerHTML = scores(film, m);
       slot("overview").textContent = desc() || "No synopsis available.";
       slot("credits").innerHTML = credits(m || { directors: [], writers: [], cast: [] });
+      if (m) {
+        FL.people.photos(castNames(m), castRoles(m)).then(() => { if (el.isConnected) FL.people.paint(slot("credits")); });
+        moreFrom(m);
+      }
       slot("details").innerHTML = detailsList(film, m);
       const tr = $('[data-fa="trailer"]', el);
       if (tr) tr.hidden = !(m && m.trailer);
@@ -211,6 +232,22 @@
       if (poster && !poster.querySelector("img.is-in") && FL.meta.idFor(film)) {
         poster.outerHTML = art(film, { size: "medium", eager: true });
       }
+    }
+
+    /* "More from Rajkumar Hirani": the director's other films, fetched once per session. */
+    let moreShown = false;
+    function moreFrom(meta) {
+      const dir = meta.directors[0];
+      if (!dir || moreShown) return;
+      moreShown = true;
+      FL.people.filmography(dir).then((list) => {
+        const box = slot("people");
+        if (!box || !el.isConnected) return;
+        const films = list.filter((x) => x.role === "Director" && x.film.type !== "series" && x.film.id !== film.id).map((x) => x.film);
+        if (films.length < 2) return;
+        box.innerHTML = rail("More from " + esc(dir), films.slice(0, 20), { more: FL.people.href(dir), sub: "Directed by the same filmmaker" });
+        FL.ui.watchPosters(box);
+      }).catch(() => {});
     }
 
     if (m) showMeta(m);

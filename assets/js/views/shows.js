@@ -109,17 +109,20 @@
           "</div>";
       }
 
+      const bdrop = () => (data && (data.backdrop || FL.meta.backdrop(show))) || "";
+
       function episodes() {
         const list = data.episodes.filter((v) => v.s === season);
         const today = new Date().toISOString().slice(0, 10);
         const allWatched = list.filter((v) => v.aired).every((v) => FL.store.episodeWatched(show.id, v.s, v.e));
         return '<div class="season-head"><h2 class="h2">' + seasonLabel(season) + ' <span class="muted">' + plural(list.length, "episode") + "</span></h2>" +
           (list.some((v) => v.aired) ? '<button type="button" class="btn btn-sm btn-ghost" data-sa="season">' + icon("check") + (allWatched ? "Unmark season" : "Mark season watched") + "</button>" : "") + "</div>" +
-          '<ol class="episodes">' + list.map((v) => {
+          '<ol class="episodes"' + (bdrop() ? ' style="--bd:url(\'' + esc(bdrop()) + '\')"' : "") + ">" + list.map((v) => {
             const w = FL.store.episodeWatched(show.id, v.s, v.e);
             const title = v.title && !/^episode \d+$/i.test(v.title) && v.title !== "TBD" ? v.title : "Episode " + v.e;
             return '<li class="ep' + (w ? " is-watched" : "") + (v.aired ? "" : " is-upcoming") + '" data-ep="' + epKey(v) + '">' +
               '<a class="ep-thumb" ' + (v.aired ? 'href="#/watch/' + encodeURIComponent(show.id) + "?s=" + v.s + "&e=" + v.e + '"' : 'aria-disabled="true"') + ' tabindex="-1">' +
+                '<span class="ep-fallback" aria-hidden="true"><b>' + (v.s ? "S" + v.s + " · " : "") + "E" + v.e + "</b></span>" +
                 (v.thumb ? '<img src="' + esc(v.thumb) + '" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.remove()">' : "") +
                 (v.aired ? '<span class="ep-play">' + icon("play") + "</span>" : "") + "</a>" +
               '<div class="ep-main"><div class="ep-title"><span class="ep-num">E' + v.e + "</span>" + esc(title) + "</div>" +
@@ -140,10 +143,10 @@
           '<div class="container film-body">' +
             '<div class="film-main">' +
               (show.desc ? '<section><h2 class="label">About</h2><p class="lede">' + esc(show.desc) + "</p></section>" : "") +
+              (data.cast.length ? '<section class="show-cast"><h2 class="label">Cast &amp; hosts</h2><div class="people">' + data.cast.slice(0, 10).map((n) => FL.people.chip(n, "")).join("") + "</div></section>" : "") +
               '<section class="show-season"><div class="season-nav">' + seasonsNav() + '</div><div data-episodes>' + episodes() + "</div></section>" +
             "</div>" +
             '<aside class="film-record panel" aria-label="Your record"><h2 class="h3">Your rating</h2>' + ratingWidget(show) +
-              (data.cast.length ? '<div class="record-block"><span class="label">Cast</span><p>' + data.cast.map(esc).join(", ") + "</p></div>" : "") +
               '<p class="ext-links"><a class="link" target="_blank" rel="noopener noreferrer" href="https://www.imdb.com/title/' + esc(show.imdbId || show.id) + '/">IMDb ↗</a>' +
                 '<a class="link" target="_blank" rel="noopener noreferrer" href="' + FL.ui.whereToWatch(show) + '">Where to watch ↗</a></p>' +
             "</aside>" +
@@ -159,6 +162,7 @@
           box.appendChild(img);
         }
         FL.ui.watchPosters(el);
+        if (data.cast.length) FL.people.photos(data.cast.slice(0, 10)).then(() => { if (alive) FL.people.paint(el); });
         const on = el.querySelector(".season-nav .is-on");
         if (on) on.scrollIntoView({ inline: "center", block: "nearest" });
       }

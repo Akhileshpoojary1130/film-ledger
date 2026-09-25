@@ -285,20 +285,51 @@
 
   function kb(bytes) { return bytes > 1048576 ? (bytes / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(bytes / 1024)) + " KB"; }
 
+  function swatchStyle(pv) {
+    return "--pv-bg:" + pv.bg + ";--pv-s:" + pv.s + ";--pv-text:" + pv.text + ";--pv-accent:" + pv.accent;
+  }
+
   function appearanceHtml() {
     const a = FL.store.prefs().appearance;
-    const current = FL.theme.accent();
-    const themes = Object.keys(FL.theme.THEMES).map((id) => {
-      const t = FL.theme.THEMES[id];
+    const T = FL.theme;
+    const mode = T.mode();
+    const current = T.accent();
+    const styleDefault = (id) => ({ bg: { cinema: "#0A0A0B", material: "#17151B", mac: "#1C1C1E" }[id], s: { cinema: "#27272C", material: "#36343B", mac: "#3A3A3C" }[id], text: "#F5F5F2", accent: T.THEMES[id].accent.dark });
+    const presets = T.PRESETS.map((p) => {
+      const pal = T.PALETTES.find((x) => x.id === p.set.palette);
+      const pv = (pal && T.preview(pal, mode)) || styleDefault(p.set.theme);
+      const on = a.theme === p.set.theme && (a.palette || "default") === p.set.palette && (a.glass || "off") === p.set.glass && (a.ambient || "off") === p.set.ambient;
+      return '<button type="button" class="preset' + (on ? " is-on" : "") + '" data-preset="' + p.id + '" aria-pressed="' + on + '" style="' + swatchStyle(pv) + '">' +
+        '<span class="preset-art" data-ambient-preview="' + p.set.ambient + '" data-glass-preview="' + p.set.glass + '" aria-hidden="true"><i></i><i></i></span><span>' + p.name + "</span></button>";
+    }).join("");
+    const themes = Object.keys(T.THEMES).map((id) => {
+      const t = T.THEMES[id];
       return '<button type="button" class="theme-card theme-' + id + (a.theme === id ? " is-on" : "") + '" data-theme-pick="' + id + '" aria-pressed="' + (a.theme === id) + '">' +
         '<span class="theme-preview" aria-hidden="true"><i></i><i></i><i></i></span><strong>' + t.label + "</strong><small>" + t.note + "</small></button>";
     }).join("");
-    const swatches = '<button type="button" class="swatch swatch-auto' + (!a.accent ? " is-on" : "") + '" data-accent="" title="Theme default" aria-label="Theme default">' + icon("spark") + "</button>" +
-      FL.theme.ACCENTS.map(([hex, name]) => '<button type="button" class="swatch' + (a.accent === hex ? " is-on" : "") + '" data-accent="' + hex + '" style="--sw:' + hex + '" title="' + name + '" aria-label="' + name + '"></button>').join("") +
+    const palettes = T.PALETTES.map((p) => {
+      const pv = T.preview(p, mode) || styleDefault(T.id());
+      const on = (a.palette || "default") === p.id;
+      return '<button type="button" class="pal-swatch' + (on ? " is-on" : "") + '" data-palette="' + p.id + '" aria-pressed="' + on + '" title="' + esc(p.name) + '" style="' + swatchStyle(pv) + '">' +
+        '<span class="pal-swatch-art" aria-hidden="true"><i></i></span><small>' + esc(p.name) + "</small></button>";
+    }).join("");
+    const swatches = '<button type="button" class="swatch swatch-auto' + (!a.accent ? " is-on" : "") + '" data-accent="" title="Palette default" aria-label="Palette default">' + icon("spark") + "</button>" +
+      T.ACCENTS.map(([hex, name]) => '<button type="button" class="swatch' + (a.accent === hex ? " is-on" : "") + '" data-accent="' + hex + '" style="--sw:' + hex + '" title="' + name + '" aria-label="' + name + '"></button>').join("") +
       '<label class="swatch swatch-custom" title="Custom colour" style="--sw:' + current + '"><input type="color" value="' + current + '" data-accent-custom aria-label="Custom accent colour"></label>';
-    return '<div class="theme-grid">' + themes + "</div>" +
+    return '<h4 class="set-sub">Quick looks</h4><div class="preset-row">' + presets + "</div>" +
+      '<h4 class="set-sub">Style</h4><div class="theme-grid">' + themes + "</div>" +
+      '<h4 class="set-sub">Palette <span class="muted">' + T.PALETTES.length + "</span></h4><div class=\"palette-grid\">" + palettes + "</div>" +
       '<div class="setting-row"><span>Mode</span>' + FL.ui.segmented("mode", [["dark", "Dark"], ["light", "Light"], ["system", "Auto"]], a.mode) + "</div>" +
-      '<div class="setting-row"><span>Accent</span><div class="swatches">' + swatches + "</div></div>";
+      '<div class="setting-row"><span>Accent</span><div class="swatches">' + swatches + "</div></div>" +
+      '<div class="setting-row"><span>Liquid glass<small>Frosted, see-through panels and bars</small></span>' + FL.ui.segmented("glass", T.GLASS, T.glass()) + "</div>" +
+      '<div class="setting-row"><span>Background<small>Lights drift behind frosted glass; Aurora is slow colour</small></span>' + FL.ui.segmented("ambient", T.AMBIENT, T.ambient()) + "</div>" +
+      '<div class="setting-row"><span>Motion<small>Calm turns off tilt, drift and page effects</small></span>' + FL.ui.segmented("motion", [["full", "Full"], ["calm", "Calm"]], a.motion === "calm" ? "calm" : "full") + "</div>";
+  }
+
+  function homeHtml() {
+    const max = (FL.store.prefs().home || {}).continueMax || 3;
+    return '<div class="setting-row"><span>Continue watching<small>How many unfinished titles Home shows</small></span>' +
+      FL.ui.segmented("cwmax", [["1", "1"], ["2", "2"], ["3", "3"]], String(max)) + "</div>";
   }
 
   function storageHtml(status, protectedStorage) {
@@ -331,10 +362,12 @@
       '<div class="modal-pad settings">' +
         '<h2 class="h2">Settings</h2>' +
         '<section data-sec="appearance"><h3 class="label">Appearance</h3><div data-appearance>' + appearanceHtml() + "</div></section>" +
+        '<section data-sec="home"><h3 class="label">Home</h3><div data-homeset>' + homeHtml() + "</div></section>" +
         '<section><label class="label" for="set-name">Your name</label>' +
           '<input class="input" id="set-name" maxlength="40" placeholder="Used in the greeting" value="' + esc(prefs.name || "") + '"></section>' +
         '<section data-sec="storage"><h3 class="label">Storage</h3><div data-storage>' + storageHtml(FL.persist.status(), false) + "</div></section>" +
-        '<section><h3 class="label">Stream servers</h3><p class="sub">Reachability from your network right now. The player skips servers that don’t answer.</p>' +
+        '<section><h3 class="label">Stream servers</h3><p class="sub">Reachability from your network right now; the player skips servers that don’t answer. ' +
+          "“Unreachable” usually means your internet provider or an ad blocker blocks that server — it isn’t something Iris can change. Titles no server carries have a <em>Where to watch</em> link.</p>" +
           '<ul class="server-list">' + serverRows() + '</ul><button type="button" class="btn btn-sm btn-ghost" data-set="recheck">Re-check</button></section>' +
         '<section><h3 class="label">Maintenance</h3><div class="btn-row">' +
           '<button type="button" class="btn btn-ghost" data-set="clear-cache">Clear artwork & details cache</button>' +
@@ -382,12 +415,34 @@
     m.el.addEventListener("change", (e) => { if (e.target.matches("[data-accent-custom]")) repaintAppearance(); });
 
     m.el.addEventListener("click", (e) => {
+      const pre = e.target.closest("[data-preset]");
+      if (pre) {
+        const p = FL.theme.PRESETS.find((x) => x.id === pre.dataset.preset);
+        if (p) { FL.theme.set(Object.assign({ accent: "" }, p.set)); repaintAppearance(); }
+        return;
+      }
       const t = e.target.closest("[data-theme-pick]");
-      if (t) { FL.theme.set({ theme: t.dataset.themePick, accent: "" }); repaintAppearance(); return; }
+      if (t) { FL.theme.set({ theme: t.dataset.themePick }); repaintAppearance(); return; }
+      const pal = e.target.closest("[data-palette]");
+      if (pal) { FL.theme.set({ palette: pal.dataset.palette, accent: "" }); repaintAppearance(); return; }
       const sw = e.target.closest("[data-accent]");
       if (sw) { FL.theme.set({ accent: sw.dataset.accent }); repaintAppearance(); return; }
-      const seg = e.target.closest('[data-seg="mode"]');
-      if (seg) { FL.theme.set({ mode: seg.dataset.value }); repaintAppearance(); return; }
+      const seg = e.target.closest('[data-seg="mode"], [data-seg="glass"], [data-seg="ambient"], [data-seg="motion"]');
+      if (seg) {
+        const patch = { [seg.dataset.seg]: seg.dataset.value };
+        // Lights and aurora are meant to be seen through glass.
+        if (seg.dataset.seg === "ambient" && seg.dataset.value !== "off" && FL.theme.glass() === "off") patch.glass = "subtle";
+        FL.theme.set(patch);
+        repaintAppearance();
+        return;
+      }
+      const cw = e.target.closest('[data-seg="cwmax"]');
+      if (cw) {
+        FL.store.patchPref("home", { continueMax: +cw.dataset.value });
+        $("[data-homeset]", m.el).innerHTML = homeHtml();
+        FL.app.refresh();
+        return;
+      }
       const b = e.target.closest("[data-set]");
       if (!b) return;
       const act = b.dataset.set;

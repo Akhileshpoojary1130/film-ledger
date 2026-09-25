@@ -42,15 +42,21 @@
   const bgQueue = limiter(3);
   const searchCache = new Map();
 
-  function cinemetaSearch(query, live) {
+  function cinemetaSearch(query, live, type) {
     const q = normalize(query);
+    const kind = type === "series" ? "series" : "movie";
+    const key = kind === "movie" ? q : kind + ":" + q;
     if (!q) return Promise.resolve([]);
-    if (searchCache.has(q)) return searchCache.get(q);
-    const url = CINEMETA + "/catalog/movie/top/search=" + encodeURIComponent(q) + ".json";
+    if (searchCache.has(key)) return searchCache.get(key);
+    const url = CINEMETA + "/catalog/" + kind + "/top/search=" + encodeURIComponent(q) + ".json";
     const p = (live ? liveQueue : bgQueue)(() => fetchJSON(url, { timeout: 12000 }))
-      .then((d) => (d && d.metas) || [])
-      .catch(() => { searchCache.delete(q); return []; });
-    searchCache.set(q, p);
+      .then((d) => {
+        const metas = (d && d.metas) || [];
+        if (!metas.length) searchCache.delete(key); // could be a hiccup; ask again next time
+        return metas;
+      })
+      .catch(() => { searchCache.delete(key); return []; });
+    searchCache.set(key, p);
     return p;
   }
 
@@ -116,6 +122,7 @@
         const tt = hit ? hit.imdb_id || hit.id : "";
         if (tt) {
           setImdb(film, tt);
+          FL.catalogue.setRating(film, hit.imdbRating);
           if (hit.poster && !film.poster) notePoster(film, hit.poster);
         } else if (metas.length) {
           imdbMap[film.id] = Date.now(); // searched fine, no match — don't ask again for a week
@@ -139,7 +146,7 @@
       genres: (m.genres || m.genre || []).slice(0, 4),
       runtime: parseInt(m.runtime, 10) || 0,
       directors: (m.director || []).slice(0, 3),
-      cast: (m.cast || []).slice(0, 8),
+      cast: (m.cast || []).slice(0, 10),
       writers: (m.writer || []).slice(0, 3),
       desc: String(m.description || "").slice(0, 1200),
       tmdb: m.moviedb_id || 0,
@@ -182,6 +189,7 @@
 
   function applyDetails(film, m, tt) {
     FL.store.setDetails(film.id, { runtime: m.runtime, directors: m.directors, imdbId: tt });
+    FL.catalogue.setRating(film, m.rating);
     if (film.remote && (!film.genres.length || !film.rating || !film.country)) {
       FL.catalogue.updateRemote(film, { title: m.name, year: m.year, genres: m.genres, rating: m.rating, country: m.country, desc: m.desc, released: m.released });
       if (FL.remote) FL.remote.touch(film);
@@ -318,6 +326,17 @@
       }
     });
   }
+
+  // Ratings fetched on earlier visits replace the bundled snapshot right away.
+  Object.keys(metaCache).forEach((tt) => {
+    const f = FL.catalogue.byImdb(tt);
+    if (f && metaCache[tt].rating) FL.catalogue.setRating(f, metaCache[tt].rating);
+  });
+  Object.keys(imdbMap).forEach((id) => {
+    const tt = imdbMap[id];
+    const m = typeof tt === "string" && metaCache[tt];
+    if (m && m.rating) FL.catalogue.setRating(FL.catalogue.get(id), m.rating);
+  });
 
   FL.meta = {
     idFor, setImdb, resolveImdb, details, fetchMeta, cached, cinemetaSearch, sized,

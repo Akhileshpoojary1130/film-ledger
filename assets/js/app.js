@@ -16,9 +16,10 @@
     [/^\/diary(?:\/(\d{4}))?$/, "diary"],
     [/^\/stats(?:\/(\w+))?$/, "stats"],
     [/^\/collection\/([\w-]+)$/, "collection"],
+    [/^\/person\/(.+)$/, "person"],
   ];
 
-  const NAV_FOR = { home: "home", years: "years", browse: "browse", shows: "shows", show: "shows", film: "", library: "library", collection: "library", diary: "library", stats: "stats" };
+  const NAV_FOR = { home: "home", years: "years", browse: "browse", shows: "shows", show: "shows", film: "", library: "library", collection: "library", diary: "library", stats: "stats", person: "" };
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
 
   let viewEl = null;
@@ -151,14 +152,32 @@
     window.scrollTo(0, 0);
     viewEl.innerHTML = "";
     current = { name, handle: {}, hash: location.hash };
-    current.handle = view.mount(viewEl, params, query) || {};
+    try {
+      current.handle = view.mount(viewEl, params, query) || {};
+    } catch (err) {
+      // One broken page must never take the app down with it.
+      console.error(err);
+      current.handle = {};
+      viewEl.innerHTML = '<div class="container page">' + FL.ui.empty("Something went wrong on this page.", FL.util.esc(String(err && err.message || err)),
+        '<button type="button" class="btn" onclick="location.reload()">Reload</button> <a class="btn btn-ghost" href="#/">Go home</a>') + "</div>";
+    }
     FL.ui.watchPosters(viewEl);
     setNav(name);
+    blink();
+  }
+
+  /* The logo's shutter closes and reopens as you move between pages. */
+  function blink() {
+    const m = document.querySelector(".brand-mark");
+    if (!m || FL.theme.calm()) return;
+    m.classList.remove("is-blink");
+    void m.getBoundingClientRect();
+    m.classList.add("is-blink");
   }
 
   /* Cross-fade between pages; the poster you clicked glides into the film page's poster. */
   function mount(name, params, query) {
-    const canMorph = document.startViewTransition && !reduced.matches && current.name && !document.hidden;
+    const canMorph = document.startViewTransition && !reduced.matches && !FL.theme.calm() && current.name && !document.hidden;
     if (!canMorph) {
       doMount(name, params, query);
       viewEl.classList.remove("enter");
@@ -205,7 +224,7 @@
       return;
     }
 
-    if (FL.player.isOpen()) FL.player.close();
+    if (FL.player && FL.player.isOpen()) FL.player.close();
     FL.ui.closeModals();
     // Back from the player lands on the page that was already mounted underneath: keep it as is.
     if (current.name && location.hash === current.hash) return;
@@ -267,10 +286,10 @@
     const mod = e.metaKey || e.ctrlKey;
     if (mod && (e.key === "k" || e.key === "K")) {
       e.preventDefault();
-      if (!FL.player.isOpen()) FL.palette.open();
+      if (!(FL.player && FL.player.isOpen()) && FL.palette) FL.palette.open();
       return;
     }
-    if (FL.player.isOpen() || FL.ui.isModalOpen() || isTyping(e) || mod || e.altKey) return;
+    if ((FL.player && FL.player.isOpen()) || FL.ui.isModalOpen() || isTyping(e) || mod || e.altKey) return;
     const k = e.key;
 
     if (gPending) {
@@ -311,10 +330,17 @@
     },
   };
 
-  chrome();
   window.addEventListener("hashchange", () => { depth++; route(); });
   depth = 1;
-  route();
+  try {
+    chrome();
+    route();
+  } catch (err) {
+    console.error(err);
+    (viewEl || document.getElementById("view")).innerHTML = '<div class="container page">' + FL.ui.empty("Iris hit a problem while starting.", FL.util.esc(String(err && err.message || err)),
+      '<button type="button" class="btn" onclick="location.reload()">Reload</button>') + "</div>";
+  }
+  FL.started = true;
   reveal();
 
   // Fill in runtimes/directors for watched films in the background so hours are right everywhere.

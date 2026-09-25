@@ -35,7 +35,8 @@
   }
 
   function continueRail() {
-    const list = FL.store.continueWatching().slice(0, 8);
+    const max = Math.min(3, Math.max(1, +(FL.store.prefs().home || {}).continueMax || 3));
+    const list = FL.store.continueWatching().slice(0, max);
     if (!list.length) return "";
     const cards = list.map((e) => {
       const film = FL.catalogue.get(e.id);
@@ -146,6 +147,33 @@
     });
   }
 
+  /* "More from Rajkumar Hirani" / "More with Pankaj Tripathi": the people behind what you watch and rate highly. */
+  function peopleSlots() {
+    return FL.people.favourites(2).map((p, i) =>
+      '<section class="rail" data-rail-id="person-' + i + '" data-person="' + esc(p.name) + '" data-role="' + p.role + '" data-films="' + p.films + '">' +
+      '<header class="section-head"><div><h2 class="h2">' + (p.role === "Director" ? "More from " : "More with ") + esc(p.name) + "</h2>" +
+      '<p class="sub">You’ve watched ' + FL.util.plural(p.films, "film") + (p.role === "Director" ? " they directed" : " with them") + "</p></div>" +
+      '<div class="section-tools"><a class="link-more" href="' + FL.people.href(p.name) + '">All' + icon("arrow-right") + "</a></div></header>" +
+      '<div class="rail-loading">' + FL.ui.loader(28) + "</div></section>").join("");
+  }
+
+  function fillPeople(el) {
+    el.querySelectorAll("[data-person]").forEach((slot) => {
+      const name = slot.dataset.person;
+      FL.people.filmography(name).then((list) => {
+        if (!slot.isConnected) return;
+        const films = list.filter((x) => x.film.type !== "series" && (slot.dataset.role !== "Director" || x.role === "Director") &&
+          !FL.store.state(x.film.id).watched && x.film.year && x.film.year <= new Date().getFullYear()).map((x) => x.film);
+        if (films.length < 3) { slot.remove(); return; }
+        const track = document.createElement("div");
+        track.className = "rail-track";
+        track.innerHTML = films.slice(0, 18).map((f) => card(f)).join("");
+        slot.querySelector(".rail-loading").replaceWith(track);
+        FL.ui.watchPosters(slot);
+      }).catch(() => slot.remove());
+    });
+  }
+
   function render(el) {
     const hasLibrary = FL.store.entries().length > 0;
     const name = FL.store.prefs().name;
@@ -165,12 +193,14 @@
       '<div class="home-split">' + tonight() + recentDiary() + "</div>" +
       reasonRail("Up next in your series", next, { sub: "The next film after the ones you’ve seen" }) +
       reasonRail("For you", forYou, { sub: "From your ratings, favourites and what you watch" }) +
+      peopleSlots() +
       yourShows() +
       rail("Your watchlist", listed.slice(0, 24), { more: "#/library/watchlist", sub: listed.length ? FL.util.plural(listed.length, "title") : "", empty: FL.ui.empty("Your next favourite hasn’t been saved yet.", "Tap the bookmark on any poster.") }) +
       (favs.length ? rail("Films that stayed with you", favs.slice(0, 24), { more: "#/library/favorites" }) : "") +
       discovery() +
       "</div>";
     fillReality(el);
+    fillPeople(el);
   }
 
   FL.views = FL.views || {};

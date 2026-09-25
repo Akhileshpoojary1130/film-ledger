@@ -8,14 +8,19 @@
 <meta name="theme-color" content="#0A0A0B">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230A0A0B'/%3E%3Ccircle cx='16' cy='16' r='10' fill='none' stroke='%23D6A75D' stroke-width='3'/%3E%3C/svg%3E">
 <script>
-  /* Apply the saved theme before first paint so there's no flash. theme.js takes over once loaded. */
+  /* Paint the saved look before anything else so there's no flash; theme.js takes over once loaded. */
   (function () {
     try {
-      var a = (JSON.parse(localStorage.getItem("film_ledger_prefs_v4") || "{}").appearance) || {};
       var r = document.documentElement;
-      var m = a.mode === "system" ? (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark") : a.mode === "light" ? "light" : "dark";
+      var look = JSON.parse(localStorage.getItem("film_ledger_look_v1") || "null");
+      if (look) {
+        for (var k in look.data) r.setAttribute("data-" + k, look.data[k]);
+        r.setAttribute("style", look.style || "");
+        return;
+      }
+      var a = (JSON.parse(localStorage.getItem("film_ledger_prefs_v4") || "{}").appearance) || {};
       r.dataset.theme = a.theme || "cinema";
-      r.dataset.mode = m;
+      r.dataset.mode = a.mode === "light" ? "light" : "dark";
       if (a.accent) r.style.setProperty("--accent", a.accent);
     } catch (e) {}
   })();
@@ -35,23 +40,63 @@
   </div>
 </div>
 <main id="view" class="view" tabindex="-1"></main>
+<script>
+  /* If Iris hasn't started, say why instead of showing the loader forever. */
+  (function () {
+    var failed = [], errors = [];
+    window.addEventListener("error", function (e) {
+      var t = e.target;
+      if (t && (t.tagName === "SCRIPT" || t.tagName === "LINK")) failed.push((t.getAttribute("src") || t.getAttribute("href") || "").split("/").pop());
+      else if (e.message) errors.push(e.message);
+    }, true);
+    function check(final) {
+      if (window.FL && window.FL.started) return;
+      var boot = document.getElementById("boot");
+      if (!boot || (!final && !failed.length && !errors.length)) return;
+      var why = failed.length
+        ? "Your browser didn’t load " + failed.slice(0, 4).join(", ") + (failed.length > 4 ? " and " + (failed.length - 4) + " more" : "") +
+          ". An ad or tracker blocker, a very old browser, or a dropped connection usually causes this — allow this site in the blocker, then reload."
+        : errors.length ? "Something failed while starting: " + errors[0] : "It’s taking unusually long — the connection may be very slow.";
+      boot.innerHTML = '<div class="boot-error" style="max-width:420px;padding:24px;text-align:center;font:14px/1.5 system-ui,sans-serif;color:inherit">' +
+        '<p style="font-size:20px;margin:0 0 8px">Iris couldn’t start</p><p style="opacity:.75;margin:0 0 18px"></p>' +
+        '<button type="button" data-r style="padding:9px 16px;border-radius:8px;border:0;cursor:pointer;margin:4px;background:#D6A75D;color:#16120A;font-weight:600">Reload</button>' +
+        '<button type="button" data-c style="padding:9px 16px;border-radius:8px;border:1px solid currentColor;background:none;color:inherit;cursor:pointer;margin:4px">Clear cached artwork &amp; reload</button>' +
+        '<p style="opacity:.55;font-size:12px;margin:14px 0 0">Your library and settings are kept either way.</p></div>';
+      boot.querySelector("p + p").textContent = why;
+      boot.querySelector("[data-r]").onclick = function () { location.reload(); };
+      boot.querySelector("[data-c]").onclick = function () {
+        try {
+          Object.keys(localStorage).forEach(function (k) {
+            if (/^film_ledger_/.test(k) && !/^film_ledger_(library_v1|prefs_v4|watched_v3|preferences_v3)$/.test(k)) localStorage.removeItem(k);
+          });
+        } catch (e) {}
+        location.reload();
+      };
+    }
+    window.addEventListener("load", function () { setTimeout(function () { check(false); }, 1200); });
+    setTimeout(function () { check(true); }, 20000);
+  })();
+</script>
 
 <script src="data/catalogue.js" defer></script>
 <script src="assets/js/util.js" defer></script>
 <script src="assets/js/catalogue.js" defer></script>
 <script src="assets/js/store.js" defer></script>
 <script src="assets/js/theme.js" defer></script>
+<script src="assets/js/ambient.js" defer></script>
 <script src="assets/js/meta.js" defer></script>
 <script src="assets/js/remote.js" defer></script>
+<script src="assets/js/people.js" defer></script>
 <script src="assets/js/persist.js" defer></script>
 <script src="assets/js/ui.js" defer></script>
 <script src="assets/js/player.js" defer></script>
-<script src="assets/js/views/stats.js" defer></script>
+<script src="assets/js/views/insights.js" defer></script>
 <script src="assets/js/views/home.js" defer></script>
 <script src="assets/js/views/years.js" defer></script>
 <script src="assets/js/views/browse.js" defer></script>
 <script src="assets/js/views/film.js" defer></script>
 <script src="assets/js/views/shows.js" defer></script>
+<script src="assets/js/views/person.js" defer></script>
 <script src="assets/js/views/library.js" defer></script>
 <script src="assets/js/palette.js" defer></script>
 <script src="assets/js/app.js" defer></script>
