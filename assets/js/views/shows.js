@@ -38,7 +38,7 @@
         '<p class="sub page-sub">New episodes appear as they air; your place is kept.</p></div></header>' +
         (mine.length ? rail("Your shows", mine) : "") +
         slot("reality", "Indian reality &amp; talent") +
-        slot("indian", "Indian web series", "Mirzapur, Panchayat, The Family Man and more. New seasons appear as they drop") +
+        slot("indian", "Indian web series") +
         slot("top", "Popular series right now") +
         slot("realityworld", "Reality TV worldwide") +
         "</div>";

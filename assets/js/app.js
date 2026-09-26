@@ -51,6 +51,8 @@
           '<a class="icon-btn topbar-coll" href="#/collections" data-nav="collections" aria-label="Collections" title="Collections">' + icon("collections") + "</a>" +
           '<button type="button" class="icon-btn" data-open="pick" aria-label="Surprise me" title="Surprise me (R)">' + icon("shuffle") + "</button>" +
           '<button type="button" class="icon-btn" data-open="settings" aria-label="Settings" title="Settings, theme & storage">' + icon("sliders") + "</button>" +
+          // Phones can have search as a round button just under Settings instead (Settings → Appearance → Search button).
+          '<button type="button" class="search-float" data-open="palette" aria-label="Search" title="Search">' + icon("search") + "</button>" +
         "</div></div></header>",
       bottom: '<footer class="site-foot"><div class="container">' +
           '<a class="foot-sign" href="#/">' + FL.theme.mark({ size: 18, cls: "foot-mark" }) + '<span class="brand-word">Iris</span></a>' +
@@ -58,7 +60,8 @@
         '<nav class="tabbar" aria-label="Primary">' +
           '<a href="#/" data-nav="home">' + icon("home") + "<span>Home</span></a>" +
           '<a href="#/years" data-nav="years">' + icon("years") + "<span>Years</span></a>" +
-          '<button type="button" class="tab-search" data-open="palette" aria-label="Search">' + icon("search") + "</button>" +
+          // Search lives in the top bar on every page, so the tab bar's big middle button is Browse.
+          '<a href="#/browse" class="tab-browse" data-nav="browse" aria-label="Browse" title="Browse">' + icon("compass") + "</a>" +
           '<a href="#/shows" data-nav="shows">' + icon("tv") + "<span>Shows</span></a>" +
           '<a href="#/library/watchlist" data-nav="library" data-nav-also="collections">' + icon("layers") + "<span>Library</span></a>" +
         "</nav>",
@@ -127,7 +130,7 @@
         pill.setAttribute("aria-hidden", "true");
         bar.prepend(pill);
       }
-      const on = bar.querySelector("a.is-on");
+      const on = bar.querySelector("a.is-on:not(.tab-browse)"); // Browse's button shows its own state
       if (!on || !on.offsetWidth) { pill.style.opacity = "0"; return; }
       const first = !pill.dataset.placed;
       if (first) pill.style.transition = "none";

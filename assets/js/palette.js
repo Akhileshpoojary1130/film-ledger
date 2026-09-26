@@ -353,6 +353,8 @@
       '<h4 class="set-sub">More</h4>' +
       '<div class="setting-row"><span>Year picker<small>How you choose a year on the Years page</small></span>' +
         FL.ui.segmented("picker", [["dial", "Dial"], ["wheel", "Wheel"], ["ruler", "Ruler"], ["chips", "Chips"]], picker) + "</div>" +
+      '<div class="setting-row"><span>Search button<small>On phones: in the middle of the top bar, or a round button under Settings</small></span>' +
+        FL.ui.segmented("searchspot", [["center", "Top centre"], ["float", "Under settings"]], a.searchSpot === "float" ? "float" : "center") + "</div>" +
       '<div class="setting-row"><span>Trailer on hover<small>Rest the mouse on a poster for 3 seconds to preview it</small></span>' +
         FL.ui.segmented("hovertrailer", [["on", "On"], ["off", "Off"]], a.hoverTrailer === false ? "off" : "on") + "</div>" +
       '<div class="setting-row"><span>Mood headline<small>Home’s headline takes a typeface from what you’ve been watching</small></span>' +
@@ -496,6 +498,8 @@
       }
       const pk = e.target.closest('[data-seg="picker"]');
       if (pk) { FL.store.patchPref("years", { picker: pk.dataset.value }); repaintAppearance(); FL.app.refresh(); return; }
+      const sp = e.target.closest('[data-seg="searchspot"]');
+      if (sp) { FL.theme.set({ searchSpot: sp.dataset.value }); repaintAppearance(); return; }
       const ht = e.target.closest('[data-seg="hovertrailer"]');
       if (ht) { FL.store.patchPref("appearance", { hoverTrailer: ht.dataset.value === "on" }); repaintAppearance(); return; }
       const mt = e.target.closest('[data-seg="moodtype"]');

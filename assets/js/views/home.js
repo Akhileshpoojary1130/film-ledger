@@ -29,7 +29,7 @@
       ["#/library/watched", s.films.toLocaleString(), s.films === 1 ? "film watched" : "films watched", "watched"],
       ["#/diary", y.films.toLocaleString(), "in " + year],
       ["#/stats", fmtHours(s.minutes), "cinema time"],
-      ["#/library/watchlist", FL.store.watchlist().length.toLocaleString(), "on watchlist"],
+      ["#/library/watchlist", FL.store.watchlist().length.toLocaleString(), "on watchlist", "to watch"],
     ];
     // A shorter label for phones, where "films watched" would wrap and throw the row out of line.
     return '<div class="glance">' + items.map(([href, n, label, short]) =>
@@ -100,7 +100,7 @@
     const label = h >= 5 && h < 12 ? "For later today" : h >= 12 && h < 17 ? "This afternoon" : "Tonight";
     return '<article class="tonight">' +
       '<header class="tonight-head"><div><p class="eyebrow">' + label + "</p><h2 class=\"h2\">Three picks for you</h2></div>" +
-      '<button type="button" class="btn btn-ghost btn-sm" data-home="another">' + icon("shuffle") + "Another three</button></header>" +
+      '<button type="button" class="btn btn-ghost btn-sm tonight-more" data-home="another" aria-label="Another three" title="Another three">' + icon("shuffle") + '<span class="hide-sm">Another three</span></button></header>' +
       '<ol class="tonight-list">' + picks.map(({ film, reason }) => {
         const m = FL.meta.cached(film);
         const facts = [FL.catalogue.yearLabel(film), FL.catalogue.filmLang(film), m && m.runtime ? FL.util.fmtRuntime(m.runtime) : film.genres[0]]

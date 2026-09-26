@@ -8,7 +8,9 @@ Live: https://film-ledger-mocha.vercel.app/
 
 ## What it does
 
-- **Home** — one big search bar that docks into the top bar's search as you scroll. The
+- **Home** — one big search bar that docks into the top bar's search as you scroll (on a phone the top bar's search is
+  always there, in the middle of the bar or as a round button under Settings — Settings → More — and the tab bar's big
+  middle button is **Browse**). The
   headline follows the time of day (early bird, lunch — "Had lunch yet?", dinner, late night), changes every six hours
   with different wording each day, and takes a typeface from what you've been watching (eerie for horror, bold for
   action, sunny for comedy). Then *Continue watching* (1–3, in Settings), **three picks** — one from your taste, one

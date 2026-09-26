@@ -304,6 +304,7 @@
     root.dataset.glass = t === "pop" || t === "retro" ? "off" : glass(); // Pop and Retro are flat colour by design
     root.dataset.ambient = ambient();
     root.dataset.motion = calm() ? "calm" : "full";
+    root.dataset.search = prefs().searchSpot === "float" ? "float" : "center";
     const tk = tokens(palette(), m);
     TOKEN_NAMES.forEach((k) => { if (tk) root.style.setProperty(k, tk[k]); else root.style.removeProperty(k); });
     root.style.setProperty("--accent", a);
@@ -315,7 +316,7 @@
     favicon();
     if (FL.ambient) FL.ambient.sync();
     try {
-      const data = { theme: t, mode: m, glass: root.dataset.glass, ambient: root.dataset.ambient, motion: root.dataset.motion };
+      const data = { theme: t, mode: m, glass: root.dataset.glass, ambient: root.dataset.ambient, motion: root.dataset.motion, search: root.dataset.search };
       localStorage.setItem("film_ledger_look_v1", JSON.stringify({ data, style: root.getAttribute("style") || "" }));
     } catch (e) { /* private mode: the fallback in index.html still applies the basics */ }
   }
