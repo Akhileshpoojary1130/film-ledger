@@ -70,6 +70,7 @@
 
   /* One-tap combinations, including the two animated ("dynamic") looks. */
   const PRESETS = [
+    { id: "iris", name: "Iris default", set: { theme: "material", mode: "dark", palette: "contrast", accent: "#0A84FF", glass: "clear", ambient: "off", motion: "calm" } },
     { id: "classic", name: "Classic cinema", set: { theme: "cinema", palette: "default", glass: "off", ambient: "off" } },
     { id: "frost", name: "Frosted lights", set: { theme: "mac", palette: "graphite", glass: "balanced", ambient: "lights" } },
     { id: "aurora", name: "Night aurora", set: { theme: "cinema", palette: "midnight", glass: "subtle", ambient: "aurora" } },

@@ -39,9 +39,9 @@
         return;
       }
       var a = (JSON.parse(localStorage.getItem("film_ledger_prefs_v4") || "{}").appearance) || {};
-      r.dataset.theme = a.theme || "mac";
+      r.dataset.theme = a.theme || "material";
       r.dataset.mode = a.mode === "light" ? "light" : "dark";
-      if (a.accent) r.style.setProperty("--accent", a.accent);
+      r.style.setProperty("--accent", a.accent || (a.theme ? "" : "#0A84FF"));
     } catch (e) {}
   })();
 </script>

@@ -26,13 +26,14 @@
     const year = new Date().getFullYear();
     const y = FL.stats.summary(year);
     const items = [
-      ["#/library/watched", s.films.toLocaleString(), s.films === 1 ? "film watched" : "films watched"],
+      ["#/library/watched", s.films.toLocaleString(), s.films === 1 ? "film watched" : "films watched", "watched"],
       ["#/diary", y.films.toLocaleString(), "in " + year],
       ["#/stats", fmtHours(s.minutes), "cinema time"],
       ["#/library/watchlist", FL.store.watchlist().length.toLocaleString(), "on watchlist"],
     ];
-    return '<div class="glance">' + items.map(([href, n, label]) =>
-      '<a class="glance-item" href="' + href + '"><strong>' + n + "</strong><span>" + label + "</span></a>").join("") + "</div>" +
+    // A shorter label for phones, where "films watched" would wrap and throw the row out of line.
+    return '<div class="glance">' + items.map(([href, n, label, short]) =>
+      '<a class="glance-item" href="' + href + '"><strong>' + n + "</strong><span" + (short ? ' data-short="' + short + '"' : "") + ">" + label + "</span></a>").join("") + "</div>" +
       (s.missingRuntime && FL.stats.backfillPending() ? '<p class="footnote">Fetching runtimes for ' + s.missingRuntime + " films…</p>" : "");
   }
 

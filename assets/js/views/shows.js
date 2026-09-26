@@ -35,7 +35,7 @@
       const mine = FL.store.shows().map((e) => FL.catalogue.get(e.id)).filter(Boolean);
       el.innerHTML = '<div class="container page">' +
         '<header class="page-head"><div><p class="eyebrow">Shows</p><h1 class="display">Reality, talent <em>&amp; series.</em></h1>' +
-        '<p class="sub">Seasons and episodes update on their own as they air. Tick episodes as you go and your place is kept.</p></div></header>' +
+        '<p class="sub page-sub">New episodes appear as they air; your place is kept.</p></div></header>' +
         (mine.length ? rail("Your shows", mine) : "") +
         slot("reality", "Indian reality &amp; talent") +
         slot("indian", "Indian web series", "Mirzapur, Panchayat, The Family Man and more. New seasons appear as they drop") +

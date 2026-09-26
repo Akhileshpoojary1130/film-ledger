@@ -59,7 +59,9 @@ Live: https://film-ledger-mocha.vercel.app/
 
 ## Appearance
 
-New visitors start in Cupertino, high-contrast dark, clear glass over a slow aurora, calm motion. Settings →
+New visitors start in Material, high-contrast dark with a blue accent, clear glass on a still background, calm
+motion, the dial year picker, trailers on hover, the mood headline, three titles in Continue watching and the cat
+for break reminders. Everything can be changed, and the **Iris default** preset brings the look back. Settings →
 Appearance, in order:
 
 1. **Style** — Cinema, Material (Android), Cupertino (Apple), Fluent (Windows 11), One UI (Samsung), Glyph

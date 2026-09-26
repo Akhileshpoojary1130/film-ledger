@@ -1952,7 +1952,10 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
   .glance { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 16px; }
   .glance-item { padding: 8px 9px 7px; }
   .glance-item strong { font-size: 17px; }
-  .glance-item span { font-size: 10.5px; line-height: 1.2; }
+  .glance-item span { font-size: 10.5px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .glance-item span[data-short] { font-size: 0; }
+  .glance-item span[data-short]::after { content: attr(data-short); font-size: 10.5px; }
+  .page-sub { display: none; }
   .hero-search { height: 50px; margin-top: 22px; font-size: 14px; }
   .hero-search kbd { display: none; }
   .hide-sm { display: none; }

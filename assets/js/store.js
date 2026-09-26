@@ -12,8 +12,8 @@
 
   const DEFAULT_PREFS = {
     name: "",
-    // The default look: Cupertino, high-contrast dark, clear glass over a slow aurora, calm motion.
-    appearance: { theme: "mac", mode: "dark", accent: "", palette: "contrast", glass: "clear", ambient: "aurora", motion: "calm" },
+    // The default look: Material, high-contrast dark, blue, clear glass on a still background, calm motion.
+    appearance: { theme: "material", mode: "dark", accent: "#0A84FF", palette: "contrast", glass: "clear", ambient: "off", motion: "calm" },
     home: { continueMax: 3 },
     browse: { lang: "all", year: "all", genre: "", region: "", minRating: 0, status: "all", sort: "popular", view: "grid" },
     years: { lang: "all", show: "all", order: "rating", view: "grid" },
