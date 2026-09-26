@@ -9,8 +9,9 @@
 
   FL.views = FL.views || {};
   FL.views.person = {
-    mount(el, params) {
+    mount(el, params, query) {
       const name = decodeURIComponent(params[0] || "").trim();
+      const crew = !!(query && query.get("as") === "crew");
       let alive = true;
       let list = [];
       let view = "newest";
@@ -48,7 +49,7 @@
         FL.ui.watchPosters(box);
       }
 
-      FL.people.filmography(name).then((works) => {
+      FL.people.filmography(name, crew).then((works) => {
         if (!alive) return;
         // One card per title, with every role they had on it.
         const byId = new Map();

@@ -226,14 +226,14 @@
       '<section class="rail" data-rail-id="person-' + i + '" data-person="' + esc(p.name) + '" data-role="' + p.role + '" data-films="' + p.films + '">' +
       '<header class="section-head"><div><h2 class="h2">' + (p.role === "Director" ? "More from " : "More with ") + esc(p.name) + "</h2>" +
       '<p class="sub">You’ve watched ' + FL.util.plural(p.films, "film") + (p.role === "Director" ? " they directed" : " with them") + "</p></div>" +
-      '<div class="section-tools"><a class="link-more" href="' + FL.people.href(p.name) + '">All' + icon("arrow-right") + "</a></div></header>" +
+      '<div class="section-tools"><a class="link-more" href="' + FL.people.href(p.name, p.role) + '">All' + icon("arrow-right") + "</a></div></header>" +
       '<div class="rail-loading">' + FL.ui.loader(28) + "</div></section>").join("");
   }
 
   function fillPeople(el) {
     el.querySelectorAll("[data-person]").forEach((slot) => {
       const name = slot.dataset.person;
-      FL.people.filmography(name).then((list) => {
+      FL.people.filmography(name, slot.dataset.role === "Director").then((list) => {
         if (!slot.isConnected) return;
         const films = list.filter((x) => x.film.type !== "series" && (slot.dataset.role !== "Director" || x.role === "Director") &&
           !FL.store.state(x.film.id).watched && x.film.year && x.film.year <= new Date().getFullYear()).map((x) => x.film);

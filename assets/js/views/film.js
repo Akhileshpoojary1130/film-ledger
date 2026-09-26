@@ -266,12 +266,12 @@
       const dir = meta.directors[0];
       if (!dir || moreShown) return;
       moreShown = true;
-      FL.people.filmography(dir).then((list) => {
+      FL.people.filmography(dir, true).then((list) => {
         const box = slot("people");
         if (!box || !page.isConnected) return;
         const films = list.filter((x) => x.role === "Director" && x.film.type !== "series" && x.film.id !== film.id).map((x) => x.film);
         if (films.length < 2) return;
-        box.innerHTML = rail("More from " + esc(dir), films.slice(0, 20), { more: FL.people.href(dir), sub: "Directed by the same filmmaker" });
+        box.innerHTML = rail("More from " + esc(dir), films.slice(0, 20), { more: FL.people.href(dir, "Director"), sub: "Directed by the same filmmaker" });
         FL.ui.watchPosters(box);
       }).catch(() => {});
     }

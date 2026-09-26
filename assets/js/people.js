@@ -89,7 +89,9 @@
 
   const info = (name) => cache[name] || null;
   const initials = (name) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
-  const href = (name) => "#/person/" + encodeURIComponent(name);
+  // Crew (directors, writers) carry a hint so "Siddique" the writer-director isn't confused with Siddique the actor.
+  const isCrew = (role) => /Director|Writer/.test(role || "");
+  const href = (name, role) => "#/person/" + encodeURIComponent(name) + (isCrew(role) ? "?as=crew" : "");
 
   function face(name, size) {
     const e = cache[name];
@@ -99,7 +101,7 @@
   }
 
   function chip(name, role) {
-    return '<a class="person" href="' + href(name) + '">' + face(name, 36) +
+    return '<a class="person" href="' + href(name, role) + '">' + face(name, 36) +
       '<span class="person-text"><b>' + esc(name) + "</b>" + (role ? "<small>" + esc(role) + "</small>" : "") + "</span></a>";
   }
 
@@ -124,10 +126,13 @@
   const works = new Map(); // name -> Promise<[{ film, role }]>
 
   /* The person's Wikidata item, found through their Wikipedia page (trying "(actor)", "(director)"… for common names). */
-  function qidFor(name) {
-    const e = cache[name];
+  function qidFor(name, crew) {
+    const key = crew ? name + "|crew" : name;
+    const e = cache[key];
     if (e && e.q) return Promise.resolve(e.q);
-    const titles = [name, name + " (actor)", name + " (actress)", name + " (director)", name + " (filmmaker)"];
+    const titles = crew
+      ? [name + " (director)", name + " (filmmaker)", name + " (screenwriter)", name, name + " (actor)"]
+      : [name, name + " (actor)", name + " (actress)", name + " (director)", name + " (filmmaker)"];
     const url = "https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1&prop=pageprops%7Cdescription" +
       "&ppprop=wikibase_item&titles=" + encodeURIComponent(titles.join("|"));
     return queue(() => fetchJSON(url, { timeout: 12000 })).then((data) => {
@@ -143,7 +148,7 @@
         const p = pages[cur];
         const id = p && p.pageprops && p.pageprops.wikibase_item;
         if (id && ROLE.test(p.description || "")) {
-          cache[name] = Object.assign({ u: "", d: p.description || "", t: p.title, at: Date.now() }, cache[name], { q: id });
+          cache[key] = Object.assign({ u: "", d: p.description || "", t: p.title, at: Date.now() }, cache[key], { q: id });
           save();
           return id;
         }
@@ -153,10 +158,11 @@
   }
 
   /* Every film and series Wikidata credits them on — as cast, director or writer — with IMDb ids and years. */
-  function wikidataWorks(name) {
-    const e = cache[name];
+  function wikidataWorks(name, crew) {
+    const key = crew ? name + "|crew" : name;
+    const e = cache[key];
     if (e && e.w && Date.now() - (e.wat || 0) < 14 * 864e5) return Promise.resolve(e.w);
-    return qidFor(name).then((qid) => {
+    return qidFor(name, crew).then((qid) => {
       if (!qid) return [];
       const sparql = 'SELECT ?imdb ?filmLabel ?date ?role ?kind WHERE { VALUES (?prop ?role) { (wdt:P161 "Cast") (wdt:P57 "Director") (wdt:P58 "Writer") } ' +
         "VALUES ?kind { wd:Q11424 wd:Q5398426 } ?film ?prop wd:" + qid + " ; wdt:P31 ?kind ; wdt:P345 ?imdb . OPTIONAL { ?film wdt:P577 ?date } " +
@@ -173,19 +179,20 @@
           byTt.set(tt, row);
         });
         const rows = Array.from(byTt.values());
-        cache[name] = Object.assign({ u: "", d: "", t: "", at: Date.now() }, cache[name], { w: rows, wat: Date.now() });
+        cache[key] = Object.assign({ u: "", d: "", t: "", at: Date.now() }, cache[key], { w: rows, wat: Date.now() });
         save();
         return rows;
       });
     }).catch(() => []);
   }
 
-  function filmography(name) {
-    if (works.has(name)) return works.get(name);
+  function filmography(name, crew) {
+    const wkey = crew ? name + "|crew" : name;
+    if (works.has(wkey)) return works.get(wkey);
     const key = normalize(name);
     const credited = (list) => (list || []).some((x) => normalize(x) === key);
     const search = Promise.all(["movie", "series"].map((type) => FL.meta.cinemetaSearch(name, true, type).catch(() => [])));
-    const p = Promise.all([wikidataWorks(name), search]).then(([rows, [movies, shows]]) => {
+    const p = Promise.all([wikidataWorks(name, crew), search]).then(([rows, [movies, shows]]) => {
       const out = [];
       const have = new Set();
       const push = (film, role) => {
@@ -210,9 +217,9 @@
       add(shows, "series");
       return out.sort((a, b) => (b.film.year || 9999) - (a.film.year || 9999));
     });
-    works.set(name, p);
+    works.set(wkey, p);
     // An empty answer is usually a failed request — don't remember it.
-    p.then((list) => { if (!list.length) works.delete(name); }, () => works.delete(name));
+    p.then((list) => { if (!list.length) works.delete(wkey); }, () => works.delete(wkey));
     return p;
   }
 
