@@ -6,7 +6,7 @@
    GET /api/vega?title=K.G.F: Chapter 2&year=2022&imdb=tt10698680
    GET /api/vega?title=Mirzapur&imdb=tt6473300&s=3&e=4
    → { match: { id, title } | null, servers: [{ label, url }] } */
-"use strict";
+export const config = { runtime: "edge" };
 
 const SITE = "https://vegamovito.run";
 const UA = "Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36";
@@ -160,10 +160,8 @@ async function lookup({ title, year, imdb, s, e }) {
   return { match: null, servers: [] };
 }
 
-module.exports = async (req, res) => {
-  res.setHeader("access-control-allow-origin", "*");
-  res.setHeader("content-type", "application/json; charset=utf-8");
-  const q = new URL(req.url, "http://localhost").searchParams;
+export default async function handler(req) {
+  const q = new URL(req.url).searchParams;
   const int = (k, max) => { const n = parseInt(q.get(k), 10); return n > 0 && n <= max ? n : 0; };
   const input = {
     title: String(q.get("title") || "").trim().slice(0, 120),
@@ -172,21 +170,18 @@ module.exports = async (req, res) => {
     s: int("s", 999),
     e: int("e", 9999),
   };
-  if (!input.title || (input.s && !input.e)) {
-    res.statusCode = 400;
-    res.end(JSON.stringify({ error: "title (and e with s) required" }));
-    return;
-  }
+  const reply = (status, body, cache) => new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8", "access-control-allow-origin": "*", "cache-control": cache },
+  });
+  if (!input.title || (input.s && !input.e)) return reply(400, { error: "title (and e with s) required" }, "no-store");
   try {
     const out = await lookup(input);
     // Links rarely change once posted; a miss is re-checked sooner so new uploads show up.
-    res.setHeader("cache-control", out.servers.length
+    return reply(200, out, out.servers.length
       ? "public, max-age=3600, s-maxage=43200, stale-while-revalidate=172800"
       : "public, max-age=600, s-maxage=21600");
-    res.end(JSON.stringify(out));
   } catch (err) {
-    res.statusCode = 502;
-    res.setHeader("cache-control", "no-store");
-    res.end(JSON.stringify({ error: String((err && err.message) || err) }));
+    return reply(502, { error: String((err && err.message) || err) }, "no-store");
   }
-};
+}
