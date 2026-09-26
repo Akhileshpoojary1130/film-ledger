@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://film-ledger-mocha.vercel.app/sitemap.xml

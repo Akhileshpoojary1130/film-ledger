@@ -2,7 +2,7 @@
 (function (FL) {
   "use strict";
 
-  const { esc, fmtDate, fmtClock, fmtHours, greeting, hash, todayISO } = FL.util;
+  const { esc, fmtDate, fmtClock, fmtHours, hash, todayISO } = FL.util;
   const { icon, rail, stars, art, card } = FL.ui;
 
   const filmsOf = (entries) => entries.map((e) => FL.catalogue.get(e.id)).filter(Boolean);
@@ -10,11 +10,14 @@
   function hero(name, hasLibrary) {
     const count = FL.catalogue.films.filter((f) => !f.remote).length;
     const mod = FL.palette.isMac() ? "⌘K" : "Ctrl K";
-    return '<section class="home-hero">' +
-      '<p class="eyebrow">' + esc(greeting() + (name ? ", " + name : "")) + "</p>" +
-      '<h1 class="display">' + (hasLibrary ? "Your cinema, <em>at a glance.</em>" : "What are we <em>watching tonight?</em>") + "</h1>" +
+    const g = FL.voice.greeting(name);
+    const text = g.line[0] + " " + g.line[1];
+    return '<section class="home-hero" data-slot-time="' + g.id + '">' +
+      '<div class="home-brand" aria-hidden="true">' + FL.theme.mark({ size: 60, cls: "home-mark" }) + '<span class="home-word">Iris</span></div>' +
+      '<p class="eyebrow">' + esc(g.eyebrow) + "</p>" +
+      '<h1 class="display hero-line"><span class="hero-words"' + FL.voice.moodAttrs(text) + ">" + esc(g.line[0]) + " <em>" + esc(g.line[1]) + "</em></span></h1>" +
       '<button type="button" class="hero-search" data-open="palette">' + icon("search") +
-        "<span>Search " + Math.floor(count / 1000) + ",000+ films and shows — any spelling</span><kbd>" + mod + "</kbd></button>" +
+        "<span>Search " + Math.floor(count / 1000) + ",000+ films and shows</span><kbd>" + mod + "</kbd></button>" +
       (hasLibrary ? glance() : (FL.persist.supported ? '<p class="footnote"><button type="button" class="link" data-home="restore">Restore your library from a file</button></p>' : "")) +
       "</section>";
   }
@@ -54,34 +57,63 @@
     return '<section class="rail"><header class="section-head"><div><h2 class="h2">Continue watching</h2></div></header><div class="rail-track rail-wide">' + cards + "</div></section>";
   }
 
-  /* ---------- tonight ---------- */
+  /* ---------- tonight: three picks from three angles ---------- */
 
   let pickOffset = 0;
 
-  function tonightPool() {
-    const listed = filmsOf(FL.store.watchlist()).filter(FL.catalogue.isFilm);
-    if (listed.length) return { films: listed, source: "From your watchlist" };
-    const recs = FL.catalogue.forYou(40).map((r) => r.film);
-    if (recs.length) return { films: recs, source: "Picked for you" };
-    return { films: FL.catalogue.acclaimed({ minVotes: 40000, exclude: (f) => FL.store.state(f.id).watched }).slice(0, 200), source: "Acclaimed and unwatched" };
+  /* One from your taste, one you saved, one that's simply a must-watch you haven't seen — each says why.
+     They rotate daily (and on "Another"); at lunch or late at night, shorter films are preferred when known. */
+  function tonightPicks() {
+    const salt = hash(todayISO()) + pickOffset;
+    const h = new Date().getHours();
+    const short = (h >= 11 && h < 16) || h < 4;
+    const fits = (f) => {
+      const m = FL.meta.cached(f);
+      return !short || !m || !m.runtime || m.runtime <= 130;
+    };
+    const taken = new Set();
+    const from = (list, reason) => {
+      const pool = list.filter((x) => x.film && !taken.has(x.film.id) && fits(x.film));
+      if (!pool.length) return null;
+      const x = pool[salt % Math.min(pool.length, 12)];
+      taken.add(x.film.id);
+      return { film: x.film, reason: x.reason || reason };
+    };
+    const picks = [];
+    const recs = FL.catalogue.forYou(40).filter((x) => (x.film.rating || 0) >= 6.5);
+    picks.push(from(recs, "Matches what you watch"));
+    const saved = FL.store.watchlist().map((e) => ({ film: FL.catalogue.get(e.id), reason: "You saved it " + fmtDate(new Date(e.listedAt || e.added || Date.now()).toISOString().slice(0, 10), "short") }))
+      .filter((x) => x.film && x.film.type !== "series");
+    picks.push(from(saved, "From Watch later") || from(recs.slice(12), "Matches what you watch"));
+    const langs = FL.stats.summary("all").languages.map((l) => l.label);
+    const lang = { Hindi: "Hindi", English: "English" }[langs[0]] || "";
+    const must = FL.catalogue.acclaimed({ lang, minVotes: 40000, minRating: 8, exclude: (f) => FL.store.state(f.id).watched })
+      .slice(0, 60).map((f) => ({ film: f, reason: "Must watch · IMDb " + f.rating.toFixed(1) }));
+    picks.push(from(must, "Must watch"));
+    return picks.filter(Boolean);
   }
 
   function tonight() {
-    const pool = tonightPool();
-    if (!pool.films.length) return "";
-    const film = pool.films[(hash(todayISO()) + pickOffset) % pool.films.length];
-    const m = FL.meta.cached(film);
-    const facts = [FL.catalogue.yearLabel(film), FL.catalogue.filmLang(film), film.genres.slice(0, 2).join(", "), m && m.runtime ? FL.util.fmtRuntime(m.runtime) : ""]
-      .filter((x) => x && x !== "World").map(esc).join(" · ");
-    const overview = (m && m.desc) || film.desc || "";
-    return '<article class="tonight" data-tonight="' + esc(film.id) + '">' +
-      '<a class="tonight-art tilt" href="#/film/' + encodeURIComponent(film.id) + '" tabindex="-1">' + art(film, { size: "medium" }) + "</a>" +
-      '<div class="tonight-body"><p class="eyebrow">Tonight · ' + pool.source + "</p>" +
-      '<h2 class="display-sm"><a href="#/film/' + encodeURIComponent(film.id) + '">' + esc(film.title) + "</a></h2>" +
-      '<p class="muted">' + facts + "</p>" +
-      '<p class="tonight-overview">' + esc(overview) + "</p>" +
-      '<div class="btn-row"><a class="btn btn-primary" href="#/watch/' + encodeURIComponent(film.id) + '">' + icon("play") + "Play</a>" +
-      '<button type="button" class="btn btn-ghost" data-home="another">' + icon("shuffle") + "Another</button></div></div></article>";
+    const picks = tonightPicks();
+    if (!picks.length) return "";
+    const h = new Date().getHours();
+    const label = h >= 5 && h < 12 ? "For later today" : h >= 12 && h < 17 ? "This afternoon" : "Tonight";
+    return '<article class="tonight">' +
+      '<header class="tonight-head"><div><p class="eyebrow">' + label + "</p><h2 class=\"h2\">Three picks for you</h2></div>" +
+      '<button type="button" class="btn btn-ghost btn-sm" data-home="another">' + icon("shuffle") + "Another three</button></header>" +
+      '<ol class="tonight-list">' + picks.map(({ film, reason }) => {
+        const m = FL.meta.cached(film);
+        const facts = [FL.catalogue.yearLabel(film), FL.catalogue.filmLang(film), m && m.runtime ? FL.util.fmtRuntime(m.runtime) : film.genres[0]]
+          .filter((x) => x && x !== "World").map(esc).join(" · ");
+        const href = "#/film/" + encodeURIComponent(film.id);
+        return '<li class="pick-card" data-tonight="' + esc(film.id) + '">' +
+          '<a class="pick-art tilt" href="' + href + '" tabindex="-1">' + art(film) + "</a>" +
+          '<div class="pick-text"><a class="pick-title" href="' + href + '">' + esc(film.title) + "</a>" +
+            '<span class="pick-facts">' + facts + "</span>" +
+            '<span class="pick-why">' + esc(reason) + "</span></div>" +
+          '<a class="icon-btn pick-play" href="#/watch/' + encodeURIComponent(film.id) + '" aria-label="Play ' + esc(film.title) + '" title="Play">' + icon("play") + "</a>" +
+          "</li>";
+      }).join("") + "</ol></article>";
   }
 
   function recentDiary() {
@@ -107,6 +139,22 @@
     return rail(title, items.map((x) => x.film), Object.assign({ caption: (f) => esc(byId.get(f.id) || "") }, opts));
   }
 
+  /* New episodes of shows you're watching, found live — a new season shows up here the week it starts. */
+  function fillNewEpisodes(el) {
+    if (!FL.store.shows().length) return;
+    FL.remote.newEpisodes(8).then((list) => {
+      const slot = el.querySelector('[data-rail-id="newep"]');
+      if (!slot) return;
+      if (!list.length) { slot.remove(); return; }
+      const byId = new Map(list.map((x) => [x.film.id, x]));
+      slot.outerHTML = rail("New episodes", list.map((x) => x.film), {
+        id: "newep", sub: "In the shows you're watching",
+        caption: (f) => { const x = byId.get(f.id); return esc("S" + x.next.s + " · E" + x.next.e + (x.count > 1 ? " · " + x.count + " new" : " is new")); },
+      });
+      FL.ui.watchPosters(el.querySelector('[data-rail-id="newep"]') || el);
+    });
+  }
+
   function yourShows() {
     const shows = filmsOf(FL.store.shows());
     return shows.length ? rail("Your shows", shows.slice(0, 20), { more: "#/library/shows" }) : "";
@@ -126,9 +174,40 @@
     out.push('<section class="rail" data-rail-id="reality"><header class="section-head"><div><h2 class="h2">Reality &amp; talent shows</h2><p class="sub">New seasons appear as they air</p></div>' +
       '<div class="section-tools"><a class="link-more" href="#/shows">All shows' + icon("arrow-right") + "</a></div></header>" +
       '<div class="rail-loading">' + FL.ui.loader(28) + "</div></section>");
+    const ty = throwbackYear();
+    out.push('<section class="rail" data-rail-id="throwback"><header class="section-head"><div><h2 class="h2">Throwback <em>' + ty + "</em></h2>" +
+      '<p class="sub">The best-rated films of the year — a different year every day</p></div>' +
+      '<div class="section-tools"><a class="link-more" href="#/years/' + ty + '">See ' + ty + icon("arrow-right") + "</a></div></header>" +
+      '<div class="rail-loading">' + FL.ui.loader(28) + "</div></section>");
     const mcu = FL.catalogue.franchises()[0];
     if (mcu) out.push(rail(esc(mcu.name), mcu.films.slice(0, 20), { more: "#/collection/" + mcu.id, sub: "In release order" }));
     return out.join("");
+  }
+
+  /* One classic year a day, 1970–1989 — the years the bundle doesn't cover. */
+  const throwbackYear = () => 1970 + (hash("throwback|" + todayISO()) % 20);
+
+  function fillThrowback(el) {
+    const y = throwbackYear();
+    Promise.all([FL.remote.yearPage(y, 0), FL.remote.yearPage(y, 1), FL.remote.wikiYear("Hindi", y)]).then((lists) => {
+      const slot = el.querySelector('[data-rail-id="throwback"]');
+      if (!slot) return;
+      const seen = new Set();
+      const films = [].concat.apply([], lists).filter((f) => {
+        if (!f.rating || f.rating < 7 || seen.has(f.id) || f.type === "series") return false;
+        seen.add(f.id);
+        return (f.pop || 0) >= 50;
+      }).sort((a, b) => b.rating - a.rating).slice(0, 18);
+      if (films.length < 4) { slot.remove(); return; }
+      const track = document.createElement("div");
+      track.className = "rail-track";
+      track.innerHTML = films.map((f) => card(f)).join("");
+      slot.querySelector(".rail-loading").replaceWith(track);
+      FL.ui.watchPosters(slot);
+    }).catch(() => {
+      const slot = el.querySelector('[data-rail-id="throwback"]');
+      if (slot) slot.remove();
+    });
   }
 
   function fillReality(el) {
@@ -180,6 +259,7 @@
     if (!hasLibrary) {
       el.innerHTML = '<div class="container page">' + hero(name, false) + discovery() + "</div>";
       fillReality(el);
+      fillThrowback(el);
       return;
     }
     const favs = filmsOf(FL.store.favorites());
@@ -194,13 +274,16 @@
       reasonRail("Up next in your series", next, { sub: "The next film after the ones you’ve seen" }) +
       reasonRail("For you", forYou, { sub: "From your ratings, favourites and what you watch" }) +
       peopleSlots() +
+      (FL.store.shows().length ? '<section class="rail" data-rail-id="newep"></section>' : "") +
       yourShows() +
-      rail("Your watchlist", listed.slice(0, 24), { more: "#/library/watchlist", sub: listed.length ? FL.util.plural(listed.length, "title") : "", empty: FL.ui.empty("Your next favourite hasn’t been saved yet.", "Tap the bookmark on any poster.") }) +
+      rail("Watch later", listed.slice(0, 24), { more: "#/library/watchlist", sub: listed.length ? FL.util.plural(listed.length, "title") : "", empty: FL.ui.empty("Your next favourite hasn’t been saved yet.", "Tap the bookmark on any poster.") }) +
       (favs.length ? rail("Films that stayed with you", favs.slice(0, 24), { more: "#/library/favorites" }) : "") +
       discovery() +
       "</div>";
     fillReality(el);
+    fillThrowback(el);
     fillPeople(el);
+    fillNewEpisodes(el);
   }
 
   FL.views = FL.views || {};
@@ -225,17 +308,46 @@
           loadTonight();
         }
       };
+      /* Runtimes for the picks, so "2h 10m" shows and short-film preferences have something to go on. */
       function loadTonight() {
-        const t = el.querySelector("[data-tonight]");
-        const film = t && FL.catalogue.get(t.dataset.tonight);
-        if (!film || FL.meta.cached(film)) return;
-        FL.meta.details(film).then((m) => {
-          const p = el.querySelector('[data-tonight="' + CSS.escape(film.id) + '"] .tonight-overview');
-          if (m && p && !p.textContent) p.textContent = m.desc;
+        el.querySelectorAll("[data-tonight]").forEach((t) => {
+          const film = FL.catalogue.get(t.dataset.tonight);
+          if (!film || FL.meta.cached(film)) return;
+          FL.meta.details(film).then((m) => {
+            const facts = el.querySelector('[data-tonight="' + CSS.escape(film.id) + '"] .pick-facts');
+            if (m && m.runtime && facts && facts.textContent.indexOf("m") === -1) facts.textContent += " · " + FL.util.fmtRuntime(m.runtime);
+          });
         });
       }
       el.addEventListener("click", click);
       loadTonight();
+
+      /* As you scroll, the big logo shrinks away and the top bar's takes over; once the big search bar has
+         scrolled under the top bar, the small one appears in its place (and page changes morph between them). */
+      const root = document.documentElement;
+      let dockFrame = 0;
+      function dock() {
+        dockFrame = 0;
+        const p = Math.min(1, Math.max(0, window.scrollY / 150));
+        const brand = el.querySelector(".home-brand");
+        if (brand) brand.style.setProperty("--dock", p.toFixed(3));
+        root.classList.toggle("brand-docked", p > 0.8);
+        const search = el.querySelector(".hero-search");
+        const bar = document.querySelector(".topbar");
+        root.classList.toggle("search-docked", !!(search && bar && search.getBoundingClientRect().bottom < bar.getBoundingClientRect().bottom + 8));
+      }
+      const onScroll = () => { if (!dockFrame) dockFrame = requestAnimationFrame(dock); };
+      window.addEventListener("scroll", onScroll, { passive: true });
+      dock();
+      // The greeting follows the clock: swap it when the time of day moves on.
+      const clock = setInterval(() => {
+        const h = el.querySelector(".home-hero");
+        const g = FL.voice.greeting(FL.store.prefs().name);
+        if (!h || h.dataset.slotTime === g.id) return;
+        const tmp = document.createElement("div");
+        tmp.innerHTML = hero(FL.store.prefs().name, FL.store.entries().length > 0);
+        h.replaceWith(tmp.firstChild);
+      }, 5 * 60e3);
       return {
         update(detail) {
           if (detail.kind === "progress") return;
@@ -243,8 +355,14 @@
           render(el);
           FL.ui.watchPosters(el);
           window.scrollTo(0, y);
+          dock();
         },
-        destroy() { el.removeEventListener("click", click); },
+        destroy() {
+          clearInterval(clock);
+          window.removeEventListener("scroll", onScroll);
+          cancelAnimationFrame(dockFrame);
+          el.removeEventListener("click", click);
+        },
       };
     },
   };

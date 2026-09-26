@@ -150,9 +150,15 @@
 
   /* Watching a film takes it off the watchlist; adding a watched film back (to rewatch) is allowed. */
   function markWatched(e) {
+    if (!isWatched(e)) e.seenAt = Date.now(); // when you ticked it — the diary shows undated films on this day
     e.seen = true;
     e.listed = false;
     e.listedAt = 0;
+  }
+
+  /* Moments of actual watching (for "when do you watch" stats): logged watches today and player sessions. */
+  function stamp(e) {
+    e.times = (e.times || []).concat(Date.now()).slice(-40);
   }
 
   function update(film, mutate, kind) {
@@ -190,12 +196,13 @@
     setSeen(film, seen) {
       return update(film, (e) => {
         if (seen) markWatched(e);
-        else { e.seen = false; e.watches = []; }
+        else { e.seen = false; e.watches = []; e.seenAt = 0; }
       }, "seen");
     },
     logWatch(film, date) {
       const d = date || todayISO();
       return update(film, (e) => {
+        if (d === todayISO()) stamp(e);
         e.watches.push(d);
         e.watches.sort();
         e.listed = false;
@@ -254,6 +261,9 @@
       let e = lib.films[film.id];
       if (!e) { e = blank(film); lib.films[film.id] = e; }
       e.progress = progress;
+      // One timestamp per sitting (a new one after a two-hour gap) feeds the "when you watch" stats.
+      const last = e.times && e.times[e.times.length - 1];
+      if (!last || Date.now() - last > 2 * 3600e3) stamp(e);
       persist();
       emit({ id: film.id, kind: "progress" });
     },
@@ -285,12 +295,15 @@
     favorites() {
       return api.entries().filter((e) => e.fav).sort((a, b) => b.updated - a.updated);
     },
-    /* Flat diary of films: one row per dated watch, newest first. */
+    /* Flat diary of films, newest first: one row per dated watch, plus films ticked without a date on the day
+       you ticked them (marked, so the calendar can tell them apart from real viewings). */
     diary() {
       const rows = [];
+      const iso = (ms) => { const d = new Date(ms); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
       api.entries().forEach((e) => {
         if (isShow(e)) return;
         e.watches.forEach((date, i) => rows.push({ id: e.id, date, entry: e, rewatch: i > 0 }));
+        if (!e.watches.length && isWatched(e)) rows.push({ id: e.id, date: iso(e.seenAt || e.added || e.updated), entry: e, marked: true });
       });
       rows.sort((a, b) => (b.date === a.date ? b.entry.updated - a.entry.updated : b.date.localeCompare(a.date)));
       return rows;

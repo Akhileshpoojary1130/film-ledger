@@ -38,10 +38,12 @@
         '<p class="sub">Seasons and episodes update on their own as they air. Tick episodes as you go — your place is kept.</p></div></header>' +
         (mine.length ? rail("Your shows", mine) : "") +
         slot("reality", "Indian reality &amp; talent") +
+        slot("indian", "Indian web series", "Mirzapur, Panchayat, The Family Man and more — new seasons appear as they drop") +
         slot("top", "Popular series right now") +
         slot("realityworld", "Reality TV worldwide") +
         "</div>";
       fill(el, "reality", FL.remote.realityShows(), true);
+      fill(el, "indian", FL.remote.indianSeries(), true);
       fill(el, "top", FL.remote.showCatalog(""));
       fill(el, "realityworld", FL.remote.showCatalog("Reality-TV"));
       return {};

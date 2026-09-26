@@ -157,7 +157,7 @@
       if (mode === "play") go(f.type === "series" ? FL.ui.hrefFor(f) : "#/watch/" + encodeURIComponent(f.id));
       else if (mode === "list") {
         const e = FL.store.toggleList(f);
-        toast((e && e.listed ? "Added to watchlist: " : "Removed from watchlist: ") + f.title);
+        toast((e && e.listed ? "Saved to Watch later: " : "Removed from Watch later: ") + f.title);
       } else go(FL.ui.hrefFor(f));
     }
 
@@ -218,7 +218,7 @@
   function pick() {
     if (!FL.store.watchlist().some((e) => e.type !== "series")) pickState.source = FL.store.watched().length ? "foryou" : "acclaimed";
     const m = modal('<div class="pick"><div class="pick-controls">' +
-      FL.ui.segmented("psource", [["watchlist", "Watchlist"], ["foryou", "For you"], ["acclaimed", "Acclaimed"]], pickState.source) +
+      FL.ui.segmented("psource", [["watchlist", "Watch later"], ["foryou", "For you"], ["acclaimed", "Acclaimed"]], pickState.source) +
       FL.ui.segmented("plang", [["", "Any"], ["Hindi", "Hindi"], ["English", "English"], ["OtherIndian", "Regional"], ["Superhero", "Marvel & DC"]], pickState.lang) +
       '</div><div class="pick-stage"><div class="pick-ring-wrap"><div class="pick-ring"></div></div><div class="pick-body" aria-live="polite"></div></div></div>', { cls: "modal-pick", label: "Surprise me" });
     const ring = $(".pick-ring", m.el);
@@ -229,7 +229,7 @@
       const pool = pickPool();
       if (!pool.length) {
         ring.innerHTML = "";
-        body.innerHTML = FL.ui.empty(pickState.source === "watchlist" ? "Nothing on your watchlist matches." : "Nothing matches.", "Switch the source or language above.");
+        body.innerHTML = FL.ui.empty(pickState.source === "watchlist" ? "Nothing in Watch later matches." : "Nothing matches.", "Switch the source or language above.");
         body.classList.add("in");
         return;
       }
@@ -243,7 +243,7 @@
       ring.innerHTML = slots.map((f, i) => '<div class="pick-face" style="--i:' + i + '">' + art(f, { size: "medium", eager: i < 3 }) + "</div>").join("");
       FL.ui.watchPosters(ring);
       body.classList.remove("in");
-      const label = { watchlist: "Tonight · from your watchlist", foryou: "Tonight · picked for you", acclaimed: "Tonight · acclaimed, unwatched" }[pickState.source];
+      const label = { watchlist: "Tonight · from Watch later", foryou: "Tonight · picked for you", acclaimed: "Tonight · acclaimed, unwatched" }[pickState.source];
       // Spin at least two turns and land slot 0 at the front.
       pickState.angle -= reduced ? 0 : 720 + 360;
       pickState.angle = Math.round(pickState.angle / 360) * 360;
@@ -294,14 +294,8 @@
     const T = FL.theme;
     const mode = T.mode();
     const current = T.accent();
-    const styleDefault = (id) => ({ bg: { cinema: "#0A0A0B", material: "#17151B", mac: "#1C1C1E" }[id], s: { cinema: "#27272C", material: "#36343B", mac: "#3A3A3C" }[id], text: "#F5F5F2", accent: T.THEMES[id].accent.dark });
-    const presets = T.PRESETS.map((p) => {
-      const pal = T.PALETTES.find((x) => x.id === p.set.palette);
-      const pv = (pal && T.preview(pal, mode)) || styleDefault(p.set.theme);
-      const on = a.theme === p.set.theme && (a.palette || "default") === p.set.palette && (a.glass || "off") === p.set.glass && (a.ambient || "off") === p.set.ambient;
-      return '<button type="button" class="preset' + (on ? " is-on" : "") + '" data-preset="' + p.id + '" aria-pressed="' + on + '" style="' + swatchStyle(pv) + '">' +
-        '<span class="preset-art" data-ambient-preview="' + p.set.ambient + '" data-glass-preview="' + p.set.glass + '" aria-hidden="true"><i></i><i></i></span><span>' + p.name + "</span></button>";
-    }).join("");
+    const DEF_BG = { cinema: "#0A0A0B", material: "#17151B", mac: "#1C1C1E", fluent: "#1C1C1C", oneui: "#000000", nothing: "#000000" };
+    const styleDefault = (id) => ({ bg: DEF_BG[id] || "#0A0A0B", s: "#2A2A2E", text: "#F5F5F2", accent: T.THEMES[id].accent.dark });
     const themes = Object.keys(T.THEMES).map((id) => {
       const t = T.THEMES[id];
       return '<button type="button" class="theme-card theme-' + id + (a.theme === id ? " is-on" : "") + '" data-theme-pick="' + id + '" aria-pressed="' + (a.theme === id) + '">' +
@@ -316,14 +310,23 @@
     const swatches = '<button type="button" class="swatch swatch-auto' + (!a.accent ? " is-on" : "") + '" data-accent="" title="Palette default" aria-label="Palette default">' + icon("spark") + "</button>" +
       T.ACCENTS.map(([hex, name]) => '<button type="button" class="swatch' + (a.accent === hex ? " is-on" : "") + '" data-accent="' + hex + '" style="--sw:' + hex + '" title="' + name + '" aria-label="' + name + '"></button>').join("") +
       '<label class="swatch swatch-custom" title="Custom colour" style="--sw:' + current + '"><input type="color" value="' + current + '" data-accent-custom aria-label="Custom accent colour"></label>';
-    return '<h4 class="set-sub">Quick looks</h4><div class="preset-row">' + presets + "</div>" +
-      '<h4 class="set-sub">Style</h4><div class="theme-grid">' + themes + "</div>" +
-      '<h4 class="set-sub">Palette <span class="muted">' + T.PALETTES.length + "</span></h4><div class=\"palette-grid\">" + palettes + "</div>" +
+    const picker = FL.store.prefs().years.picker || "dial";
+    return '<h4 class="set-sub"><span class="set-num">1</span>Style</h4><div class="theme-grid">' + themes + "</div>" +
+      '<h4 class="set-sub"><span class="set-num">2</span>Glass &amp; background</h4>' +
+      '<div class="setting-row"><span>Liquid glass<small>Frosted, see-through bars, panels and sheets</small></span>' + FL.ui.segmented("glass", T.GLASS, T.glass()) + "</div>" +
+      '<div class="setting-row"><span>Background<small>Lights glow softly behind frosted glass; Aurora drifts slow colour</small></span>' + FL.ui.segmented("ambient", T.AMBIENT, T.ambient()) + "</div>" +
+      '<div class="setting-row"><span>Motion<small>Calm turns off tilt, drift and page effects</small></span>' + FL.ui.segmented("motion", [["full", "Full"], ["calm", "Calm"]], a.motion === "calm" ? "calm" : "full") + "</div>" +
+      '<h4 class="set-sub"><span class="set-num">3</span>Colour</h4>' +
       '<div class="setting-row"><span>Mode</span>' + FL.ui.segmented("mode", [["dark", "Dark"], ["light", "Light"], ["system", "Auto"]], a.mode) + "</div>" +
+      '<div class="pal-rail"><button type="button" class="icon-btn icon-btn-sm pal-arrow" data-palscroll="-1" aria-label="Previous palettes">' + icon("chevron-left") + "</button>" +
+        '<div class="palette-row" data-palrow>' + palettes + "</div>" +
+        '<button type="button" class="icon-btn icon-btn-sm pal-arrow" data-palscroll="1" aria-label="More palettes">' + icon("chevron-right") + "</button></div>" +
       '<div class="setting-row"><span>Accent</span><div class="swatches">' + swatches + "</div></div>" +
-      '<div class="setting-row"><span>Liquid glass<small>Frosted, see-through panels and bars</small></span>' + FL.ui.segmented("glass", T.GLASS, T.glass()) + "</div>" +
-      '<div class="setting-row"><span>Background<small>Lights drift behind frosted glass; Aurora is slow colour</small></span>' + FL.ui.segmented("ambient", T.AMBIENT, T.ambient()) + "</div>" +
-      '<div class="setting-row"><span>Motion<small>Calm turns off tilt, drift and page effects</small></span>' + FL.ui.segmented("motion", [["full", "Full"], ["calm", "Calm"]], a.motion === "calm" ? "calm" : "full") + "</div>";
+      '<h4 class="set-sub">More</h4>' +
+      '<div class="setting-row"><span>Year picker<small>How you choose a year on the Years page</small></span>' +
+        FL.ui.segmented("picker", [["dial", "Dial"], ["wheel", "Wheel"], ["ruler", "Ruler"], ["chips", "Chips"]], picker) + "</div>" +
+      '<div class="setting-row"><span>Mood headline<small>Home’s headline takes a typeface from what you’ve been watching</small></span>' +
+        FL.ui.segmented("moodtype", [["on", "On"], ["off", "Off"]], a.moodType === false ? "off" : "on") + "</div>";
   }
 
   function homeHtml() {
@@ -395,6 +398,11 @@
       });
     }
     FL.player.probeAll().then(paintServers);
+    requestAnimationFrame(() => {
+      const row = $("[data-palrow]", m.el);
+      const on = row && row.querySelector(".is-on");
+      if (on) row.scrollLeft = on.offsetLeft - 40;
+    });
 
     if (focus) {
       const sec = $('[data-sec="' + focus + '"]', m.el);
@@ -406,7 +414,13 @@
 
     function repaintAppearance() {
       const box = $("[data-appearance]", m.el);
-      if (box) box.innerHTML = appearanceHtml();
+      if (!box) return;
+      const row = $("[data-palrow]", box);
+      const x = row ? row.scrollLeft : null;
+      box.innerHTML = appearanceHtml();
+      const next = $("[data-palrow]", box);
+      if (next && x !== null) next.scrollLeft = x;
+      else if (next) { const on = next.querySelector(".is-on"); if (on) next.scrollLeft = on.offsetLeft - 40; }
     }
 
     m.el.addEventListener("input", (e) => {
@@ -436,6 +450,16 @@
         repaintAppearance();
         return;
       }
+      const ps = e.target.closest("[data-palscroll]");
+      if (ps) {
+        const row = $("[data-palrow]", m.el);
+        if (row) row.scrollBy({ left: +ps.dataset.palscroll * row.clientWidth * 0.8, behavior: "smooth" });
+        return;
+      }
+      const pk = e.target.closest('[data-seg="picker"]');
+      if (pk) { FL.store.patchPref("years", { picker: pk.dataset.value }); repaintAppearance(); FL.app.refresh(); return; }
+      const mt = e.target.closest('[data-seg="moodtype"]');
+      if (mt) { FL.store.patchPref("appearance", { moodType: mt.dataset.value === "on" }); repaintAppearance(); FL.app.refresh(); return; }
       const cw = e.target.closest('[data-seg="cwmax"]');
       if (cw) {
         FL.store.patchPref("home", { continueMax: +cw.dataset.value });
@@ -456,7 +480,7 @@
       else if (act === "recheck") { $$("[data-srv-row] em", m.el).forEach((x) => { x.textContent = "…"; }); FL.player.probeAll(true).then(paintServers); }
       else if (act === "clear-cache") { FL.meta.clearCaches(); toast("Cache cleared — artwork and details will reload."); }
       else if (act === "reset") {
-        FL.ui.confirm({ title: "Erase your whole library?", body: "Watch history, ratings, shows and watchlist will be deleted from this browser. Export a backup first if you might want it back.", confirmLabel: "Erase everything", danger: true })
+        FL.ui.confirm({ title: "Erase your whole library?", body: "Watch history, ratings, shows and Watch later will be deleted from this browser. Export a backup first if you might want it back.", confirmLabel: "Erase everything", danger: true })
           .then((ok) => { if (ok) { FL.store.resetLibrary(); toast("Library erased."); } });
       }
     });
@@ -487,8 +511,8 @@
     const mod = isMac() ? "⌘" : "Ctrl";
     const groups = [
       ["Anywhere", [[[mod, "K"], "Search films, shows & commands"], [["/"], "Search"], [["R"], "Surprise me"], [["?"], "This list"], [["Esc"], "Close"]]],
-      ["Go to", [[["G", "H"], "Home"], [["G", "Y"], "Years"], [["G", "B"], "Browse"], [["G", "T"], "Shows"], [["G", "W"], "Watchlist"], [["G", "D"], "Diary"], [["G", "S"], "Stats"]]],
-      ["On a film page", [[["P"], "Play"], [["T"], "Trailer"], [["W"], "Watchlist"], [["M"], "Mark watched"], [["F"], "Favourite"]]],
+      ["Go to", [[["G", "H"], "Home"], [["G", "Y"], "Years"], [["G", "B"], "Browse"], [["G", "T"], "Shows"], [["G", "W"], "Watch later"], [["G", "D"], "Diary"], [["G", "S"], "Stats"]]],
+      ["On a film page", [[["P"], "Play"], [["T"], "Trailer"], [["W"], "Watch later"], [["M"], "Mark watched"], [["F"], "Favourite"]]],
       ["Player", [[["N"], "Next server"], [["1"], "–", ["5"], "Pick a server"], [["F"], "Fullscreen"], [["Esc"], "Close player"]]],
       ["Years", [[["←"], "Previous year"], [["→"], "Next year"]]],
       ["Grids", [[["←", "→", "↑", "↓"], "Move between posters"], [["↵"], "Open"]]],

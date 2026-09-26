@@ -285,18 +285,26 @@
     return "";
   }
 
+  /* The best of the best: rated 8+ by enough people (or a huge audience at 7.8+). */
+  function mustWatch(film) {
+    const r = film.rating;
+    if (!r) return false;
+    if (film.type === "series") return r >= 8.5 && (film.pop || 0) >= 60;
+    if (film.votes) return (r >= 8 && film.votes >= 20000) || (r >= 7.8 && film.votes >= 250000);
+    if (film.remote) return r >= 8 && (film.pop || 0) >= 62;
+    return false;
+  }
+
+  /* Status on the poster's top-left: one tick when watched (×n for rewatches), a heart for favourites, episodes seen. */
   function badges(film, st) {
     let out = "";
     if (st.fav) out += '<span class="badge badge-fav" title="Favourite">' + icon("heart") + "</span>";
     if (film.type === "series") {
       if (st.episodes) out += '<span class="badge badge-seen" title="Episodes watched">' + icon("tv") + "<b>" + st.episodes + "</b></span>";
-      else if (st.listed) out += '<span class="badge" title="Following">' + icon("bookmark") + "</span>";
     } else if (st.watched) {
       out += '<span class="badge badge-seen" title="Watched' + (st.count > 1 ? " " + st.count + "×" : "") + '">' + icon("check") + (st.count > 1 ? "<b>" + st.count + "</b>" : "") + "</span>";
-    } else if (st.listed) {
-      out += '<span class="badge" title="On your watchlist">' + icon("bookmark") + "</span>";
     }
-    return out ? '<div class="badges">' + out + "</div>" : "";
+    return (out ? '<div class="badges">' + out + "</div>" : "") + (mustWatch(film) ? '<span class="tag-must">Must watch</span>' : "");
   }
 
   function progressBar(film) {
@@ -306,13 +314,13 @@
     return '<div class="card-progress"><i style="width:' + Math.min(100, (p.t / p.d) * 100).toFixed(1) + '%"></i></div>';
   }
 
+  /* Top-right actions: Watch later (stays visible once saved) and Mark watched (gone once watched — the badge says it). */
   function quick(film, st) {
-    const list = '<button type="button" class="qa' + (st.listed ? " on" : "") + '" data-qa="list" aria-pressed="' + st.listed + '" aria-label="' +
-      (st.listed ? "Remove from watchlist" : "Add to watchlist") + '" title="' + (st.listed ? "On watchlist" : "Watchlist") + '">' + icon("bookmark") + "</button>";
-    if (film.type === "series") return '<div class="card-quick">' + list + "</div>";
-    return '<div class="card-quick">' + list +
-      '<button type="button" class="qa' + (st.watched ? " on" : "") + '" data-qa="seen" aria-pressed="' + st.watched + '" aria-label="' +
-      (st.watched ? "Watched" : "Mark as watched") + '" title="' + (st.watched ? "Watched" : "Mark watched") + '">' + icon("check") + "</button></div>";
+    const later = '<button type="button" class="qa qa-later' + (st.listed ? " on" : "") + '" data-qa="list" aria-pressed="' + st.listed + '" aria-label="' +
+      (st.listed ? "Remove from Watch later" : "Watch later") + '" title="' + (st.listed ? "Saved for later" : "Watch later") + '">' + icon("bookmark") + "</button>";
+    const seen = film.type === "series" || st.watched ? "" :
+      '<button type="button" class="qa" data-qa="seen" aria-pressed="false" aria-label="Mark as watched" title="Mark watched">' + icon("check") + "</button>";
+    return '<div class="card-quick">' + later + seen + "</div>";
   }
 
   /* Official streaming options (JustWatch, India) — for titles the free hosts don't carry. */
@@ -344,14 +352,14 @@
     return '<article class="row' + (st.watched ? " is-watched" : "") + '" data-id="' + esc(film.id) + '" data-variant="row">' +
       (o.rank ? '<span class="row-rank">' + String(o.rank).padStart(2, "0") + "</span>" : "") +
       '<a class="row-art" href="' + href + '" tabindex="-1" aria-hidden="true">' + art(film) + "</a>" +
-      '<div class="row-main"><a class="row-title" href="' + href + '">' + esc(film.title) + "</a>" +
+      '<div class="row-main"><a class="row-title" href="' + href + '">' + esc(film.title) + "</a>" + (mustWatch(film) ? '<span class="tag-must tag-inline">Must watch</span>' : "") +
         '<div class="row-meta">' + (show ? "Series · " : "") + esc(FL.catalogue.yearLabel(film)) + (lang && lang !== "World" ? " · " + esc(lang) : "") + (genres ? " · " + genres : "") + "</div>" +
         (o.caption ? '<div class="row-caption">' + o.caption + "</div>" : "") +
       "</div>" +
       '<div class="row-score">' + (film.rating ? '<span class="imdb">★ ' + film.rating.toFixed(1) + "</span><small>" + compact(film.votes) + "</small>" : "") + "</div>" +
       '<div class="row-you">' + (st.rating ? stars(st.rating, "stars-sm") : st.watched ? '<span class="muted">Watched</span>' : st.episodes ? '<span class="muted">' + st.episodes + " eps</span>" : "") + "</div>" +
       '<div class="row-actions">' +
-        '<button type="button" class="qa' + (st.listed ? " on" : "") + '" data-qa="list" aria-pressed="' + st.listed + '" aria-label="Watchlist" title="Watchlist">' + icon("bookmark") + "</button>" +
+        '<button type="button" class="qa' + (st.listed ? " on" : "") + '" data-qa="list" aria-pressed="' + st.listed + '" aria-label="Watch later" title="Watch later">' + icon("bookmark") + "</button>" +
         (show ? "" : '<button type="button" class="qa' + (st.watched ? " on" : "") + '" data-qa="seen" aria-pressed="' + st.watched + '" aria-label="Watched" title="Watched">' + icon("check") + "</button>") +
         '<a class="qa" href="' + (show ? href : "#/watch/" + encodeURIComponent(film.id)) + '" aria-label="Play" title="Play">' + icon("play") + "</a>" +
       "</div></article>";
@@ -387,7 +395,7 @@
     if (act === "list") {
       const entry = FL.store.toggleList(film);
       const listed = !!(entry && entry.listed);
-      toast(listed ? "Added to watchlist" : "Removed from watchlist", { action: "Undo", onAction: () => FL.store.toggleList(film) });
+      toast(listed ? "Saved to Watch later" : "Removed from Watch later", { action: "Undo", onAction: () => FL.store.toggleList(film) });
     } else if (act === "seen") {
       const st = FL.store.state(film.id);
       if (st.watched && st.count) {
@@ -451,6 +459,25 @@
       setTimeout(() => el.remove(), 220);
     }
     return dismiss;
+  }
+
+  /* ---------- the little Iris character: a five-second check-in at the top right ---------- */
+
+  let nudgeEl = null;
+  function nudge(text, emoji) {
+    if (nudgeEl) nudgeEl.remove();
+    const el = document.createElement("div");
+    el.className = "nudge";
+    el.setAttribute("role", "status");
+    el.innerHTML = '<span class="nudge-face" aria-hidden="true">' + FL.theme.mark({ size: 34, open: 40, cls: "nudge-mark" }) + "<i></i><i></i></span>" +
+      '<span class="nudge-text">' + esc(text) + (emoji ? ' <span class="nudge-emoji">' + emoji + "</span>" : "") + "</span>";
+    document.body.appendChild(el);
+    nudgeEl = el;
+    requestAnimationFrame(() => el.classList.add("in"));
+    setTimeout(() => {
+      el.classList.remove("in");
+      setTimeout(() => { el.remove(); if (nudgeEl === el) nudgeEl = null; }, 450);
+    }, 5000);
   }
 
   /* ---------- modals ---------- */
@@ -538,6 +565,6 @@
 
   FL.ui = {
     icon, loader, stars, ratingWidget, art, placeholder, card, row, rail, refreshFilm, watchPosters, reveal, hrefFor, whereToWatch,
-    toast, modal, confirm, isModalOpen, closeModals, empty, segmented, metaLine,
+    toast, nudge, modal, confirm, isModalOpen, closeModals, empty, segmented, metaLine, mustWatch,
   };
 })(window.FL = window.FL || {});

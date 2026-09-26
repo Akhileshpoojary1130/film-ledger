@@ -15,11 +15,12 @@
     [/^\/library(?:\/(\w+))?$/, "library"],
     [/^\/diary(?:\/(\d{4}))?$/, "diary"],
     [/^\/stats(?:\/(\w+))?$/, "stats"],
+    [/^\/collections$/, "collections"],
     [/^\/collection\/([\w-]+)$/, "collection"],
     [/^\/person\/(.+)$/, "person"],
   ];
 
-  const NAV_FOR = { home: "home", years: "years", browse: "browse", shows: "shows", show: "shows", film: "", library: "library", collection: "library", diary: "library", stats: "stats", person: "" };
+  const NAV_FOR = { home: "home", years: "years", browse: "browse", shows: "shows", show: "shows", film: "", library: "library", collection: "collections", collections: "collections", diary: "library", stats: "stats", person: "" };
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
 
   let viewEl = null;
@@ -40,7 +41,7 @@
       top: '<header class="topbar"><div class="container topbar-inner">' + brand() +
         '<nav class="nav" aria-label="Primary">' +
           '<a href="#/" data-nav="home">Home</a><a href="#/years" data-nav="years">Years</a><a href="#/browse" data-nav="browse">Browse</a>' +
-          '<a href="#/shows" data-nav="shows">Shows</a><a href="#/library/watchlist" data-nav="library">Library</a><a href="#/stats" data-nav="stats">Stats</a>' +
+          '<a href="#/shows" data-nav="shows">Shows</a><a href="#/collections" data-nav="collections">Collections</a><a href="#/library/watchlist" data-nav="library">Library</a><a href="#/stats" data-nav="stats">Stats</a>' +
         "</nav>" +
         '<div class="topbar-actions">' +
           '<button type="button" class="search-trigger" data-open="palette" aria-label="Search (' + mod + ')">' + icon("search") + "<span>Search</span><kbd>" + mod + "</kbd></button>" +
@@ -48,9 +49,7 @@
           '<button type="button" class="icon-btn" data-open="settings" aria-label="Settings" title="Settings, theme & storage">' + icon("sliders") + "</button>" +
         "</div></div></header>",
       bottom: '<footer class="site-foot"><div class="container">' +
-          "<span>Iris · " + FL.catalogue.films.filter((f) => !f.remote).length.toLocaleString() + " films bundled, more from the web · " + FL.catalogue.yearRange[0] + "–today</span>" +
-          "<span>Your library stays on this device. Artwork: Metahub, IMDb & Wikipedia · Details: Cinemeta.</span>" +
-          '<button type="button" class="link" data-open="shortcuts">Keyboard shortcuts</button>' +
+          '<a class="foot-sign" href="#/">' + FL.theme.mark({ size: 18, cls: "foot-mark" }) + '<span class="brand-word">Iris</span></a>' +
         "</div></footer>" +
         '<nav class="tabbar" aria-label="Primary">' +
           '<a href="#/" data-nav="home">' + icon("home") + "<span>Home</span></a>" +
@@ -104,6 +103,10 @@
 
   function setNav(name) {
     const key = NAV_FOR[name];
+    // Home has its own big logo and search bar; the top bar's versions dock in as you scroll (see views/home.js).
+    const root = document.documentElement;
+    root.classList.toggle("is-home", name === "home");
+    if (name !== "home") root.classList.remove("brand-docked", "search-docked");
     $$("[data-nav]").forEach((a) => {
       const on = a.dataset.nav === key;
       a.classList.toggle("is-on", !!on);

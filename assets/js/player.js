@@ -248,6 +248,8 @@
     const o = opts || {};
     onClose = o.onClose || null;
     state.open = true;
+    clearInterval(careTimer);
+    careTimer = setInterval(careTick, 60e3);
     root.hidden = false;
     document.documentElement.classList.add("has-player");
     hideNotice();
@@ -340,6 +342,14 @@
     iframe.referrerPolicy = "strict-origin-when-cross-origin";
     iframe.title = film.title + (state.ep ? " " + epLabel(state.ep) : "") + " — " + server.name;
     frame().appendChild(iframe);
+    // Big hosts show a blank or spinning frame for 10–20 s; say so, so a working server isn't abandoned.
+    const starting = document.createElement("div");
+    starting.className = "player-starting";
+    starting.innerHTML = FL.ui.loader(16) + "<span>Starting " + esc(server.name) + " — can take up to 20 seconds</span>";
+    frame().appendChild(starting);
+    const hideStarting = () => starting.classList.add("is-gone");
+    iframe.addEventListener("load", () => setTimeout(hideStarting, 7000));
+    setTimeout(hideStarting, 22000);
 
     hideNotice();
     if (state.start && server.resume && !restart) {
@@ -360,7 +370,7 @@
       const n = root.querySelector(".player-notice");
       n.dataset.kind = "hint";
       setTimeout(() => { if (n.dataset.kind === "hint") hideNotice(); }, 12000);
-    }, 15000);
+    }, 25000);
   }
 
   function switchTo(server) {
@@ -451,9 +461,30 @@
     }
   }
 
+  /* ---------- a gentle nudge on long sessions ---------- */
+
+  const CARE_KEY = "film_ledger_watch_session";
+  let careTimer = 0;
+
+  /* Minutes watched this sitting (a 20-minute break starts a new one); the little Iris character checks in at
+     1, 2, 3 and 4 hours, and once if it's gone well past midnight. */
+  function careTick() {
+    if (!state.open || document.hidden) return;
+    const s = session.get(CARE_KEY, { min: 0, at: 0, shown: [] });
+    if (Date.now() - s.at > 20 * 60e3) { s.min = 0; s.shown = []; }
+    s.min += 1;
+    s.at = Date.now();
+    const due = FL.voice.CARE.find(([m]) => s.min >= m && s.shown.indexOf(m) === -1);
+    const h = new Date().getHours();
+    if (due) { s.shown.push(due[0]); FL.ui.nudge(due[1], due[2]); }
+    else if (h < 4 && s.min >= 40 && s.shown.indexOf("late") === -1) { s.shown.push("late"); FL.ui.nudge("It's getting late — this one could finish tomorrow.", "🌙"); }
+    session.set(CARE_KEY, s);
+  }
+
   function close() {
     if (!state.open) return;
     state.open = false; // before settle(): a closing player offers Undo, not "Next episode"
+    clearInterval(careTimer);
     settle();
     state.token++;
     state.film = null;
@@ -497,6 +528,8 @@
     // Hosts post messages even on their own "not found" screens; only a real duration means media loaded.
     if (!state.confirmed && info.d > 0) {
       state.confirmed = true;
+      const st = root.querySelector(".player-starting");
+      if (st) st.classList.add("is-gone");
       bumpStat(state.server.id, "ok", state.film);
       const n = root.querySelector(".player-notice");
       if (n && n.dataset.persistent) hideNotice();

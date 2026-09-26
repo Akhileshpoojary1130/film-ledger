@@ -13,7 +13,7 @@
     return '<a class="btn btn-primary btn-lg" href="#/watch/' + encodeURIComponent(film.id) + '">' + icon("play") +
         (resume ? "Resume <small>" + fmtClock(p.t) + "</small>" : "Play") + "</a>" +
       '<button type="button" class="btn btn-lg" data-fa="trailer" hidden>' + icon("trailer") + "Trailer</button>" +
-      '<button type="button" class="btn btn-lg toggle' + (st.listed ? " is-on" : "") + '" data-fa="list" aria-pressed="' + st.listed + '">' + icon("bookmark") + (st.listed ? "On watchlist" : "Watchlist") + "</button>" +
+      '<button type="button" class="btn btn-lg toggle' + (st.listed ? " is-on" : "") + '" data-fa="list" aria-pressed="' + st.listed + '">' + icon("bookmark") + (st.listed ? "Saved for later" : "Watch later") + "</button>" +
       '<button type="button" class="btn btn-lg toggle' + (st.watched ? " is-on" : "") + '" data-fa="seen" aria-pressed="' + st.watched + '">' + icon("check") +
         (st.watched ? "Watched" + (st.count > 1 ? " " + st.count + "×" : "") : "Mark watched") + "</button>" +
       '<button type="button" class="icon-btn icon-btn-lg toggle fav' + (st.fav ? " is-on" : "") + '" data-fa="fav" aria-pressed="' + st.fav + '" aria-label="Favourite" title="Favourite (F)">' + icon("heart") + "</button>";
@@ -120,8 +120,10 @@
     const s = FL.catalogue.series(film);
     if (!s) return "";
     const idx = s.films.indexOf(film);
+    const coll = FL.catalogue.collection("s-" + s.key);
     return rail("The " + esc(s.name) + " series", s.films, {
       cls: "rail-series",
+      more: coll ? "#/collection/" + coll.id : "",
       sub: "In release order" + (idx !== -1 ? " · this is part " + (idx + 1) + " of " + s.films.length : ""),
       caption: (f) => (f === film ? "You’re here" : FL.store.state(f.id).watched ? "Watched" : ""),
     });
@@ -174,7 +176,8 @@
         '<div class="container film-hero">' +
           '<div class="film-poster">' + art(film, { size: "medium", eager: true }) + "</div>" +
           '<div class="film-head">' +
-            '<p class="eyebrow">' + [FL.catalogue.filmLang(film), FL.catalogue.yearLabel(film), film.universe].filter((x) => x && x !== "World").map(esc).join(" · ") + "</p>" +
+            '<p class="eyebrow">' + [FL.catalogue.filmLang(film), FL.catalogue.yearLabel(film), film.universe].filter((x) => x && x !== "World").map(esc).join(" · ") +
+              (FL.ui.mustWatch(film) ? ' <span class="tag-must tag-inline">Must watch</span>' : "") + "</p>" +
             '<h1 class="display film-title">' + esc(film.title) + "</h1>" +
             '<p class="film-facts" data-slot="facts">' + (facts(film, m) || '<span class="skeleton-line short"></span>') + "</p>" +
             '<p class="film-scores" data-slot="scores">' + scores(film, m) + "</p>" +
@@ -199,6 +202,8 @@
         '<div class="container" data-slot="similar">' + rail("More like this", FL.catalogue.similar(film, 18)) + "</div>" +
       "</article>";
 
+    // The view container outlives this page; its own article tells us whether we're still on screen.
+    const page = el.firstElementChild;
     const slot = (name) => $('[data-slot="' + name + '"]', el);
 
     function setBackdrop() {
@@ -221,7 +226,7 @@
       slot("overview").textContent = desc() || "No synopsis available.";
       slot("credits").innerHTML = credits(m || { directors: [], writers: [], cast: [] });
       if (m) {
-        FL.people.photos(castNames(m), castRoles(m)).then(() => { if (el.isConnected) FL.people.paint(slot("credits")); });
+        FL.people.photos(castNames(m), castRoles(m)).then(() => { if (page.isConnected) FL.people.paint(slot("credits")); });
         moreFrom(m);
       }
       slot("details").innerHTML = detailsList(film, m);
@@ -242,7 +247,7 @@
       moreShown = true;
       FL.people.filmography(dir).then((list) => {
         const box = slot("people");
-        if (!box || !el.isConnected) return;
+        if (!box || !page.isConnected) return;
         const films = list.filter((x) => x.role === "Director" && x.film.type !== "series" && x.film.id !== film.id).map((x) => x.film);
         if (films.length < 2) return;
         box.innerHTML = rail("More from " + esc(dir), films.slice(0, 20), { more: FL.people.href(dir), sub: "Directed by the same filmmaker" });
@@ -252,14 +257,14 @@
 
     if (m) showMeta(m);
     else setBackdrop();
-    FL.meta.details(film).then((meta) => { if (el.isConnected) showMeta(meta); });
+    FL.meta.details(film).then((meta) => { if (page.isConnected) showMeta(meta); });
 
     // Ask the web for instalments the bundle doesn't have ("Hera Pheri 3"), then redraw the series rail.
     const stem = FL.catalogue.stemOf(film.title);
     if (stem.length >= 3) {
       FL.remote.search(stem).then(() => {
         const box = slot("series");
-        if (!box || !el.isConnected) return;
+        if (!box || !page.isConnected) return;
         const html = seriesRail(film);
         if (html && html !== box.innerHTML) { box.innerHTML = html; FL.ui.watchPosters(box); }
       });
@@ -332,9 +337,9 @@
 
   FL.views.collection = {
     mount(el, params) {
-      const fr = FL.catalogue.franchises().find((g) => g.id === params[0]);
+      const fr = FL.catalogue.collection(params[0]);
       if (!fr) {
-        el.innerHTML = '<div class="container page">' + FL.ui.empty("Collection not found.", "", '<a class="btn" href="#/library/collections">All collections</a>') + "</div>";
+        el.innerHTML = '<div class="container page">' + FL.ui.empty("Collection not found.", "", '<a class="btn" href="#/collections">All collections</a>') + "</div>";
         return {};
       }
       document.title = fr.name + " · Iris";
@@ -342,7 +347,7 @@
         const seen = fr.films.filter((f) => FL.store.state(f.id).watched).length;
         const pct = Math.round((seen / fr.films.length) * 100);
         el.innerHTML = '<div class="container page">' +
-          '<header class="page-head"><div><p class="eyebrow"><a href="#/library/collections">Collections</a></p><h1 class="h1">' + esc(fr.name) + "</h1>" +
+          '<header class="page-head"><div><p class="eyebrow"><a href="#/collections">Collections</a></p><h1 class="h1">' + esc(fr.name) + "</h1>" +
           '<p class="sub">' + seen + " of " + fr.films.length + " watched · " + pct + '% · in release order</p></div></header>' +
           '<div class="meter meter-lg" role="progressbar" aria-valuenow="' + pct + '" aria-valuemin="0" aria-valuemax="100"><i style="width:' + pct + '%"></i></div>' +
           '<div class="rows ranked">' + fr.films.map((f, i) => row(f, { rank: i + 1, caption: f.order ? esc(f.order) : "" })).join("") + "</div></div>";

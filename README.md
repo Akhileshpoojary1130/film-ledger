@@ -7,47 +7,43 @@ Live: https://film-ledger-mocha.vercel.app/
 
 ## What it does
 
-- **Home** — *Continue watching*, a *Tonight* pick, **Up next in your series** (watched KGF 1 → KGF 2; Hera Pheri →
-  Phir Hera Pheri), **For you** (from what you rated, favourited and rewatched, with the reason shown), your shows,
-  watchlist, and the year's big releases.
-- **Years** — a camera-style dial from 1970 (left) to next year (right): scroll over it, drag, swipe or tap a
-  year and it snaps into the centre; the films change in place. Each year merges the bundled vault (15,600 films),
-  the web's catalogue for that year and Wikipedia's Hindi / Tamil / Telugu / Malayalam / Kannada lists for older
-  years. The default order is **IMDb rating, high to low** — well-known titles first, then ones with few votes (a
-  divider marks the switch) — or *Most popular*, which interleaves each language's hits. Ratings are the live IMDb
-  figures; titles missing one are looked up in the background.
-- **Shows** — Indian reality & talent (Bigg Boss, India's Got Talent, Lock Upp, Khatron Ke Khiladi, Indian Idol,
-  Shark Tank India, KBC…), popular series and reality TV worldwide. Seasons and episodes are fetched live, so a new
-  season shows up on its own when it airs. Tick episodes or whole seasons; reality shows open on the current season.
-- **Search** — `⌘K` from anywhere. Ranked across the vault in a few ms, tolerant of Hinglish spellings, acronyms and
-  typos (`gangs of wasepur` → *Gangs of Wasseypur*, "Showing results for…"). Anything the vault doesn't have is
-  fetched from the web and appears exactly like a bundled title. Recent searches are kept.
-- **Film page** — backdrop, runtime, trailer, live IMDb score, **cast & crew with small portraits** (Wikipedia),
-  the whole series in release order, *More from* the director, similar films, star rating, watch dates. Links to
-  IMDb, Wikipedia and *Where to watch* (JustWatch).
-- **People** — tap anyone for their page: portrait, who they are, everything they directed, acted in or wrote, and
-  how many you've seen. Home adds *More from Rajkumar Hirani* / *More with Pankaj Tripathi* rails for the people
-  behind what you watch and rate highly.
-- **Library, Diary, Stats** — watchlist, watched, shows, favourites, collections; a calendar of viewing days; films,
-  hours, genres, languages, decades, streaks and how your ratings compare with IMDb.
-- **Continue watching** — Home shows up to three unfinished titles (1–3 in Settings → Home).
-- **Less typing** — rating is stars only. Films log themselves: when the stream reports the end (or you've watched
-  most of the runtime), it's marked watched and leaves your watchlist.
+- **Home** — a big logo that docks into the top bar as you scroll, and one search bar that does the same. The
+  headline follows the time of day (early bird, lunch — "Had lunch yet?", dinner, late night), changes every six hours
+  with different wording each day, and takes a typeface from what you've been watching (eerie for horror, bold for
+  action, sunny for comedy). Then *Continue watching* (1–3, in Settings), **three picks** — one from your taste, one
+  you saved, one must-watch — each saying why, **Up next in your series** (KGF 1 → KGF 2, the MCU in order), **For
+  you**, *More from* the directors you like, **New episodes** in shows you follow, a daily **Throwback** year, and
+  Indian and world discovery rows.
+- **Years** — 1970 (left) to next year (right). Pick the year with a **Dial** (default), **Wheel** (like the iPhone
+  camera's mode strip), **Ruler** or **Chips** (Settings → More). Each year merges the bundled vault (from 1990), the
+  web's catalogue and Wikipedia's film lists (Hindi, 8 regional languages, American and British) for older years.
+  Ordered by **IMDb rating** — well-known titles first, a divider, then few-vote ones — or *Most popular*. Filters:
+  language, to-watch / watched / **Must watch**.
+- **Must watch** — a tag on films rated 8+ by enough people (or 7.8+ by a huge audience).
+- **Watch later** — the bookmark on every poster; it stays visible once saved. Watched films show one tick.
+- **Collections** — 140+ in release order: the superhero universes plus film series found by title (Harry Potter,
+  Pirates of the Caribbean, Mission: Impossible, Dhoom, Golmaal, Bhool Bhulaiyaa, KGF, Pushpa, Kantara…).
+- **Shows** — Indian reality & talent (Bigg Boss, India's Got Talent, Lock Upp…), **Indian web series** (Mirzapur,
+  Panchayat, The Family Man, Scam 1992, Kota Factory…), popular and reality series worldwide. Seasons and episodes
+  are fetched live, so new ones appear on their own.
+- **Search** — `⌘K` / `Ctrl K`, tolerant of spellings and typos; anything not bundled is fetched from the web.
+- **Film page** — live IMDb score, cast & crew with small photos (tap one for all their films), the series in order,
+  *More from* the director, similar films, rating, watch dates, *Where to watch*.
+- **Diary** — films you tick appear on the day you ticked them; films you play fill the calendar.
+- **Stats** — films, hours, genres, languages, decades, ratings vs IMDb, **faces you watch most**, directors, **time
+  of day** and **day of the week** you watch, records.
+- **Care** — during long sessions a small Iris character peeks in at the top right for five seconds: water after an
+  hour, a stretch after two, and a nudge if it's very late.
 
 ## Appearance
 
-Settings → Appearance mixes four independent choices, or one-tap *Quick looks*:
+Settings → Appearance, in order:
 
-- **Style** — Cinema (editorial serif), Material (Android / Material You, Material Symbols) or Cupertino (SF, rounded).
-- **Palette** — 28, each with a dark and light version generated in OKLCH: Noir, AMOLED, High contrast, Midnight,
-  Ocean, Lagoon, Forest, Sand, Marigold, Sunset, Crimson, Sakura, Grape, Nord, Dracula, Tokyo Night, Catppuccin,
-  Gruvbox, Solarized and more; plus mode (dark / light / auto) and any accent colour.
-- **Liquid glass** — off, subtle, balanced or clear: frosted, see-through bars, panels and sheets.
-- **Background** — *Lights*: soft lamps drift behind frosted glass, bright and defined when near, dim and scattered
-  when far, bumping gently off each other; *Aurora*: slow colour ribbons. Both pause in background tabs.
-- **Motion** — Full or Calm (no tilt, drift or page effects; also follows the system's reduce-motion setting).
-
-The aperture logo is the loader, blinks its shutter as you change pages, and the app opens with an iris-out.
+1. **Style** — Cinema, Material (Android), Cupertino (Apple), Fluent (Windows 11), One UI (Samsung) or Glyph
+   (dot-matrix, Nothing-style): type, shapes and controls.
+2. **Glass & background** — liquid glass (off → clear), a background (*Lights* drifting dimly behind frosted glass,
+   or *Aurora*), and motion (Full / Calm).
+3. **Colour** — dark / light / auto, 44 palettes (scroll the strip), any accent colour.
 
 ## Where your data lives
 
@@ -68,6 +64,11 @@ provider or an ad blocker blocking that host, which the app can't change; the ho
 Videasy report progress for *Continue watching*, resume and auto-logging. Series play by season and episode with a
 *Next episode* button. Some titles (many Indian reality shows) aren't on these hosts — *Where to watch* links to the
 official service. Keys: `N` next server, `1`–`5` pick, `F` fullscreen, `Esc` close.
+
+## Found on search
+
+`index.html` carries a description, Open Graph / Twitter cards (`assets/og.png`), structured data, a web manifest
+with icons (installable), `robots.txt` and `sitemap.xml`. Submit the sitemap in Google Search Console to get it indexed.
 
 ## If it won't start
 
@@ -93,6 +94,7 @@ assets/js/
   catalogue.js        normalisation, search + autocorrect, browse, series detection, recommendations
   store.js            library, episodes, prefs, recent searches, migration, backup
   theme.js            styles, palettes, glass, motion, accents, the aperture mark
+  voice.js            time-of-day lines, mood typefaces, care messages
   ambient.js          Lights (canvas) and Aurora backgrounds
   meta.js             IMDb resolution, Cinemeta details, poster chain
   remote.js           web titles: search, year catalogues, Wikipedia year lists, shows & episodes
@@ -101,7 +103,7 @@ assets/js/
   ui.js               icons, cards, rails, rating, reveal & tilt motion, toasts, modals
   player.js           theatre player, auto-logging
   palette.js          ⌘K palette, surprise me, settings, shortcuts
-  views/              home, years (dial), browse, film, shows, person, library + diary, insights (stats)
+  views/              home, years (dial), browse, film, shows, person, library + collections + diary, insights (stats)
   app.js              router, chrome, page transitions
 ```
 

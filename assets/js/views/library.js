@@ -8,11 +8,10 @@
   const PAGE = 90;
 
   const TABS = [
-    ["watchlist", "Watchlist"],
+    ["watchlist", "Watch later"],
     ["watched", "Watched"],
     ["favorites", "Favourites"],
     ["shows", "Shows"],
-    ["collections", "Collections"],
   ];
 
   const SORTS = [
@@ -56,8 +55,8 @@
     return empty("No films have earned the heart yet.", "Favourite a film from its page — they’ll collect here.");
   }
 
-  function collectionsHtml() {
-    return '<div class="collections">' + FL.catalogue.franchises().map((fr) => {
+  function collectionsHtml(list) {
+    return '<div class="collections">' + (list || FL.catalogue.franchises()).map((fr) => {
       const seen = fr.films.filter((f) => FL.store.state(f.id).watched).length;
       const cover = fr.films.slice().sort((a, b) => (b.votes || 0) - (a.votes || 0)).slice(0, 4);
       return '<a class="coll" href="#/collection/' + fr.id + '"><div class="coll-cover">' + cover.map((f) => art(f)).join("") + "</div>" +
@@ -68,16 +67,66 @@
 
   FL.views = FL.views || {};
 
+  /* ---------- collections: universes and film series, to work through in order ---------- */
+
+  const COLL_FILTERS = [["all", "All"], ["started", "In progress"], ["Hindi", "Hindi"], ["English", "English"], ["OtherIndian", "Regional"], ["universe", "Universes"]];
+
+  FL.views.collections = {
+    title: "Collections",
+    mount(el) {
+      let filter = "all";
+      const seenIn = (c) => c.films.filter((f) => FL.store.state(f.id).watched).length;
+      function list() {
+        const all = FL.catalogue.collections();
+        let out = all.filter((c) => {
+          if (filter === "all") return true;
+          if (filter === "started") { const n = seenIn(c); return n > 0 && n < c.films.length; }
+          if (filter === "universe") return c.kind === "universe";
+          return c.kind === "series" && c.films[0].lang === filter;
+        });
+        // Each language's biggest series lead together, then the next, so Hindi and regional sit beside Hollywood.
+        const groups = {};
+        out.forEach((c) => { const k = c.kind === "universe" ? "U" : c.films[0].lang; (groups[k] = groups[k] || []).push(c); });
+        const pos = new Map();
+        Object.values(groups).forEach((g) => g.sort((a, b) => b.audience - a.audience).forEach((c, i) => pos.set(c, (i + 0.5) / g.length)));
+        out = out.sort((a, b) => (seenIn(b) > 0) - (seenIn(a) > 0) || pos.get(a) - pos.get(b));
+        return out;
+      }
+      function render() {
+        const items = list();
+        el.innerHTML = '<div class="container page">' +
+          '<header class="page-head"><div><p class="eyebrow">Collections</p><h1 class="display">Series &amp; <em>universes.</em></h1>' +
+          '<p class="sub">' + FL.catalogue.collections().length + " collections, each in release order — tick your way through.</p></div></header>" +
+          '<div class="filter-row coll-filters">' + segmented("cfilter", COLL_FILTERS, filter) + "</div>" +
+          (items.length ? collectionsHtml(items) : empty("Nothing here yet.", filter === "started" ? "Watch one film from a series and it shows up here." : "Try another filter.")) + "</div>";
+        FL.ui.watchPosters(el);
+      }
+      function onClick(e) {
+        const seg = e.target.closest('[data-seg="cfilter"]');
+        if (!seg) return;
+        filter = seg.dataset.value;
+        render();
+      }
+      el.addEventListener("click", onClick);
+      render();
+      return {
+        update(detail) { if (detail.kind !== "progress") { const y = window.scrollY; render(); window.scrollTo(0, y); } },
+        destroy() { el.removeEventListener("click", onClick); },
+      };
+    },
+  };
+
   FL.views.library = {
     title: "Library",
     mount(el, params) {
+      if (params[0] === "collections") { location.replace("#/collections"); return {}; }
       const tab = TABS.some(([t]) => t === params[0]) ? params[0] : "watchlist";
       let shown = 0;
       let films = [];
 
       function render() {
         const prefs = FL.store.prefs().library;
-        const counts = { watchlist: FL.store.watchlist().length, watched: FL.store.watched().length, favorites: FL.store.favorites().length, shows: FL.store.shows().length, collections: FL.catalogue.franchises().length };
+        const counts = { watchlist: FL.store.watchlist().length, watched: FL.store.watched().length, favorites: FL.store.favorites().length, shows: FL.store.shows().length };
         const tabs = '<nav class="tabs" aria-label="Library sections">' + TABS.map(([t, label]) =>
           '<a class="tab' + (t === tab ? " is-on" : "") + '" href="#/library/' + t + '"' + (t === tab ? ' aria-current="page"' : "") + ">" + label + "<span>" + counts[t] + "</span></a>").join("") + "</nav>";
         const toolbar = tab === "collections" ? "" :
@@ -161,7 +210,8 @@
 
   function heatmap(year, rows) {
     const byDay = {};
-    rows.forEach((r) => { (byDay[r.date] = byDay[r.date] || []).push(r.entry.title); });
+    // Ticks without a date aren't viewings — the calendar shows days you actually watched.
+    rows.filter((r) => !r.marked).forEach((r) => { (byDay[r.date] = byDay[r.date] || []).push(r.entry.title); });
     const start = new Date(year, 0, 1);
     const offset = (start.getDay() + 6) % 7; // Monday-first
     const days = (new Date(year + 1, 0, 1) - start) / 864e5;
@@ -202,7 +252,8 @@
         return '<li class="diary-row"><span class="diary-day"><strong>' + d.getDate() + "</strong><small>" + ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()] + "</small></span>" +
           '<a class="diary-art" href="#/film/' + encodeURIComponent(film.id) + '" tabindex="-1" aria-hidden="true">' + art(film) + "</a>" +
           '<div class="diary-main"><a class="diary-title" href="#/film/' + encodeURIComponent(film.id) + '">' + esc(film.title) + "</a> <span class='muted'>" + film.year + "</span>" +
-          (r.rewatch ? ' <span class="rewatch" title="Rewatch">' + icon("rewatch") + "</span>" : "") + "</div>" +
+          (r.rewatch ? ' <span class="rewatch" title="Rewatch">' + icon("rewatch") + "</span>" : "") +
+          (r.marked ? ' <span class="diary-mark" title="Ticked as watched on this day — no watch date">ticked</span>' : "") + "</div>" +
           '<div class="diary-rating">' + (r.entry.rating ? stars(r.entry.rating, "stars-sm") : "") + (r.entry.fav ? '<span class="fav-mark" title="Favourite">' + icon("heart") + "</span>" : "") + "</div></li>";
       }).join("") + "</ol></section>";
   }
@@ -216,7 +267,7 @@
         const chosen = params[0] && /^\d{4}$/.test(params[0]) ? +params[0] : +(all[0] ? all[0].date.slice(0, 4) : new Date().getFullYear());
         if (years.indexOf(chosen) === -1) years.push(chosen);
         const rows = all.filter((r) => +r.date.slice(0, 4) === chosen);
-        const undated = FL.store.watched().filter((e) => !e.watches.length).length;
+        const undated = 0; // ticked films now appear on the day they were ticked
         const s = FL.stats.summary(chosen);
 
         const groups = [];
@@ -231,11 +282,11 @@
           '<a class="btn btn-ghost" href="#/stats/' + chosen + '">' + icon("chart") + chosen + " stats</a></header>" +
           '<div class="scope-nav">' + segmented("dyear", years.sort((a, b) => b - a).map((y) => [y, y]), chosen) + "</div>" +
           '<section class="panel">' + heatmap(chosen, rows) +
-          '<p class="heat-summary">' + (rows.length
+          '<p class="heat-summary">' + (rows.some((r) => !r.marked)
             ? "<strong>" + plural(s.films, "film") + "</strong> · " + plural(s.viewings, "viewing") + (s.minutes ? " · " + fmtHours(s.minutes) : "") + (s.rated ? " · avg " + s.avgRating.toFixed(1) + " ★" : "") + (s.rewatches ? " · " + plural(s.rewatches, "rewatch", "rewatches") : "")
-            : "Nothing logged in " + chosen + " yet.") + "</p></section>" +
+            : rows.length ? plural(rows.length, "film") + " ticked in " + chosen + " — films you play here fill the calendar." : "Nothing in " + chosen + " yet.") + "</p></section>" +
           (groups.length ? groups.map(([k, list]) => monthBlock(k, list)).join("")
-            : empty("The page is waiting for its first screening.", "Films you finish in the player are logged here automatically. You can also add a date from any film’s page.")) +
+            : empty("Your film history, day by day.", "Tick a film as watched, or finish one in the player, and it shows up here on that day.", '<a class="btn" href="#/years">Pick from the years</a>')) +
           (undated ? '<p class="footnote">' + plural(undated, "film") + " marked watched without a date — they count in all-time stats. <a class=\"link\" href=\"#/library/watched\">Add dates from their pages</a>.</p>" : "") +
           "</div>";
         FL.ui.watchPosters(el);

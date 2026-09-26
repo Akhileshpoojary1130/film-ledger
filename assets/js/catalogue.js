@@ -638,7 +638,13 @@
     const shortest = list.slice().sort((a, b) => a.title.length - b.title.length)[0];
     const head = shortest.title.split(/\s*[:–—]\s*/)[0];
     const named = /^(Harry Potter|Indiana Jones|Percy Jackson)\b/i.exec(head);
-    const name = named ? named[1] : head.replace(/\s+\d+$/, "").trim();
+    // The words every title starts with ("Mission: Impossible", "Pirates of the Caribbean"), when they say more.
+    const words = list.map((f) => f.title.split(/\s+/));
+    let common = [];
+    for (let i = 0; i < words[0].length && words.every((w) => w[i] && w[i].toLowerCase() === words[0][i].toLowerCase()); i++) common.push(words[0][i]);
+    while (common.length && /^(and|the|of|part|chapter|\d+|[:–—-])$/i.test(common[common.length - 1].replace(/[:–—]$/, "") || ":")) common.pop();
+    const prefix = common.join(" ").replace(/[\s:–—,-]+$/, "");
+    const name = named ? named[1] : prefix.length > head.length ? prefix : head.replace(/\s+\d+$/, "").trim();
     return { key: k, name, films: list };
   }
 
@@ -655,6 +661,14 @@
       const last = Math.max.apply(null, watchedIdx);
       const next = s.films.slice(last + 1).find((f) => !FL.store.state(f.id).watched && f.year && f.year <= cy);
       if (next && !out.has(next.id)) out.set(next.id, { film: next, reason: "Next after " + s.films[last].title });
+    });
+    // Universes (MCU, X-Men…) continue in release order too.
+    franchises().forEach((g) => {
+      const idx = g.films.map((f, i) => (FL.store.state(f.id).watched ? i : -1)).filter((i) => i >= 0);
+      if (!idx.length) return;
+      const last = Math.max.apply(null, idx);
+      const next = g.films.slice(last + 1).find((f) => !FL.store.state(f.id).watched && f.year && f.year <= cy);
+      if (next && !out.has(next.id)) out.set(next.id, { film: next, reason: g.name + " · next after " + g.films[last].title });
     });
     return Array.from(out.values());
   }
@@ -718,6 +732,11 @@
   let recoCache = { v: "", items: [] };
 
   /* [{ film, reason }] — next instalments first, then films scored against your taste. */
+  const GENRE_NOUN = { Comedy: "comedies", Drama: "dramas", Romance: "romances", Thriller: "thrillers", Horror: "horror films", Action: "action films",
+    Crime: "crime films", Adventure: "adventures", Mystery: "mysteries", Family: "family films", Animation: "animation", Biography: "biopics",
+    "Sci-Fi": "sci-fi", Fantasy: "fantasy films", War: "war films", Sport: "sports films", Musical: "musicals", History: "period films" };
+  const genreNoun = (g) => GENRE_NOUN[g] || g.toLowerCase() + " films";
+
   function forYou(limit = 24) {
     if (!FL.store) return [];
     const v = FL.store.version() + ":" + version;
@@ -734,14 +753,18 @@
       if (!f.year || f.year > cy || f.type === "series") continue;
       const st = FL.store.state(f.id);
       if (st.watched) continue;
+      if (f.rating && f.rating < 6.3) continue; // taste match alone shouldn't surface a weak film
       let gs = 0;
       f.genres.forEach((x) => { gs += p.g[x] || 0; });
       let s = (f.genres.length ? gs / Math.sqrt(f.genres.length) : 0) * 3;
       s += (p.l[f.lang] || 0) * 3;
       if (f.region) s += (p.r[f.region] || 0) * 2;
       s += (p.d[Math.floor(f.year / 10)] || 0);
-      s += ((f.rating || 6.2) - 6.6) * 1.2;
-      s += f.pop / 30;
+      // Quality counts as much as taste. Ratings are weighted by votes like IMDb's Top 250, so a 9.1 from
+      // 33 people counts as roughly a 6.5.
+      const r = f.rating && f.votes ? (f.votes * f.rating + 3000 * 6.5) / (f.votes + 3000) : f.rating;
+      s += r ? (r - 6.8) * 2.2 : -1.5;
+      s += f.votes ? Math.min(3, Math.max(0, Math.log10(f.votes) - 3)) : (f.pop || 0) / 30;
       if (!f.imdbId && !f.poster) s -= 1;
       if (st.listed) s -= 0.5;
       if (nextIds.has(f.id)) s += 8;
@@ -765,6 +788,11 @@
           if (o > bestOverlap) { best = l; bestOverlap = o; }
         });
         if (best && bestOverlap >= 2.5) reason = "Because you liked " + best.title;
+      }
+      if (!reason) {
+        const g = f.genres.slice().sort((a, b) => (p.g[b] || 0) - (p.g[a] || 0))[0];
+        const lang = f.region || (f.lang === "Hindi" || f.lang === "English" ? LANG_LABEL[f.lang] : "");
+        if (g && p.g[g]) reason = "Because you watch " + (lang ? lang + " " : "") + genreNoun(g);
       }
       out.push({ film: f, reason });
     }
@@ -797,6 +825,32 @@
     return franchiseList;
   }
 
+  /* Every collection: the superhero universes plus film series found by title (Harry Potter, Pirates of the
+     Caribbean, Fast & Furious, Dhoom, Golmaal…) with at least three instalments and a real audience. */
+  let collectionCache = { v: -1, list: [] };
+  function collections() {
+    if (collectionCache.v === version) return collectionCache.list;
+    if (!seriesIndex || seriesVersion !== version) buildSeries();
+    const out = franchises().map((g) => Object.assign({ kind: "universe" }, g));
+    const seen = new Set();
+    seriesIndex.forEach((members) => {
+      const anchor = members.find((f) => !f.remote) || members[0];
+      const s = anchor && series(anchor);
+      if (!s || seen.has(s.key) || s.films.length < 3) return;
+      seen.add(s.key);
+      if (s.films.filter((f) => f.universe).length * 2 >= s.films.length) return; // covered by a universe collection
+      const audience = s.films.reduce((n, f) => n + (f.votes || 0), 0);
+      // Regional rows carry no vote counts, so they qualify on having two or more released instalments.
+      const regional = s.films[0].lang === "OtherIndian" && s.films.filter((f) => f.year && f.year <= new Date().getFullYear()).length >= 2;
+      if (!regional && audience < 30000 && !s.films.some((f) => (f.rating || 0) >= 7 && (f.votes || 0) >= 5000)) return;
+      out.push({ id: "s-" + s.key, name: s.name, films: s.films, kind: "series", audience });
+    });
+    out.forEach((c) => { if (c.audience == null) c.audience = c.films.reduce((n, f) => n + (f.votes || 0), 0); });
+    collectionCache = { v: version, list: out };
+    return out;
+  }
+  const collection = (id) => collections().find((c) => c.id === id) || null;
+
   function franchiseOf(film) {
     if (!film.universe) return null;
     return franchises().find((g) => g.films.indexOf(film) !== -1) || null;
@@ -817,7 +871,7 @@
     canonical: (id) => (byId.has(id) ? id : aliases.get(id) || id),
     byImdb: (tt) => byImdb.get(tt) || null,
     isFilm, search, searchAll, suggest, browse, genresFor, regions, similar, acclaimed, forYou, nextInSeries, series, stemOf,
-    franchises, franchiseOf, langLabel, filmLang, yearLabel, legacyId, SORTS,
+    franchises, franchiseOf, collections, collection, langLabel, filmLang, yearLabel, legacyId, SORTS,
     addRemote, updateRemote, findLocal,
     linkImdb(f, tt) { if (f && tt && !byImdb.has(tt)) byImdb.set(tt, f); },
     /* The live IMDb rating (via Cinemeta) wins over the bundled snapshot. */

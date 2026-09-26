@@ -223,6 +223,13 @@
     const tt = idFor(film);
     const own = sized(film.poster, size);
     if (film.remote && own) list.push(own);
+    // Metahub takes TMDB's main poster, which for Indian films is sometimes a foreign release (Saiyaara showed
+    // a Brazilian one). The bundled Wikipedia poster, then IMDb's own, are the Indian artwork.
+    if ((film.lang === "Hindi" || film.lang === "OtherIndian") && !film.remote) {
+      if (own) list.push(own);
+      const imdbPoster = tt && metaCache[tt] && sized(metaCache[tt].poster, size);
+      if (imdbPoster && /media-amazon/.test(imdbPoster) && list.indexOf(imdbPoster) === -1) list.push(imdbPoster);
+    }
     if (tt) list.push("https://images.metahub.space/poster/" + (size || "small") + "/" + tt + "/img");
     if (own && list.indexOf(own) === -1) list.push(own);
     const extra = sized(posterCache[wikiKey(film)], size);

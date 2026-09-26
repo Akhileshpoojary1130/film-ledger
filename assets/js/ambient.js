@@ -93,10 +93,10 @@
     lamps.slice().sort((a, b) => b.z - a.z).forEach((p) => {
       // Near the glass: smaller, brighter, a firmer core. Far: wider, dimmer, fully scattered.
       const spread = p.r * (0.75 + p.z * 1.5) * unit;
-      const glow = (light ? 0.38 : 0.62) * (1 - p.z * 0.7);
+      const glow = (light ? 0.2 : 0.22) * (1 - p.z * 0.72);
       const core = 0.34 * (1 - p.z);
       const [hue, sat] = palette[p.c];
-      const col = (a) => "hsla(" + hue.toFixed(0) + ", " + (sat * 100).toFixed(0) + "%, " + (light ? 62 : 58) + "%, " + a.toFixed(3) + ")";
+      const col = (a) => "hsla(" + hue.toFixed(0) + ", " + (sat * 100).toFixed(0) + "%, " + (light ? 62 : 48) + "%, " + a.toFixed(3) + ")";
       const g = ctx.createRadialGradient(p.x * w, p.y * h, 0, p.x * w, p.y * h, spread);
       g.addColorStop(0, col(glow));
       g.addColorStop(Math.max(0.01, core), col(glow * 0.7));

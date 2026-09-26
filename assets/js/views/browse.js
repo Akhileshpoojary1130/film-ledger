@@ -44,7 +44,8 @@
   }
 
   function yearOptions(value) {
-    const [min, max] = FL.catalogue.yearRange;
+    const max = FL.catalogue.yearRange[1];
+    const min = 1970; // before the bundle starts, years are filled from the web
     let html = '<option value="all">Any year</option><optgroup label="Decades">';
     for (let d = Math.floor(max / 10) * 10; d >= Math.floor(min / 10) * 10; d -= 10) {
       html += '<option value="' + d + 's"' + (value === d + "s" ? " selected" : "") + ">" + d + "s</option>";
@@ -80,7 +81,7 @@
         select("genre", "Genre", opts(genres, s.genre, "Any genre")) +
         (s.lang === "OtherIndian" ? select("region", "Language", opts(FL.catalogue.regions().map((r) => [r, r]), s.region, "Any language")) : "") +
         select("minRating", "Minimum IMDb rating", opts([[0, "Any rating"], [6, "IMDb 6+"], [7, "IMDb 7+"], [8, "IMDb 8+"]], s.minRating)) +
-        select("status", "Watch status", opts([["all", "All films"], ["unwatched", "Unwatched"], ["watchlist", "On watchlist"], ["watched", "Watched"]], s.status)) +
+        select("status", "Watch status", opts([["all", "All films"], ["unwatched", "Unwatched"], ["watchlist", "In Watch later"], ["watched", "Watched"]], s.status)) +
         '<span class="grow"></span>' +
         select("sort", "Sort", opts(sorts, s.sort)) +
         segmented("view", [["grid", icon("grid") + '<span class="sr-only">Grid</span>'], ["list", icon("list") + '<span class="sr-only">List</span>']], s.view) +
@@ -106,6 +107,7 @@
       const back = restore[currentKey];
 
       let corrected = "";
+      let alive = true;
       let webToken = 0;
       el.innerHTML = '<div class="container page">' +
         '<header class="page-head"><div><h1 class="h1">Browse</h1><p class="sub" data-count></p></div></header>' +
@@ -157,7 +159,7 @@
         const token = ++webToken;
         web.innerHTML = FL.ui.loader(22) + "<span>Searching everywhere…</span>";
         FL.remote.search(corrected || q).then(() => {
-          if (token !== webToken) return;
+          if (token !== webToken || !alive) return;
           web.innerHTML = "";
           const before = new Set(items.map((f) => f.id));
           const next = compute();
@@ -172,7 +174,40 @@
 
       const rememberSearch = debounce(() => { if (s.q && items.length) FL.store.pushSearch(s.q); }, 1800);
 
+      /* The bundle starts in 1990: picking an earlier year (or decade) pulls that year's films from the web and
+         Wikipedia, and the results fill in as they arrive. */
+      let oldKey = "";
+      let oldToken = 0;
+      let oldBusy = false;
+      function fillOld() {
+        const key = s.year + "|" + s.lang;
+        if (key === oldKey) return;
+        oldKey = key;
+        const m = /^(\d{4})s$/.exec(s.year || "");
+        const years = (m ? Array.from({ length: 10 }, (_, i) => +m[1] + i) : s.year && s.year !== "all" ? [+s.year] : []).filter((y) => y >= 1970 && y < 1990);
+        if (!years.length) return;
+        const tok = ++oldToken;
+        oldBusy = true;
+        const web = $("[data-web]", el);
+        web.innerHTML = FL.ui.loader(22) + "<span>Finding films from " + (m ? s.year : years[0]) + "…</span>";
+        const jobs = [];
+        years.forEach((y) => {
+          jobs.push(FL.remote.yearPage(y, 0));
+          if (!m) jobs.push(FL.remote.yearPage(y, 1));
+          ["Hindi", "OtherIndian", "English"].forEach((l) => {
+            if ((s.lang === "all" && (!m || l === "Hindi")) || s.lang === l) jobs.push(FL.remote.wikiYear(l, y));
+          });
+        });
+        Promise.all(jobs).then(() => {
+          if (tok !== oldToken || !alive) return;
+          oldBusy = false;
+          web.innerHTML = "";
+          run(Math.max(PAGE, shown));
+        });
+      }
+
       function run(keepCount) {
+        fillOld();
         items = compute();
         count.innerHTML = describe();
         shown = 0;
@@ -180,6 +215,7 @@
         results.innerHTML = "";
         if (!items.length) {
           results.className = "";
+          if (oldBusy) { results.innerHTML = ""; return; }
           results.innerHTML = FL.ui.empty(
             s.q ? "Nothing matches “" + esc(s.q) + "”." : "No films match these filters.",
             s.q ? "Try fewer words, a different spelling, or clear the filters." : "Loosen a filter to see more.",
@@ -318,6 +354,7 @@
           q.select();
         },
         destroy() {
+          alive = false;
           restore[currentKey] = { y: window.scrollY, count: shown };
           io.disconnect();
           onSearch.cancel();

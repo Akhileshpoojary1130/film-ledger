@@ -9,6 +9,9 @@
     cinema: { label: "Cinema", note: "Editorial serif, sharp", accent: { dark: "#D6A75D", light: "#A8742A" } },
     material: { label: "Material", note: "Android · Material You", accent: { dark: "#D0BCFF", light: "#6750A4" } },
     mac: { label: "Cupertino", note: "Apple · SF, rounded", accent: { dark: "#0A84FF", light: "#007AFF" } },
+    fluent: { label: "Fluent", note: "Windows 11", accent: { dark: "#60CDFF", light: "#005FB8" } },
+    oneui: { label: "One UI", note: "Samsung · big and round", accent: { dark: "#5E9EFF", light: "#3E91FF" } },
+    nothing: { label: "Glyph", note: "Dot-matrix, Nothing-style", accent: { dark: "#D71921", light: "#D71921" } },
   };
   const ACCENTS = [
     ["#D6A75D", "Amber"], ["#FF7A59", "Coral"], ["#E5484D", "Red"], ["#F472B6", "Pink"],
@@ -45,15 +48,31 @@
     { id: "catppuccin", name: "Catppuccin", h: 290, c: 0.03, acc: ["#CBA6F7", "#8839EF"] },
     { id: "gruvbox", name: "Gruvbox", h: 70, c: 0.035, acc: ["#FABD2F", "#B57614"] },
     { id: "solar", name: "Solarized", h: 215, c: 0.05, acc: ["#2AA2E0", "#1F6FAE"] },
+    { id: "slate", name: "Slate", h: 235, c: 0.015, acc: ["#94A3B8", "#475569"] },
+    { id: "steel", name: "Steel", h: 210, c: 0.02, acc: ["#7DB3E8", "#2E6DA4"] },
+    { id: "arctic", name: "Arctic", h: 205, c: 0.025, acc: ["#9BE7FF", "#0A7CA8"] },
+    { id: "aqua", name: "Aqua", h: 185, c: 0.04, acc: ["#3DE0E0", "#08807F"] },
+    { id: "emerald", name: "Emerald", h: 158, c: 0.04, acc: ["#34D399", "#047857"] },
+    { id: "sage", name: "Sage", h: 140, c: 0.018, acc: ["#A7C4A0", "#4E6E48"] },
+    { id: "matrix", name: "Matrix", h: 145, c: 0.05, acc: ["#39FF88", "#0B8A3E"] },
+    { id: "vintage", name: "Vintage", h: 75, c: 0.03, acc: ["#E3C58E", "#8A6A2F"] },
+    { id: "rust", name: "Rust", h: 45, c: 0.04, acc: ["#E8764A", "#A3401C"] },
+    { id: "ember", name: "Ember", h: 30, c: 0.045, acc: ["#FF6B3D", "#C23A12"] },
+    { id: "berry", name: "Berry", h: 350, c: 0.04, acc: ["#FF4F8B", "#B3134F"] },
+    { id: "bollywood", name: "Bollywood", h: 335, c: 0.045, acc: ["#FFB020", "#B3006B"] },
+    { id: "plum", name: "Plum", h: 320, c: 0.03, acc: ["#E07BE0", "#8E2F8E"] },
+    { id: "cyberpunk", name: "Cyberpunk", h: 300, c: 0.06, acc: ["#00F0FF", "#C2008C"] },
+    { id: "royal", name: "Royal", h: 275, c: 0.035, acc: ["#FFD166", "#5B3CC4"] },
   ];
 
   /* One-tap combinations, including the two animated ("dynamic") looks. */
   const PRESETS = [
     { id: "classic", name: "Classic cinema", set: { theme: "cinema", palette: "default", glass: "off", ambient: "off" } },
-    { id: "frost", name: "Frosted lights", set: { theme: "mac", palette: "midnight", glass: "balanced", ambient: "lights" } },
-    { id: "aurora", name: "Aurora glass", set: { theme: "cinema", palette: "tokyo", glass: "subtle", ambient: "aurora" } },
+    { id: "frost", name: "Frosted lights", set: { theme: "mac", palette: "graphite", glass: "balanced", ambient: "lights" } },
+    { id: "aurora", name: "Night aurora", set: { theme: "cinema", palette: "midnight", glass: "subtle", ambient: "aurora" } },
     { id: "you", name: "Material You", set: { theme: "material", palette: "default", glass: "off", ambient: "off" } },
-    { id: "ember", name: "Ember", set: { theme: "cinema", palette: "sunset", glass: "subtle", ambient: "lights" } },
+    { id: "glyph", name: "Glyph", set: { theme: "nothing", palette: "default", glass: "off", ambient: "off" } },
+    { id: "ember", name: "Ember glass", set: { theme: "cinema", palette: "noir", glass: "subtle", ambient: "lights" } },
   ];
 
   const GLASS = [["off", "Off"], ["subtle", "Subtle"], ["balanced", "Balanced"], ["clear", "Clear"]];
@@ -154,6 +173,13 @@
   /* ---------- fonts ---------- */
 
   function loadFonts(theme) {
+    if (theme === "nothing" && !document.getElementById("font-glyph")) {
+      const g = document.createElement("link");
+      g.id = "font-glyph";
+      g.rel = "stylesheet";
+      g.href = "https://fonts.googleapis.com/css2?family=Doto:wght@600..900&family=Space+Grotesk:wght@400..600&display=swap";
+      document.head.appendChild(g);
+    }
     if (theme !== "material" || document.getElementById("font-material")) return;
     const names = ["add", "arrow_back", "arrow_forward", "auto_awesome", "bar_chart", "bookmark", "calendar_month", "check",
       "chevron_left", "chevron_right", "close", "dark_mode", "delete", "download", "edit", "expand_more", "explore", "favorite",

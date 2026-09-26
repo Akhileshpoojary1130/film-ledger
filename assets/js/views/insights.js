@@ -43,6 +43,7 @@
       years: {}, weekdays: new Array(7).fill(0), ratings: new Array(10).fill(0),
       genres: [], languages: [], decades: [], directors: [],
       avgRating: 0, rated: 0, rewatches: 0, favorites: 0, streak: null, longest: null, shortest: null, mostRewatched: null, vsImdb: null,
+      cast: [], hours: new Array(6).fill(0), sittings: 0, weekAll: new Array(7).fill(0),
     };
 
     const missing = new Set();
@@ -111,6 +112,31 @@
       const count = all ? e.watches.length : e.watches.filter((d) => +d.slice(0, 4) === year).length;
       if (count > 1 && (!s.mostRewatched || count > s.mostRewatched.count)) s.mostRewatched = { film: f, count };
     });
+    // Faces you see most: the first-billed cast of the films you watched (from their details).
+    const cast = {};
+    entries.forEach((e) => {
+      const m = FL.meta.cached(filmFor(e));
+      ((m && m.cast) || []).slice(0, 5).forEach((n) => {
+        if (!cast[n]) cast[n] = { name: n, n: 0, films: [] };
+        cast[n].n++;
+        cast[n].films.push(e.title);
+      });
+    });
+    s.cast = Object.values(cast).filter((c) => c.n >= 1).sort((a, b) => b.n - a.n || a.name.localeCompare(b.name)).slice(0, 8);
+
+    // When you watch: moments of real watching (player sittings, watches logged the same day) by time of day and weekday.
+    FL.store.entries().forEach((e) => {
+      (e.times || []).forEach((t) => {
+        const d = new Date(t);
+        if (!all && d.getFullYear() !== year) return;
+        const h = d.getHours();
+        s.hours[h < 4 ? 5 : h < 8 ? 0 : h < 12 ? 1 : h < 17 ? 2 : h < 21 ? 3 : 4]++;
+        s.weekAll[(d.getDay() + 6) % 7]++;
+        s.sittings++;
+      });
+    });
+    s.weekdays.forEach((n, i) => { s.weekAll[i] += n; });
+
     s.avgRating = s.rated ? ratingSum / s.rated / 2 : 0;
     s.genres = top(genres, 8);
     s.languages = top(langs, 6);
@@ -302,7 +328,28 @@
             (d.rated ? stars(Math.round(d.sum / d.rated), "stars-sm") : "") + "<span class='muted'>" + plural(d.n, "film") + "</span></li>").join("") + "</ol>"
         : '<p class="muted small">Directors appear once film details have loaded.</p>') + "</section>";
 
+    const castPanel = '<section class="panel"><header class="section-head"><div><h2 class="h3">Faces you watch most</h2><p class="sub">Actors &amp; actresses, first-billed</p></div></header>' +
+      (s.cast.length
+        ? '<ol class="ranked-list face-list">' + s.cast.map((c, i) => "<li><span class='rank'>" + String(i + 1).padStart(2, "0") + "</span>" +
+            '<a class="face-row" href="' + FL.people.href(c.name) + '">' + FL.people.face(c.name, 30) + "<span class='grow'>" + esc(c.name) + "</span></a>" +
+            "<span class='muted' data-tip=\"" + esc(c.films.join(", ")) + "\">" + plural(c.n, "film") + "</span></li>").join("") + "</ol>"
+        : '<p class="muted small">Appears once details for your watched films have loaded.</p>') + "</section>";
+
+    const SLOTS = ["Early morning", "Morning", "Afternoon", "Evening", "Night", "Late night"];
+    const SLOT_TIMES = ["4–8 am", "8 am–12", "12–5 pm", "5–9 pm", "9 pm–12", "12–4 am"];
+    const timePanel = '<section class="panel chart-panel"><header class="section-head"><div><h2 class="h3">Time of day</h2><p class="sub">When you actually press play</p></div></header>' +
+      (s.sittings
+        ? columns(s.hours, ["Early", "Morning", "Afternoon", "Evening", "Night", "Late"], s.hours.map((n, i) => plural(n, "sitting") + "\n" + SLOTS[i] + " · " + SLOT_TIMES[i]), { label: "Watching by time of day" })
+        : '<p class="muted small">Fills in as you watch in the player or log a watch on the day.</p>') + "</section>";
+    const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const weekPanel = '<section class="panel chart-panel"><header class="section-head"><div><h2 class="h3">Day of the week</h2><p class="sub">Which days you watch most</p></div></header>' +
+      (s.weekAll.some(Boolean)
+        ? columns(s.weekAll, DAYS, s.weekAll.map((n, i) => plural(n, "viewing") + "\n" + ["Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays", "Sundays"][i]), { label: "Watching by weekday" })
+        : '<p class="muted small">Needs watches with a date or time.</p>') + "</section>";
+    const busiestSlot = s.hours.indexOf(Math.max(...s.hours));
+
     const records = [];
+    if (s.sittings && s.hours[busiestSlot]) records.push(["Your hour", SLOTS[busiestSlot], SLOT_TIMES[busiestSlot]]);
     if (s.longest) records.push(["Longest", filmLink(s.longest.film), fmtRuntime(s.longest.runtime)]);
     if (s.shortest && s.shortest !== s.longest) records.push(["Shortest", filmLink(s.shortest.film), fmtRuntime(s.shortest.runtime)]);
     if (s.mostRewatched) records.push(["Most rewatched", filmLink(s.mostRewatched.film), s.mostRewatched.count + "×"]);
@@ -340,8 +387,11 @@
         '<section class="panel"><header class="section-head"><div><h2 class="h3">Languages</h2></div></header>' + bars(s.languages) + "</section>" +
       "</div>" +
       '<div class="two-col">' + ratingsPanel + decadesPanel + "</div>" +
-      '<div class="two-col">' + directorsPanel + recordsPanel + "</div>" +
+      '<div class="two-col">' + castPanel + directorsPanel + "</div>" +
+      '<div class="two-col">' + timePanel + weekPanel + "</div>" +
+      recordsPanel +
       "</div>";
+    if (s.cast.length) FL.people.photos(s.cast.map((c) => c.name)).then(() => { if (el.querySelector(".face-list")) FL.people.paint(el); });
   }
 
   FL.views = FL.views || {};

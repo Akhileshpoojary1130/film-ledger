@@ -67,6 +67,8 @@
       if (o.type && m.type && m.type !== o.type) return;
       const d = fromMeta(m, (o.offset || 0) + i);
       if (!d || !d.title) return;
+      // Year lists skip shorts (Vincent is 6 minutes) so they don't top the "IMDb rating" order.
+      if (o.feature && (/\bshort\b/i.test((d.genres || []).join(" ")) || (parseInt(m.runtime, 10) > 0 && parseInt(m.runtime, 10) < 40))) return;
       if (o.pop) d.pop = d.tmdbPop || o.pop((o.offset || 0) + i);
       const local = adopt(m, d);
       if (local) { out.push(local); return; }
@@ -164,14 +166,18 @@
     const url = CINEMETA + "/catalog/movie/year/genre=" + year + (page ? "&skip=" + page * 50 : "") + ".json";
     const p = queue(() => fetchJSON(url, { timeout: 15000 }))
       // Not sorted by popularity for older years, so each title's own popularity is used; position is the fallback.
-      .then((d) => ingest((d && d.metas) || [], { type: "movie", offset: page * 50, pop: (i) => Math.max(3, 46 - i * 0.1) }))
+      .then((d) => ingest((d && d.metas) || [], { type: "movie", feature: true, offset: page * 50, pop: (i) => Math.max(3, 46 - i * 0.1) }))
       .catch(() => { yearPages.delete(key); return []; });
     yearPages.set(key, p);
     return p;
   }
 
   /* Wikipedia's "List of <Language> films of <year>" — the bundled vault starts in 1990 for Indian cinema. */
-  const WIKI_LISTS = { Hindi: "Hindi", OtherIndian: ["Tamil", "Telugu", "Malayalam", "Kannada"] };
+  const WIKI_LISTS = {
+    Hindi: "Hindi",
+    OtherIndian: ["Tamil", "Telugu", "Malayalam", "Kannada", "Bengali", "Marathi", "Punjabi", "Gujarati"],
+    English: ["American", "British"],
+  };
 
   function parseList(text) {
     const rows = [];
@@ -273,12 +279,23 @@
     "dance india dance", "super dancer", "laughter chefs", "jhalak dikhhla jaa", "the traitors india"];
   const SEED_KEY = "film_ledger_showseed_v1";
 
-  function realityShows() {
-    const hit = session.get(SEED_KEY, null) || storage.get(SEED_KEY, null);
+  /* Indian web series worth following — found by name, so new seasons appear on their own. */
+  const INDIAN_SERIES = ["mirzapur", "panchayat", "the family man", "sacred games", "scam 1992", "kota factory", "aspirants", "paatal lok",
+    "farzi", "made in heaven", "delhi crime", "gullak", "asur", "rocket boys", "special ops", "criminal justice", "aarya", "the railway men",
+    "heeramandi", "jubilee", "taaza khabar", "kaala paani", "maharani", "rana naidu", "tvf pitchers", "the night manager", "dahaad",
+    "khakee the bihar chapter", "scam 2003", "black warrant", "the freelancer", "yeh meri family", "college romance", "the broken news"];
+
+  const realityShows = () => seeded(SEED_KEY, REALITY);
+  const indianSeries = () => seeded("film_ledger_indianseries_v1", INDIAN_SERIES);
+
+  const seedQueue = FL.util.limiter(6); // seed lists get their own lane so other rows aren't stuck behind them
+
+  function seeded(key, queries) {
+    const hit = session.get(key, null) || storage.get(key, null);
     if (hit && Date.now() - hit.at < 3 * 864e5) {
       return Promise.resolve(hit.items.map((d) => FL.catalogue.addRemote(d)));
     }
-    return Promise.all(REALITY.map((q) => queue(() => fetchJSON(CINEMETA + "/catalog/series/top/search=" + encodeURIComponent(q) + ".json", { timeout: 12000 }))
+    return Promise.all(queries.map((q) => seedQueue(() => fetchJSON(CINEMETA + "/catalog/series/top/search=" + encodeURIComponent(q) + ".json", { timeout: 12000 }))
       .then((d) => {
         const want = normalize(q);
         const metas = (d && d.metas) || [];
@@ -288,9 +305,25 @@
         const items = metas.filter(Boolean).map((m, i) => fromMeta(m, i)).filter(Boolean);
         const seen = new Set();
         const unique = items.filter((d) => (seen.has(d.imdbId) ? false : seen.add(d.imdbId)));
-        storage.set(SEED_KEY, { at: Date.now(), items: unique });
+        storage.set(key, { at: Date.now(), items: unique });
         return unique.map((d) => FL.catalogue.addRemote(d));
       });
+  }
+
+  /* Followed shows with episodes aired since the last one you ticked — "Bigg Boss S20 · 3 new". */
+  function newEpisodes(limit) {
+    const followed = FL.store.shows().slice(0, limit || 8);
+    return Promise.all(followed.map((e) => show(e.id).then((d) => {
+      const aired = d.episodes.filter((v) => v.s > 0 && v.aired);
+      if (!aired.length) return null;
+      let last = -1;
+      aired.forEach((v, i) => { if (FL.store.episodeWatched(d.film.id, v.s, v.e)) last = i; });
+      if (last === -1) return null; // following but not started: nothing is "new" yet
+      const fresh = aired.slice(last + 1);
+      if (!fresh.length) return null;
+      const next = fresh[0];
+      return { film: d.film, count: fresh.length, next, latest: fresh[fresh.length - 1] };
+    }).catch(() => null))).then((list) => list.filter(Boolean));
   }
 
   /* Cinemeta's own series catalogues: "top" (popular now) or a genre such as "Reality-TV". */
@@ -318,5 +351,5 @@
 
   restore();
 
-  FL.remote = { search, cached, touch, ingest, yearPage, wikiYear, show, realityShows, showCatalog, byId, WIKI_LISTS };
+  FL.remote = { search, cached, touch, ingest, yearPage, wikiYear, show, realityShows, indianSeries, newEpisodes, showCatalog, byId, WIKI_LISTS };
 })(window.FL = window.FL || {});

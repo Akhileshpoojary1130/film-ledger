@@ -13,7 +13,7 @@
   const PAGE = 60;
   const WEB_PAGES = 6;
   const LANGS = [["all", "All"], ["Hindi", "Hindi"], ["English", "English"], ["OtherIndian", "Regional"], ["Superhero", "Marvel & DC"], ["Global", "World"]];
-  const SHOW = [["all", "All"], ["unwatched", "To watch"], ["watched", "Watched"]];
+  const SHOW = [["all", "All"], ["unwatched", "To watch"], ["must", "Must watch"], ["watched", "Watched"]];
   const ORDER = [["rating", "IMDb rating"], ["popular", "Most popular"], ["title", "Title A–Z"]];
 
   const lastYear = () => new Date().getFullYear() + 1;
@@ -98,18 +98,24 @@
 
   /* ---------- the dial ---------- */
 
-  function dialHtml(year) {
+  /* Four ways to pick a year, chosen in Settings: the camera dial (default), an iPhone-camera-style wheel of
+     labels, a measuring-tape ruler, or Material filter chips. Same mechanics, different faces. */
+  const PICKERS = ["dial", "wheel", "ruler", "chips"];
+  const pickerStyle = () => (PICKERS.indexOf(FL.store.prefs().years.picker) !== -1 ? FL.store.prefs().years.picker : "dial");
+
+  function dialHtml(year, style) {
     const counts = watchedByYear();
     const max = Math.max(1, ...Object.values(counts));
     let items = "";
     for (let y = FIRST; y <= lastYear(); y++) {
       const n = counts[y] || 0;
-      items += '<a class="dial-yr' + (y % 10 === 0 ? " is-decade" : "") + '" href="#/years/' + y + '" data-year="' + y + '" role="option" aria-selected="' + (y === year) + '"' +
+      items += '<a class="dial-yr' + (y % 10 === 0 ? " is-decade" : y % 5 === 0 ? " is-five" : "") + '" href="#/years/' + y + '" data-year="' + y + '" role="option" aria-selected="' + (y === year) + '"' +
         (n ? ' title="' + plural(n, "film") + ' watched"' : "") + "><b>" + y + "</b>" + barHtml(y, counts, max) + "</a>";
     }
-    return '<div class="dial" data-dial>' +
+    return '<div class="dial dial-' + style + '" data-dial>' +
       '<button type="button" class="dial-step" data-dstep="-1" aria-label="Previous year">' + icon("chevron-left") + "</button>" +
       '<div class="dial-window"><span class="dial-lens" aria-hidden="true"></span>' +
+        (style === "ruler" ? '<span class="dial-tag" aria-hidden="true">' + year + "</span>" : "") +
         '<div class="dial-track" role="listbox" aria-label="Year — scroll, drag or tap to choose" tabindex="0">' +
           '<span class="dial-pad" aria-hidden="true"></span>' + items + '<span class="dial-pad" aria-hidden="true"></span>' +
         "</div></div>" +
@@ -138,8 +144,8 @@
       let token = 0;
 
       el.innerHTML = '<div class="container page years">' +
-        '<header class="years-head"><p class="eyebrow">Year by year</p><p class="years-hint">Scroll, drag or tap the dial</p></header>' +
-        dialHtml(year) +
+        '<header class="years-head"><p class="eyebrow">Year by year</p></header>' +
+        dialHtml(year, pickerStyle()) +
         '<div class="filters years-filters">' +
           '<div class="filter-row filter-main">' + segmented("ylang", LANGS, s.lang) +
             '<button type="button" class="icon-btn filters-toggle" data-ftoggle aria-expanded="false" aria-label="Sort and filter">' + icon("sliders") + "</button></div>" +
@@ -158,6 +164,7 @@
       const filters = $(".years-filters", el);
       const track = $(".dial-track", el);
       const yrs = $$(".dial-yr", track);
+      const tag = $(".dial-tag", el);
       document.title = year + " · Iris";
 
       /* ----- dial mechanics ----- */
@@ -186,7 +193,7 @@
         for (let i = from; i <= to; i++) {
           const d = i - pos;
           const a = Math.abs(d);
-          const scale = a < 1 ? 1 + 1.1 * (1 - a) * (1 - a * 0.35) : Math.max(0.62, 1 - (a - 1) * 0.085);
+          const scale = a < 1 ? 1 + 0.95 * (1 - a) * (1 - a * 0.35) : Math.max(0.66, 1 - (a - 1) * 0.08);
           const st = yrs[i].style;
           st.setProperty("--s", scale.toFixed(3));
           st.setProperty("--o", Math.max(0.14, a < 1 ? 1 : 1 - (a - 1) * 0.17).toFixed(3));
@@ -197,6 +204,7 @@
           if (yrs[centre]) yrs[centre].classList.remove("is-center");
           centre = c;
           if (yrs[c]) yrs[c].classList.add("is-center");
+          if (tag && yrs[c]) tag.textContent = yrs[c].dataset.year;
         }
       }
       const schedulePaint = () => { if (!paintFrame) paintFrame = requestAnimationFrame(paint); };
@@ -299,6 +307,7 @@
         list.forEach((f) => { if (FL.store.state(f.id).watched) watched++; });
         const visible = list.filter((f) => {
           if (s.show === "all") return true;
+          if (s.show === "must") return FL.ui.mustWatch(f);
           const w = FL.store.state(f.id).watched;
           return s.show === "watched" ? w : !w;
         });
@@ -369,15 +378,15 @@
         // The first visit pulls three pages at once so the order has enough to go on; later pages load on scroll.
         const pages = webPage === 0 ? [0, 1, 2] : [webPage];
         const jobs = pages.map((p) => FL.remote.yearPage(year, p));
+        // Before 1990 the bundle is empty, so Wikipedia's film lists fill each language in.
         if (webPage === 0 && year < 1990) {
-          if (s.lang === "all" || s.lang === "Hindi") jobs.push(FL.remote.wikiYear("Hindi", year));
-          if (s.lang === "all" || s.lang === "OtherIndian") jobs.push(FL.remote.wikiYear("OtherIndian", year));
+          ["Hindi", "OtherIndian", "English"].forEach((l) => { if (s.lang === "all" || s.lang === l) jobs.push(FL.remote.wikiYear(l, year)); });
         }
         Promise.all(jobs).then((lists) => {
           if (!alive || tok !== token) return;
           webBusy = false;
           webPage += pages.length;
-          if (!lists[pages.length - 1].length || webPage >= WEB_PAGES) webDone = true;
+          if (!lists[pages.length - 1].length || webPage >= (year < 1990 ? 10 : WEB_PAGES)) webDone = true;
           status("", false);
           merge();
           rateMissing(all(), tok);
