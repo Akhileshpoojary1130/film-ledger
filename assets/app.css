@@ -1439,18 +1439,27 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 .pick { padding: 24px; }
 .pick-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; padding-right: 40px; }
 .pick-stage { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); align-items: center; gap: 12px; min-height: 340px; }
-.pick-ring-wrap {
-  position: relative; display: grid; place-items: center; height: 340px; perspective: 1100px; overflow: hidden;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent);
+/* Kept cheap for phones: the edges fade with two overlays (a CSS mask here would redraw the whole 3D scene every
+   frame), the ring is its own GPU layer, and posters don't run their own fade-in while it turns. */
+.pick-ring-wrap { position: relative; display: grid; place-items: center; height: 340px; perspective: 1100px; overflow: hidden; }
+.pick-ring-wrap::before, .pick-ring-wrap::after {
+  content: ""; position: absolute; top: 0; bottom: 0; z-index: 2; width: 24%; pointer-events: none;
+  background: linear-gradient(90deg, var(--pick-bg, var(--raised)), transparent);
 }
+.pick-ring-wrap::before { left: 0; }
+.pick-ring-wrap::after { right: 0; transform: scaleX(-1); }
 .pick-ring {
   --ring-r: 300px;
-  position: relative; width: 156px; aspect-ratio: 2 / 3; transform-style: preserve-3d;
-  transform: translateZ(calc(var(--ring-r) * -1)); transition: transform 1.7s cubic-bezier(0.12, 0.72, 0.12, 1);
+  position: relative; width: 156px; aspect-ratio: 2 / 3; transform-style: preserve-3d; will-change: transform;
+  transform: translateZ(calc(var(--ring-r) * -1)); transition: transform 2.3s cubic-bezier(0.2, 0.72, 0.1, 1);
 }
 .pick-face { position: absolute; inset: 0; transform: rotateY(calc(var(--i) * 36deg)) translateZ(var(--ring-r)); backface-visibility: hidden; -webkit-backface-visibility: hidden; }
-.pick-face .art { border-radius: var(--r-art); box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45); }
+.pick-face .art { border-radius: var(--r-art); box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4); }
+.pick-face .art img { opacity: 1; transform: none; transition: none; }
+/* A solid sheet behind the ring: a live backdrop blur under a spinning 3D scene is the costliest thing on a phone. */
+.modal.modal-pick, [data-glass]:not([data-glass="off"]) .modal.modal-pick, [data-theme="mac"] .modal.modal-pick {
+  --pick-bg: var(--raised); background: var(--raised); -webkit-backdrop-filter: none; backdrop-filter: none;
+}
 .pick-body { min-width: 0; opacity: 0; transform: translateY(10px); transition: opacity 0.4s var(--ease), transform 0.5s var(--ease-out); }
 .pick-body.in { opacity: 1; transform: none; }
 .pick-overview { margin: 12px 0 0; color: var(--text-2); display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
@@ -2383,3 +2392,25 @@ html.has-page-search:not(.search-docked) [data-page-search] { view-transition-na
 }
 @keyframes auroraRibbon { 0% { transform: skewY(-9deg) translateX(-6%); } 50% { transform: skewY(-5deg) translate(4%, 6%) scaleY(1.15); } 100% { transform: skewY(-11deg) translateX(8%); } }
 [data-motion="calm"] .aurora::before { animation: none; }
+
+/* ---------- phones and tablets: smooth scrolling first ----------
+   A live backdrop blur re-blurs whatever is behind it on every scroll frame, and a page holds dozens (two buttons on
+   every poster, badges, tags, each glass card). On touch screens only the bars and sheets keep the real blur; cards
+   keep the glass tint and rim, and the small poster buttons get a solid translucent fill. */
+@media (hover: none) and (pointer: coarse) {
+  .qa, .badge, .tag-must, .resume-play .i, .player-starting { -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .qa, .badge { background: rgba(12, 12, 14, 0.72); }
+  [data-glass]:not([data-glass="off"]) :is(.panel, .tonight, .empty, .glance-item, .tile, .theme-card, .file-status, .franchise, .coll, .hero-search, .search-trigger, .did-you-mean, .person, .dial-step, .chip, .seg) {
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+    background:
+      radial-gradient(120% 90% at 0% 0%, rgba(255, 255, 255, var(--rim2)), transparent 55%),
+      linear-gradient(160deg, color-mix(in oklab, var(--s2) var(--gm3), transparent), color-mix(in oklab, var(--s1) var(--gm3), transparent));
+  }
+  [data-glass]:not([data-glass="off"]) .btn:not(.btn-primary):not(.btn-ghost):not(.btn-danger) { -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+
+/* Long pages (300+ collections, long lists): the browser skips laying out and painting what's off screen until it
+   scrolls near, and keeps its last size so the scrollbar doesn't jump. (Not poster grids: containment would clip
+   their hover tilt and Pop's offset shadows.) */
+.collections > .coll { content-visibility: auto; contain-intrinsic-size: auto 250px; }
+.rows > .row { content-visibility: auto; contain-intrinsic-size: auto 72px; }

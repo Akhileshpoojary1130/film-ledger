@@ -260,19 +260,23 @@
       let film;
       do { film = pool[Math.floor(Math.random() * pool.length)]; } while (pool.length > 1 && film === pickState.last);
       pickState.last = film;
-      // Fill the ring with random neighbours, the pick at slot 0.
-      const others = pool.filter((f) => f !== film).sort(() => Math.random() - 0.5);
-      const slots = [film];
-      for (let i = 1; i < RING; i++) slots.push(others[(i - 1) % Math.max(1, others.length)] || film);
-      ring.innerHTML = slots.map((f, i) => '<div class="pick-face" style="--i:' + i + '">' + art(f, { size: "medium", eager: i < 3 }) + "</div>").join("");
-      FL.ui.watchPosters(ring);
+      // One to two turns, not three: a lower top speed, so the posters glide instead of strobing past. The ring
+      // lands on whichever slot holds the pick.
+      pickState.angle -= reduced ? 0 : 360 + 36 * (3 + Math.floor(Math.random() * 5));
+      const front = (((-pickState.angle / 36) % RING) + RING) % RING;
+      // The pool repeats in order around the ring, so a short list never puts the same film on both sides of the pick.
+      const cycle = [film].concat(pool.filter((f) => f !== film).sort(() => Math.random() - 0.5));
+      const slots = [];
+      for (let i = 0; i < RING; i++) slots[(front + i) % RING] = cycle[i % cycle.length];
+      ring.innerHTML = slots.map((f, i) => '<div class="pick-face" style="--i:' + i + '">' + art(f, { size: "medium", eager: true }) + "</div>").join("");
       body.classList.remove("in");
       const label = { watchlist: "Tonight · from Watch later", foryou: "Tonight · picked for you", acclaimed: "Tonight · acclaimed, unwatched" }[pickState.source];
-      // Spin at least two turns and land slot 0 at the front.
-      pickState.angle -= reduced ? 0 : 720 + 360;
-      pickState.angle = Math.round(pickState.angle / 360) * 360;
       ring.style.transition = reduced ? "none" : "";
-      requestAnimationFrame(() => { ring.style.transform = "translateZ(calc(var(--ring-r) * -1)) rotateY(" + pickState.angle + "deg)"; });
+      // Decode the posters first (briefly), so none is decoded mid-spin.
+      const decoded = Array.from(ring.querySelectorAll("img")).map((img) => (img.decode ? img.decode().catch(() => {}) : Promise.resolve()));
+      Promise.race([Promise.all(decoded), new Promise((r) => setTimeout(r, 450))]).then(() => {
+        requestAnimationFrame(() => { ring.style.transform = "translateZ(calc(var(--ring-r) * -1)) rotateY(" + pickState.angle + "deg)"; });
+      });
       setTimeout(() => {
         body.innerHTML = details(film, label);
         body.classList.add("in");
@@ -282,7 +286,7 @@
             if (d && meta && meta.desc && pickState.last === film && !d.textContent) d.textContent = FL.util.prose(meta.desc);
           });
         }
-      }, reduced ? 0 : 900);
+      }, reduced ? 0 : 1300);
     }
 
     m.el.addEventListener("click", (e) => {
