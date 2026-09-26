@@ -48,11 +48,12 @@
       const ep = p.s ? "?s=" + p.s + "&e=" + p.e : "";
       const bg = FL.meta.backdrop(film);
       const left = p.approx ? "Started " + (p.s ? "S" + p.s + " · E" + p.e : "") : (p.s ? "S" + p.s + " · E" + p.e + " · " : "") + fmtClock(p.d - p.t) + " left";
-      return '<a class="resume-card tilt" href="#/watch/' + encodeURIComponent(film.id) + ep + '">' +
+      return '<article class="resume-card tilt" data-resume="' + esc(film.id) + '"><a class="resume-link" href="#/watch/' + encodeURIComponent(film.id) + ep + '">' +
         '<div class="resume-art">' + (bg ? '<img src="' + esc(bg) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : art(film)) +
         '<span class="resume-play">' + icon("play") + "</span>" +
         '<div class="card-progress"><i style="width:' + ((p.t / p.d) * 100).toFixed(1) + '%"></i></div></div>' +
-        '<div class="resume-body"><strong>' + esc(film.title) + "</strong><span>" + esc(left) + "</span></div></a>";
+        '<div class="resume-body"><strong>' + esc(film.title) + "</strong><span>" + esc(left) + "</span></div></a>" +
+        '<button type="button" class="resume-x" data-home="forget" aria-label="Remove ' + esc(film.title) + ' from Continue watching" title="Remove from Continue watching">' + icon("x") + "</button></article>";
     }).join("");
     return '<section class="rail"><header class="section-head"><div><h2 class="h2">Continue watching</h2></div></header><div class="rail-track rail-wide">' + cards + "</div></section>";
   }
@@ -264,7 +265,7 @@
     const forYou = FL.catalogue.forYou(30).filter((x) => !nextIds.has(x.film.id)).slice(0, 20);
     el.innerHTML = '<div class="container page">' +
       hero(name, true) +
-      continueRail() +
+      "<div data-continue>" + continueRail() + "</div>" +
       tonight() +
       recentDiary() +
       reasonRail("Up next in your series", next, { sub: "The next film after the ones you’ve seen" }) +
@@ -292,6 +293,8 @@
           FL.persist.restore().then((n) => FL.ui.toast("Restored " + FL.util.plural(n, "title") + "."), (err) => { if (err && err.name !== "AbortError") FL.ui.toast("That file couldn't be read."); });
           return;
         }
+        const forget = e.target.closest('[data-home="forget"]');
+        if (forget) { forgetResume(forget.closest("[data-resume]")); return; }
         if (!e.target.closest('[data-home="another"]')) return;
         pickOffset++;
         const cardEl = el.querySelector(".tonight");
@@ -304,6 +307,26 @@
           loadTonight();
         }
       };
+      /* × on a Continue watching card: forget where you stopped (the film stays in your library otherwise). The row
+         redraws, so the next unfinished title moves up; Undo puts it back exactly as it was. */
+      function redrawContinue() {
+        const box = el.querySelector("[data-continue]");
+        if (!box) return;
+        box.innerHTML = continueRail();
+        FL.ui.watchPosters(box);
+      }
+      function forgetResume(card) {
+        if (!card) return;
+        const id = card.dataset.resume;
+        const entry = FL.store.peek(id);
+        if (!entry || !entry.progress) return;
+        const saved = JSON.parse(JSON.stringify(entry));
+        const film = FL.catalogue.get(id);
+        FL.store.clearProgress(id);
+        card.classList.add("is-leaving");
+        setTimeout(redrawContinue, FL.theme.calm() ? 0 : 240);
+        FL.ui.toast("Removed " + (film ? film.title : "it") + " from Continue watching", { action: "Undo", onAction: () => { FL.store.restoreProgress(id, saved); redrawContinue(); } });
+      }
       /* Runtimes for the picks, so "2h 10m" shows and short-film preferences have something to go on. */
       function loadTonight() {
         el.querySelectorAll("[data-tonight]").forEach((t) => {

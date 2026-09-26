@@ -13,7 +13,7 @@ Live: https://film-ledger-mocha.vercel.app/
   middle button is **Browse**). The
   headline follows the time of day (early bird, lunch — "Had lunch yet?", dinner, late night), changes every six hours
   with different wording each day, and takes a typeface from what you've been watching (eerie for horror, bold for
-  action, sunny for comedy). Then *Continue watching* (1–3, in Settings), **three picks** — one from your taste, one
+  action, sunny for comedy). Then *Continue watching* (1–3, in Settings; the × on a card forgets where you stopped, with Undo), **three picks** — one from your taste, one
   you saved, one must-watch — each saying why, **Up next in your series** (KGF 1 → KGF 2, the MCU in order), **For
   you**, *More from* the directors you like, **New episodes** in shows you follow, a daily **Throwback** year, and
   Indian and world discovery rows.

@@ -277,6 +277,14 @@
       persist();
       emit({ id, kind: "progress" });
     },
+    /* Undo for clearProgress: the entry comes back exactly as it was (clearProgress may have dropped it). */
+    restoreProgress(id, saved) {
+      if (!saved || !saved.progress) return;
+      const e = lib.films[id];
+      if (e) e.progress = saved.progress; else lib.films[id] = saved;
+      persist();
+      emit({ id, kind: "progress" });
+    },
     /* Runtime / directors fetched from metadata, kept so stats work offline. */
     setDetails(id, details) {
       const e = lib.films[id];

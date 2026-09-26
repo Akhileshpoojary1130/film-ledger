@@ -1163,7 +1163,19 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 .rewatch { --isz: 13px; }
 .rewatch .i { color: var(--text-3); vertical-align: -2px; }
 
-.resume-card { display: block; min-width: 0; transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform 0.3s var(--ease-out); }
+.resume-card { position: relative; display: block; min-width: 0; transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform 0.3s var(--ease-out), opacity 0.24s; }
+.resume-link { display: block; }
+/* Remove from Continue watching: shows on hover (always on touch screens), top right of the picture. */
+.resume-x {
+  --isz: 16px; position: absolute; top: 8px; right: 8px; z-index: 3; display: grid; place-items: center; width: 30px; height: 30px;
+  border-radius: 50%; background: rgba(10, 10, 11, 0.62); border: 1px solid rgba(255, 255, 255, 0.14); color: #fff;
+  opacity: 0; transition: opacity 0.18s, background 0.15s, transform 0.1s;
+}
+.resume-card:hover .resume-x, .resume-x:focus-visible { opacity: 1; }
+.resume-x:hover { background: rgba(10, 10, 11, 0.85); }
+.resume-x:active { transform: scale(0.9); }
+@media (hover: none) { .resume-x { opacity: 1; width: 28px; height: 28px; top: 6px; right: 6px; } }
+.resume-card.is-leaving { opacity: 0; transform: scale(0.94); pointer-events: none; }
 .resume-art { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--r); background: var(--s2); box-shadow: inset 0 0 0 1px var(--hair-in); }
 .resume-art > img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.6s var(--ease-out); }
 .resume-card:hover .resume-art > img { transform: scale(1.04); }
