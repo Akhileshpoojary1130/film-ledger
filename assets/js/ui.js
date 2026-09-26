@@ -19,8 +19,12 @@
     compass: '<circle cx="12" cy="12" r="8.5"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>',
     layers: '<path d="M12 4l8.5 4.5L12 13 3.5 8.5z"/><path d="M3.5 12.5L12 17l8.5-4.5"/><path d="M3.5 16.5L12 21l8.5-4.5"/>',
     bookmark: '<path d="M6.5 4h11v16l-5.5-4-5.5 4z"/>',
-    // A stack of cards with a bookmark: series and universes kept together.
-    collections: '<rect x="7.5" y="3.5" width="13" height="15" rx="2"/><path d="M4 7v11.5A2 2 0 0 0 6 20.5h10"/><path d="M11.5 3.5v6l2-1.4 2 1.4v-6"/>',
+    // Two film reels, one behind the other: series and universes.
+    collections: '<path d="M9.88 5.79A6.2 6.2 0 1 1 18.21 14.12"/><circle cx="16.6" cy="5.31" r="1.3" fill="currentColor" stroke="none"/>' +
+      '<circle cx="18.9" cy="8.72" r="1.3" fill="currentColor" stroke="none"/><circle cx="9.3" cy="14.7" r="7"/><circle cx="9.3" cy="14.7" r="1.1"/>' +
+      '<circle cx="9.3" cy="10.65" r="1.6" fill="currentColor" stroke="none"/><circle cx="13.15" cy="13.45" r="1.6" fill="currentColor" stroke="none"/>' +
+      '<circle cx="11.68" cy="17.98" r="1.6" fill="currentColor" stroke="none"/><circle cx="6.92" cy="17.98" r="1.6" fill="currentColor" stroke="none"/>' +
+      '<circle cx="5.45" cy="13.45" r="1.6" fill="currentColor" stroke="none"/>',
     x: '<path d="M6 6l12 12M18 6L6 18"/>',
     "arrow-left": '<path d="M19 12H5M11 6l-6 6 6 6"/>',
     "arrow-right": '<path d="M5 12h14M13 6l6 6-6 6"/>',
@@ -57,7 +61,7 @@
 
   const MSR = {
     search: "search", plus: "add", check: "check", star: "star", heart: "favorite", play: "play_arrow", calendar: "calendar_month",
-    chart: "bar_chart", home: "home", compass: "explore", layers: "video_library", bookmark: "bookmark", x: "close", collections: "collections_bookmark",
+    chart: "bar_chart", home: "home", compass: "explore", layers: "video_library", bookmark: "bookmark", x: "close",
     "arrow-left": "arrow_back", "arrow-right": "arrow_forward", "chevron-left": "chevron_left", "chevron-right": "chevron_right",
     "chevron-down": "expand_more", shuffle: "shuffle", external: "open_in_new", expand: "fullscreen", sliders: "tune",
     download: "download", upload: "upload", film: "movie", tv: "live_tv", rewatch: "replay", trash: "delete", keyboard: "keyboard",

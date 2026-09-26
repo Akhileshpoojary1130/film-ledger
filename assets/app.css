@@ -2439,3 +2439,9 @@ html.has-page-search:not(.search-docked) [data-page-search] { view-transition-na
 }
 
 @media (max-width: 350px) { .tabs .tab { font-size: 12.5px; } }
+
+/* Touch screens have no keyboard: no shortcut chips ("g h", "esc", "⌘K", "R") in search, buttons or bars.
+   Hints inside sentences ("press N") stay, since hiding them would leave a gap in the text. */
+@media (hover: none) and (pointer: coarse), (max-width: 760px) {
+  .pal-keys, .palette-foot, .palette-input kbd, .hero-search kbd, .search-trigger kbd, .btn kbd { display: none; }
+}

@@ -16,7 +16,7 @@
     { id: "library", label: "Open library", icon: "layers", keys: "g l", run: () => go("#/library/watched") },
     { id: "diary", label: "Open diary", icon: "calendar", keys: "g d", run: () => go("#/diary") },
     { id: "stats", label: "Open stats", icon: "chart", keys: "g s", run: () => go("#/stats") },
-    { id: "collections", label: "Collections: series & universes", icon: "film", run: () => go("#/collections") },
+    { id: "collections", label: "Collections: series & universes", icon: "collections", run: () => go("#/collections") },
     { id: "match", label: "Movie night: compare Watch later with a friend", icon: "users", run: () => go("#/match") },
     { id: "move", label: "Move your library to another device (QR code)", icon: "qr", run: () => go("#/move") },
     { id: "pick", label: "Surprise me: pick a film", icon: "shuffle", keys: "r", run: () => pick() },
