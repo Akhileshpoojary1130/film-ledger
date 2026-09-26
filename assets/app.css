@@ -678,7 +678,9 @@ kbd {
   fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;
 }
 .msr {
-  display: inline-grid; place-items: center; overflow: hidden;
+  /* The glyph is drawn a little larger than its box (Material's own padding); place-content keeps it centred —
+     without it the grid track starts at the left and the glyph sits right and low, clipped on the right. */
+  display: inline-grid; place-items: center; place-content: center; overflow: hidden;
   font-family: "Material Symbols Rounded"; font-weight: normal; font-style: normal;
   font-size: calc(var(--isz, 18px) * 1.2); line-height: 1; letter-spacing: normal; text-transform: none;
   white-space: nowrap; direction: ltr; word-wrap: normal; user-select: none; -webkit-user-select: none;
@@ -978,6 +980,8 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
   font-size: 11px; font-weight: 600; color: #F5F5F2;
 }
 [data-theme="material"] .badge { border-radius: 999px; padding: 0 6px; }
+/* A badge that's only an icon (the tick, the heart) is a circle with the icon in the middle. */
+:root .badge:not(:has(b)) { width: 22px; padding: 0; }
 .badge .i { stroke-width: 2; }
 .badge-seen { background: var(--accent); color: var(--accent-ink); }
 .badge-fav .i { fill: #F5F5F2; }
@@ -1456,7 +1460,7 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 .pick-ring {
   --ring-r: 300px;
   position: relative; width: 156px; aspect-ratio: 2 / 3; transform-style: preserve-3d; will-change: transform;
-  transform: translateZ(calc(var(--ring-r) * -1)); transition: transform 2.3s cubic-bezier(0.2, 0.72, 0.1, 1);
+  transform: translateZ(calc(var(--ring-r) * -1)); transition: transform 2.8s cubic-bezier(0.3, 0.1, 0.12, 1); /* winds up, then a long glide */
 }
 .pick-face { position: absolute; inset: 0; transform: rotateY(calc(var(--i) * 36deg)) translateZ(var(--ring-r)); backface-visibility: hidden; -webkit-backface-visibility: hidden; }
 .pick-face .art { border-radius: var(--r-art); box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4); }
@@ -2411,7 +2415,7 @@ html.has-page-search:not(.search-docked) [data-page-search] { view-transition-na
    keep the glass tint and rim, and the small poster buttons get a solid translucent fill. */
 @media (hover: none) and (pointer: coarse) {
   .qa, .badge, .tag-must, .resume-play .i, .player-starting { -webkit-backdrop-filter: none; backdrop-filter: none; }
-  .qa, .badge { background: rgba(12, 12, 14, 0.72); }
+  .qa:where(:not(.on)), .badge:where(:not(.badge-seen)) { background: rgba(12, 12, 14, 0.72); } /* watched and saved stay in the accent */
   [data-glass]:not([data-glass="off"]) :is(.panel, .tonight, .empty, .glance-item, .tile, .theme-card, .file-status, .franchise, .coll, .hero-search, .search-trigger, .did-you-mean, .person, .dial-step, .chip, .seg) {
     -webkit-backdrop-filter: none; backdrop-filter: none;
     background:
@@ -2490,4 +2494,14 @@ html.has-page-search:not(.search-docked) [data-page-search] { view-transition-na
   :root:not([data-search="float"]) .search-trigger span { display: none; }
   .glance-item { padding-inline: 4px; }
   .glance-item span, .glance-item span[data-short]::after { font-size: 9.5px; }
+}
+
+/* Tablets: the full nav and the buttons share a narrow bar. Tighter links; and if a style's type runs wider still,
+   the links scroll sideways instead of pushing Settings off the screen. */
+@media (min-width: 761px) and (max-width: 1000px) {
+  .topbar-inner { gap: 14px; }
+  :root .nav a { padding: 6px 8px; font-size: 13.5px; }
+  .nav { min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+  .nav::-webkit-scrollbar { display: none; }
+  .topbar-actions { flex: none; }
 }

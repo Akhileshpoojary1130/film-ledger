@@ -248,6 +248,7 @@
     const ring = $(".pick-ring", m.el);
     const body = $(".pick-body", m.el);
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const opened = performance.now();
 
     function roll() {
       const pool = pickPool();
@@ -272,9 +273,11 @@
       body.classList.remove("in");
       const label = { watchlist: "Tonight · from Watch later", foryou: "Tonight · picked for you", acclaimed: "Tonight · acclaimed, unwatched" }[pickState.source];
       ring.style.transition = reduced ? "none" : "";
-      // Decode the posters first (briefly), so none is decoded mid-spin.
+      // Decode the posters first (briefly), so none is decoded mid-spin, and let the sheet finish opening, so the
+      // spin is seen from its start (on a phone the sheet slides up for a moment).
       const decoded = Array.from(ring.querySelectorAll("img")).map((img) => (img.decode ? img.decode().catch(() => {}) : Promise.resolve()));
-      Promise.race([Promise.all(decoded), new Promise((r) => setTimeout(r, 450))]).then(() => {
+      const settled = new Promise((r) => setTimeout(r, Math.max(0, 320 - (performance.now() - opened))));
+      Promise.all([settled, Promise.race([Promise.all(decoded), new Promise((r) => setTimeout(r, 450))])]).then(() => {
         requestAnimationFrame(() => { ring.style.transform = "translateZ(calc(var(--ring-r) * -1)) rotateY(" + pickState.angle + "deg)"; });
       });
       setTimeout(() => {
@@ -286,7 +289,7 @@
             if (d && meta && meta.desc && pickState.last === film && !d.textContent) d.textContent = FL.util.prose(meta.desc);
           });
         }
-      }, reduced ? 0 : 1300);
+      }, reduced ? 0 : 1900);
     }
 
     m.el.addEventListener("click", (e) => {
