@@ -29,10 +29,6 @@
       },
     },
     {
-      id: "vega", name: "Vega", origin: "https://slast430did.com",
-      url: ({ imdb, tv }) => (imdb && !tv ? "https://slast430did.com/play/" + imdb : null),
-    },
-    {
       id: "videasy", name: "Videasy", origin: "https://player.videasy.net", resume: true, signals: true,
       url: ({ imdb, tmdb, start, tv, s, e }) => {
         const id = tmdb || imdb;
@@ -49,8 +45,59 @@
         return tv ? "https://vidsrc.me/embed/tv?" + key + "&season=" + s + "&episode=" + e : "https://vidsrc.me/embed/movie?" + key;
       },
     },
+    {
+      // Vega's "Super Player": heads the Vega group in the bar, ahead of the per-title links found below.
+      id: "vega", name: "Vega", short: "Super", label: "Super Player", origin: "https://slast430did.com",
+      url: ({ imdb, tv }) => (imdb && !tv ? "https://slast430did.com/play/" + imdb : null),
+    },
   ];
   const ORIGINS = new Set(SERVERS.map((s) => s.origin));
+
+  /* ---------- Vega's own players ---------- */
+
+  /* Vega (vegamovito.run) lists each title on hosts of its own — links per title, not an id pattern — so Iris's
+     function (api/vega.js) looks them up when the player opens and they join the list for that title or episode.
+     Local copies of Iris use the deployed function. */
+  const VEGA_API = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) ? "https://film-ledger-mocha.vercel.app/api/vega" : "/api/vega";
+  const VEGA_KEY = "film_ledger_vega";
+  const VEGA_TTL = 6 * 3600e3;
+  const HOST_NAMES = { multicloudlinks: "MultiCloud", mxdrop: "MixDrop", rpmvip: "RPM", strp2p: "StreamP2P", upns: "UPNS", vsembed: "VSEmbed", bysesukior: "Byse" };
+
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  function vegaLinks(film, ep, imdb) {
+    const key = film.id + (ep ? "|" + ep.s + "|" + ep.e : "");
+    const hit = session.get(VEGA_KEY, {})[key];
+    if (hit && Date.now() - hit.at < VEGA_TTL) return Promise.resolve(hit.list);
+    const q = new URLSearchParams({ title: film.title });
+    if (film.year && !ep) q.set("year", film.year);
+    if (imdb) q.set("imdb", imdb);
+    if (ep) { q.set("s", ep.s); q.set("e", ep.e); }
+    return FL.util.fetchJSON(VEGA_API + "?" + q, { timeout: 12000 }).then((d) => {
+      const list = (d && Array.isArray(d.servers) ? d.servers : []).filter((x) => x && /^https:\/\//.test(x.url));
+      const cache = session.get(VEGA_KEY, {});
+      cache[key] = { at: Date.now(), list };
+      Object.keys(cache).sort((a, b) => cache[b].at - cache[a].at).slice(60).forEach((k) => delete cache[k]);
+      session.set(VEGA_KEY, cache);
+      return list;
+    }).catch(() => []);
+  }
+
+  /* Named and remembered by host, so "MixDrop works for Hindi" carries over from one title to the next. */
+  function vegaServer(link, taken) {
+    let host;
+    try { host = new URL(link.url).hostname; } catch (e) { return null; }
+    const key = host.split(".").slice(-2)[0].toLowerCase();
+    let base = HOST_NAMES[key] || key.charAt(0).toUpperCase() + key.slice(1);
+    if (SERVERS.some((s) => s.name.toLowerCase() === base.toLowerCase())) base += "." + host.split(".").pop();
+    let id = "vg-" + key;
+    let name = base;
+    for (let n = 2; taken[id]; n++) { id = "vg-" + key + "-" + n; name = base + " " + n; }
+    taken[id] = true;
+    return { id, name, label: link.label, origin: "https://" + host, url: () => link.url };
+  }
+
+  const allServers = () => (state.extra.length ? SERVERS.concat(state.extra) : SERVERS);
 
   /* ---------- reachability ---------- */
 
@@ -123,7 +170,7 @@
     const last = lastServerFor(film);
     const filmSrv = entry && entry.progress && entry.progress.srv;
     const zero = { ok: 0, fail: 0 };
-    return SERVERS.map((s, i) => {
+    return allServers().map((s, i) => {
       const h = health[s.id];
       const all = stats[s.id] || zero;
       const local = stats[s.id + "|" + bucketOf(film)] || zero;
@@ -139,7 +186,7 @@
   /* ---------- state & DOM ---------- */
 
   const state = {
-    open: false, film: null, ids: null, ep: null, show: null, server: null, start: 0, confirmed: false, runtime: 0,
+    open: false, film: null, ids: null, ep: null, show: null, server: null, extra: [], start: 0, confirmed: false, runtime: 0,
     lastSave: 0, logged: false, hintTimer: 0, openedAt: 0, token: 0,
   };
   let root = null;
@@ -185,7 +232,7 @@
       else if (act === "dismiss") hideNotice();
     });
     FL.util.on(root, "click", "[data-srv]", (e, el) => {
-      const s = SERVERS.find((x) => x.id === el.dataset.srv);
+      const s = allServers().find((x) => x.id === el.dataset.srv);
       if (s) switchTo(s);
     });
     FL.util.on(root, "submit", "form[data-pl-imdb]", (e, form) => {
@@ -211,17 +258,26 @@
   function renderServers() {
     const wrap = root.querySelector(".player-servers");
     const p = params();
-    wrap.innerHTML = SERVERS.map((s) => {
+    wrap.innerHTML = allServers().map((s) => {
       const h = health[s.id];
       const usable = !!(state.ids && s.url(p));
       const status = state.ids && !usable ? "na" : !h ? "wait" : h.ok ? "ok" : "down";
-      const label = { na: state.ep ? "Doesn't carry shows" : "Needs an id this title doesn't have", wait: "Checking…", ok: h && h.ms + " ms", down: "Unreachable from your network" }[status];
+      const label = (s.label ? "Vega · " + s.label + " — " : "") +
+        { na: state.ep ? "Doesn't carry shows" : "Needs an id this title doesn't have", wait: "Checking…", ok: h && h.ms + " ms", down: "Unreachable from your network" }[status];
       const active = state.server && state.server.id === s.id;
-      return '<button type="button" role="radio" aria-checked="' + active + '" class="srv srv-' + status + (active ? " is-active" : "") +
+      return (s.id === "vega" ? '<span class="label srv-sep">Vega</span>' : "") +
+        '<button type="button" role="radio" aria-checked="' + active + '" class="srv srv-' + status + (active ? " is-active" : "") +
         '" data-srv="' + s.id + '" title="' + esc(label) + '"' + (status === "na" ? " disabled" : "") + ">" +
-        '<i class="srv-dot" aria-hidden="true"></i><span>' + s.name + "</span>" +
+        '<i class="srv-dot" aria-hidden="true"></i><span>' + esc(s.short || s.name) + "</span>" +
         (status === "ok" ? "<small>" + h.ms + "ms</small>" : status === "down" ? "<small>down</small>" : "") + "</button>";
     }).join("");
+    // The row scrolls on its own once Vega's links join; keep the playing server in sight.
+    const act = wrap.querySelector(".is-active");
+    if (act) {
+      const a = act.getBoundingClientRect();
+      const w = wrap.getBoundingClientRect();
+      if (a.left < w.left || a.right > w.right) wrap.scrollLeft += a.left - w.left - 8;
+    }
     const url = state.server && state.ids ? state.server.url(Object.assign(params(), { start: state.start })) : "";
     const a = root.querySelector('[data-pl="newtab"]');
     if (url) a.href = url; else a.removeAttribute("href");
@@ -266,6 +322,7 @@
     state.ep = ep;
     state.server = null;
     state.ids = null;
+    state.extra = [];
     state.confirmed = false;
     state.logged = false;
     state.runtime = 0;
@@ -292,9 +349,28 @@
         });
       });
 
-    Promise.all([ids, settled]).then(([resolved]) => {
-      if (token !== state.token) return;
-      if (!resolved) { needId(film); return; }
+    // Vega's links: the IMDb id only double-checks its match, so don't wait long for it.
+    const imdb = ep ? Promise.resolve(film.imdbId || film.id) : FL.meta.resolveImdb(film).catch(() => "");
+    const vega = Promise.race([imdb, wait(2500)])
+      .then((tt) => vegaLinks(film, ep, /^tt\d+$/.test(tt || "") ? tt : ""))
+      .then((links) => {
+        if (token !== state.token) return;
+        const taken = {};
+        state.extra = links.map((l) => vegaServer(l, taken)).filter(Boolean);
+        if (!state.extra.length) return;
+        renderServers();
+        // Probed before the first pick so they're ranked on the same terms as the fixed servers.
+        return Promise.race([Promise.all(state.extra.map((s) => probe(s))), wait(1500)]).then(() => {
+          // Came in after every fixed server turned out unable to play it: start on Vega.
+          if (token === state.token && state.ids && !state.server) begin(state.ids);
+        });
+      });
+    const entry = FL.store.peek(film.id);
+    const lastVega = /^vg-/.test(lastServerFor(film)) || /^vg-/.test((entry && entry.progress && entry.progress.srv) || "");
+    // Join the first pick if they're quick — or worth a longer wait when this title or language last played on Vega.
+    const vegaSoon = Promise.race([vega, wait(lastVega ? 8000 : 2500)]);
+
+    function begin(resolved) {
       state.ids = resolved;
       setTitle();
       const entry = FL.store.peek(film.id);
@@ -304,6 +380,18 @@
       const pick = ranked(film, entry).find((s) => s.url(params())) || null;
       if (!pick) { needId(film); return; }
       load(pick);
+    }
+
+    Promise.all([ids, settled, vegaSoon]).then(([resolved]) => {
+      if (token !== state.token) return;
+      if (resolved) { begin(resolved); return; }
+      // No IMDb id means the fixed servers can't look it up — but Vega finds titles by name.
+      status(FL.ui.loader(44, "Loading") + "<p>Looking for " + (ep ? "this episode" : "this film") + " on Vega…</p>");
+      vega.then(() => {
+        if (token !== state.token) return;
+        if (state.extra.length) begin({});
+        else needId(film);
+      });
     });
   }
 
@@ -401,7 +489,7 @@
   /* Cycle in the fixed server order, skipping hosts that failed the reachability probe (unless all did). */
   function next() {
     if (!state.ids) return;
-    const usable = SERVERS.filter((s) => s.url(params()));
+    const usable = allServers().filter((s) => s.url(params()));
     const reachable = usable.filter((s) => !health[s.id] || health[s.id].ok);
     const order = reachable.length > 1 || (reachable.length === 1 && reachable[0] !== state.server) ? reachable : usable;
     const i = order.indexOf(state.server);
@@ -574,7 +662,7 @@
     else if (e.key === "n" || e.key === "N") { e.preventDefault(); next(); }
     else if (e.key === "f" || e.key === "F") { e.preventDefault(); fullscreen(); }
     else if (/^[1-9]$/.test(e.key)) {
-      const s = SERVERS[+e.key - 1];
+      const s = allServers()[+e.key - 1];
       if (s) { e.preventDefault(); switchTo(s); }
     }
   }, true);

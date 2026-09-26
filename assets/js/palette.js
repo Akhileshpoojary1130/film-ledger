@@ -376,7 +376,7 @@
           '<input class="input" id="set-name" maxlength="40" placeholder="Used in the greeting" value="' + esc(prefs.name || "") + '"></section>' +
         '<section data-sec="storage"><h3 class="label">Storage</h3><div data-storage>' + storageHtml(FL.persist.status(), false) + "</div></section>" +
         '<section><h3 class="label">Stream servers</h3><p class="sub">Reachability from your network right now; the player skips servers that don’t answer. ' +
-          "“Unreachable” usually means your internet provider or an ad blocker blocks that server — it isn’t something Iris can change. Titles no server carries have a <em>Where to watch</em> link.</p>" +
+          "“Unreachable” usually means your internet provider or an ad blocker blocks that server — it isn’t something Iris can change. Titles on Vega also get Vega's own players (MixDrop, RPM, MultiCloud…), looked up when you press play. Titles no server carries have a <em>Where to watch</em> link.</p>" +
           '<ul class="server-list">' + serverRows() + '</ul><button type="button" class="btn btn-sm btn-ghost" data-set="recheck">Re-check</button></section>' +
         '<section><h3 class="label">Maintenance</h3><div class="btn-row">' +
           '<button type="button" class="btn btn-ghost" data-set="clear-cache">Clear artwork & details cache</button>' +
@@ -521,7 +521,7 @@
       ["Anywhere", [[[mod, "K"], "Search films, shows & commands"], [["/"], "Search"], [["R"], "Surprise me"], [["?"], "This list"], [["Esc"], "Close"]]],
       ["Go to", [[["G", "H"], "Home"], [["G", "Y"], "Years"], [["G", "B"], "Browse"], [["G", "T"], "Shows"], [["G", "W"], "Watch later"], [["G", "D"], "Diary"], [["G", "S"], "Stats"]]],
       ["On a film page", [[["P"], "Play"], [["T"], "Trailer"], [["W"], "Watch later"], [["M"], "Mark watched"], [["F"], "Favourite"]]],
-      ["Player", [[["N"], "Next server"], [["1"], "–", ["5"], "Pick a server"], [["F"], "Fullscreen"], [["Esc"], "Close player"]]],
+      ["Player", [[["N"], "Next server"], [["1"], "–", ["9"], "Pick a server"], [["F"], "Fullscreen"], [["Esc"], "Close player"]]],
       ["Years", [[["←"], "Previous year"], [["→"], "Next year"]]],
       ["Grids", [[["←", "→", "↑", "↓"], "Move between posters"], [["↵"], "Open"]]],
     ];

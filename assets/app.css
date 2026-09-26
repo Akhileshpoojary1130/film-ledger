@@ -1348,7 +1348,7 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 }
 .player-bar { display: flex; align-items: center; gap: 12px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); overflow-x: auto; background: #060607; border-top: 1px solid var(--line); }
 .player-bar .label { margin: 0; }
-.player-servers { display: flex; flex: 1; gap: 6px; }
+.player-servers { display: flex; flex: 1; gap: 6px; min-width: 0; overflow-x: auto; scrollbar-width: thin; }
 .srv {
   display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border-radius: var(--r);
   border: 1px solid var(--line); background: var(--s1); color: var(--text-2); font-size: 13px; white-space: nowrap;
@@ -1361,6 +1361,7 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 .srv:disabled { opacity: 0.4; cursor: not-allowed; }
 .srv-wait .srv-dot { animation: breathe 1s ease-in-out infinite; }
 .srv-down span { text-decoration: line-through; text-decoration-color: rgba(255, 255, 255, 0.3); }
+.player-bar .srv-sep { flex: none; align-self: center; margin: 0 2px 0 6px; padding-left: 12px; border-left: 1px solid var(--line-2); }
 
 /* ---------- toasts ---------- */
 

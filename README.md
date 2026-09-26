@@ -1,7 +1,8 @@
 # Iris
 
 A film and TV diary: go through cinema **year by year** (1970 → next year), tick off what you've seen, follow
-reality and talent shows episode by episode, and get told what to watch next. Static site, no backend, no account.
+reality and talent shows episode by episode, and get told what to watch next. Static site plus one
+small function (Vega lookups), no account.
 
 Live: https://film-ledger-mocha.vercel.app/
 
@@ -67,11 +68,18 @@ In this browser (`localStorage`). Clearing site data erases it, so Settings → 
 - The app also asks the browser for persistent storage so it isn't evicted on its own.
 
 Movie-night links and moving codes carry the data inside the code or after the `#` of the link, which browsers never
-send to a server. Syncing automatically would need a server; this stays serverless on purpose.
+send to a server. Syncing automatically would need a server; your library stays in the browser on purpose.
 
 ## Player
 
-Third-party embed hosts inside an iframe (VidLink, 2Embed, Vega, Videasy, VidSrc).
+Third-party embed hosts inside an iframe: VidLink, 2Embed, Videasy, VidSrc — and **Vega**, strong on Hindi and
+Hindi-dubbed titles.
+
+- **Vega's own players** — Vega lists each title on several hosts of its own (MixDrop, RPM, MultiCloud, Molop…), with
+  links per title rather than by IMDb id. When you press play, Iris's one server-side piece, `api/vega.js` (a Vercel
+  function), finds the title on Vega — by name and year, double-checked against the IMDb id — and those players join
+  the bar after *Vega*, next to its *Super* player. Series get the link for that exact episode. A title with no IMDb id
+  can still play from Vega. Links are cached (12 h on Vercel, 6 h in the tab).
 
 - **Checked from your network** — hosts are probed (9 s, one retry) and unreachable ones skipped. "Unreachable" is
   usually your internet provider or an ad blocker blocking that host.
@@ -82,7 +90,7 @@ Third-party embed hosts inside an iframe (VidLink, 2Embed, Vega, Videasy, VidSrc
 - **Series** play by season and episode, with *Next episode*. Progress feeds *Continue watching*, resume and
   auto-logging; films finished in the player are logged, episodes ticked.
 - Some hosts open an ad pop-up on the first click inside their player; the second click plays.
-- Titles no server carries (many Indian reality shows) have *Where to watch*. Keys: `N` next server, `1`–`5` pick,
+- Titles no server carries (many Indian reality shows) have *Where to watch*. Keys: `N` next server, `1`–`9` pick,
   `F` fullscreen, `Esc` close.
 
 ## Found on search
@@ -107,6 +115,7 @@ kept. A page that fails on its own shows an error in place instead of taking the
 ```
 index.html            shell, boot loader, early theme
 movie.html            redirect for old links
+api/vega.js           Vercel function: finds a title on Vega and returns its player links
 data/catalogue.js     the bundled vault (window.FILM_STATIC_CATALOGUE, schema 2)
 assets/app.css        one token system; theme × mode blocks at the top
 assets/js/
@@ -122,7 +131,7 @@ assets/js/
   persist.js          File System Access backup file
   ui.js               icons, cards, rails, rating, reveal & tilt motion, toasts, modals
   share.js            packing, QR codes (qrcode-generator), camera scanner (BarcodeDetector / jsQR), share links
-  player.js           theatre player, auto-logging
+  player.js           theatre player, server choice (fixed hosts + Vega's per-title links), auto-logging
   palette.js          ⌘K palette, surprise me, settings, shortcuts
   views/              home, years (dial), browse, film, shows, person, library + collections + diary, insights (stats),
                       together (Move and Movie night)
@@ -137,4 +146,5 @@ Any static server:
 python3 -m http.server 8000
 ```
 
-Open http://localhost:8000. Vercel serves the repo root as-is — no build step.
+Open http://localhost:8000. Vercel serves the repo root as-is — no build step — and runs `api/` as functions.
+A local static server has no `/api`, so a copy on localhost asks the deployed function for Vega's links.
