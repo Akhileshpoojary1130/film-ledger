@@ -12,7 +12,7 @@
      `url` gets { imdb, tmdb, start, tv, s, e } and returns null when the host can't serve that title. */
   const SERVERS = [
     {
-      id: "vidlink", name: "VidLink", origin: "https://vidlink.pro", resume: true,
+      id: "vidlink", name: "VidLink", origin: "https://vidlink.pro", resume: true, signals: true,
       url: ({ imdb, tmdb, start, tv, s, e }) => {
         const id = tmdb || imdb;
         if (!id || (tv && !tmdb)) return null;
@@ -33,7 +33,7 @@
       url: ({ imdb, tv }) => (imdb && !tv ? "https://slast430did.com/play/" + imdb : null),
     },
     {
-      id: "videasy", name: "Videasy", origin: "https://player.videasy.net", resume: true,
+      id: "videasy", name: "Videasy", origin: "https://player.videasy.net", resume: true, signals: true,
       url: ({ imdb, tmdb, start, tv, s, e }) => {
         const id = tmdb || imdb;
         if (!id || (tv && !tmdb)) return null;
@@ -259,6 +259,7 @@
 
   /* Resolve ids, probe servers, then load the best candidate. */
   function start(film, ep) {
+    state.autoTried = {}; // each title or episode gets its own automatic server hop
     settle();
     const token = ++state.token;
     state.film = film;
@@ -329,7 +330,8 @@
     state.confirmed = false;
     state.openedAt = Date.now();
     const url = server.url(Object.assign(params(), { start: server.resume ? state.start : 0 }));
-    rememberServer(film, server.id);
+    // Remember a server only once it has proved itself: it reported playback, or you stayed on it for 5 minutes.
+    if (!server.signals) setTimeout(() => { if (state.open && state.server === server) rememberServer(film, server.id); }, 5 * 60e3);
     renderServers();
 
     frame().innerHTML = "";
@@ -350,6 +352,23 @@
     const hideStarting = () => starting.classList.add("is-gone");
     iframe.addEventListener("load", () => setTimeout(hideStarting, 7000));
     setTimeout(hideStarting, 22000);
+
+    // VidLink and Videasy report player events as soon as a title loads (even before you press play). If the host is
+    // talking to us but never mentions media, it's showing its "couldn't find this" page — move on by ourselves.
+    state.pinged = false;
+    state.mediaSeen = false;
+    if (server.signals) {
+      iframe.addEventListener("load", () => setTimeout(() => {
+        if (!state.open || state.server !== server || state.confirmed || state.mediaSeen || !state.pinged) return;
+        state.autoTried = state.autoTried || {};
+        if (state.autoTried[server.id]) return;
+        state.autoTried[server.id] = true;
+        bumpStat(server.id, "fail", film);
+        const before = state.server;
+        next();
+        if (state.server !== before) FL.ui.toast("Not on " + server.name + " — trying " + state.server.name + ".");
+      }, 11000));
+    }
 
     hideNotice();
     if (state.start && server.resume && !restart) {
@@ -523,11 +542,14 @@
 
   window.addEventListener("message", (ev) => {
     if (!state.open || !state.server || !ORIGINS.has(ev.origin) || ev.origin !== state.server.origin) return;
+    state.pinged = true;
     const info = parse(ev.data);
     if (!info) return;
+    if (info.event && info.event !== "sr") state.mediaSeen = true;
     // Hosts post messages even on their own "not found" screens; only a real duration means media loaded.
     if (!state.confirmed && info.d > 0) {
       state.confirmed = true;
+      rememberServer(state.film, state.server.id);
       const st = root.querySelector(".player-starting");
       if (st) st.classList.add("is-gone");
       bumpStat(state.server.id, "ok", state.film);

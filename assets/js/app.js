@@ -103,10 +103,7 @@
 
   function setNav(name) {
     const key = NAV_FOR[name];
-    // Home has its own big logo and search bar; the top bar's versions dock in as you scroll (see views/home.js).
-    const root = document.documentElement;
-    root.classList.toggle("is-home", name === "home");
-    if (name !== "home") root.classList.remove("brand-docked", "search-docked");
+    document.documentElement.classList.toggle("is-home", name === "home");
     $$("[data-nav]").forEach((a) => {
       const on = a.dataset.nav === key;
       a.classList.toggle("is-on", !!on);

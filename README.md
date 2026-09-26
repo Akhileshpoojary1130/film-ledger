@@ -62,12 +62,19 @@ Syncing between devices automatically would need a server; this stays serverless
 
 ## Player
 
-Third-party embed hosts inside an iframe (VidLink, 2Embed, Vega, Videasy, VidSrc). Hosts are probed from your
-network (9 s, one retry — slow isn't down) and unreachable ones are skipped. "Unreachable" is usually your internet
-provider or an ad blocker blocking that host, which the app can't change; the host that actually played is remembered per language; VidLink and
-Videasy report progress for *Continue watching*, resume and auto-logging. Series play by season and episode with a
-*Next episode* button. Some titles (many Indian reality shows) aren't on these hosts — *Where to watch* links to the
-official service. Keys: `N` next server, `1`–`5` pick, `F` fullscreen, `Esc` close.
+Third-party embed hosts inside an iframe (VidLink, 2Embed, Vega, Videasy, VidSrc).
+
+- **Checked from your network** — hosts are probed (9 s, one retry) and unreachable ones skipped. "Unreachable" is
+  usually your internet provider or an ad blocker blocking that host.
+- **Skips "not found" by itself** — VidLink and Videasy report player events as soon as a title loads; when they only
+  send pings, they're showing their "couldn't find this" page, and Iris moves to the next server with a toast.
+- **Remembers what works** — a server is remembered (per language) only after it actually played, or after you stayed
+  on it for five minutes.
+- **Series** play by season and episode, with *Next episode*. Progress feeds *Continue watching*, resume and
+  auto-logging; films finished in the player are logged, episodes ticked.
+- Some hosts open an ad pop-up on the first click inside their player; the second click plays.
+- Titles no server carries (many Indian reality shows) have *Where to watch*. Keys: `N` next server, `1`–`5` pick,
+  `F` fullscreen, `Esc` close.
 
 ## Found on search
 

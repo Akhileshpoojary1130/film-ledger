@@ -13,7 +13,6 @@
     const g = FL.voice.greeting(name);
     const text = g.line[0] + " " + g.line[1];
     return '<section class="home-hero" data-slot-time="' + g.id + '">' +
-      '<div class="home-brand" aria-hidden="true">' + FL.theme.mark({ size: 60, cls: "home-mark" }) + '<span class="home-word">Iris</span></div>' +
       '<p class="eyebrow">' + esc(g.eyebrow) + "</p>" +
       '<h1 class="display hero-line"><span class="hero-words"' + FL.voice.moodAttrs(text) + ">" + esc(g.line[0]) + " <em>" + esc(g.line[1]) + "</em></span></h1>" +
       '<button type="button" class="hero-search" data-open="palette" data-page-search>' + icon("search") +
@@ -318,20 +317,7 @@
       el.addEventListener("click", click);
       loadTonight();
 
-      /* As you scroll, the big logo shrinks away and the top bar's takes over; once the big search bar has
-         scrolled under the top bar, the small one appears in its place (and page changes morph between them). */
-      const root = document.documentElement;
-      let dockFrame = 0;
-      function dock() {
-        dockFrame = 0;
-        const p = Math.min(1, Math.max(0, window.scrollY / 150));
-        const brand = el.querySelector(".home-brand");
-        if (brand) brand.style.setProperty("--dock", p.toFixed(3));
-        root.classList.toggle("brand-docked", p > 0.8);
-      }
-      const onScroll = () => { if (!dockFrame) dockFrame = requestAnimationFrame(dock); };
-      window.addEventListener("scroll", onScroll, { passive: true });
-      dock();
+
       // The greeting follows the clock: swap it when the time of day moves on.
       const clock = setInterval(() => {
         const h = el.querySelector(".home-hero");
@@ -348,12 +334,9 @@
           render(el);
           FL.ui.watchPosters(el);
           window.scrollTo(0, y);
-          dock();
         },
         destroy() {
           clearInterval(clock);
-          window.removeEventListener("scroll", onScroll);
-          cancelAnimationFrame(dockFrame);
           el.removeEventListener("click", click);
         },
       };
