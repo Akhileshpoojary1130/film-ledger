@@ -75,21 +75,25 @@ send to a server. Syncing automatically would need a server; your library stays 
 Third-party embed hosts inside an iframe: VidLink, 2Embed, Videasy, VidSrc — and **Vega**, strong on Hindi and
 Hindi-dubbed titles.
 
-- **Vega's own players** — Vega lists each title on several hosts of its own (MixDrop, RPM, MultiCloud, Molop…), with
-  links per title rather than by IMDb id. When you press play, Iris's one server-side piece, `api/vega.js` (a Vercel
-  function), finds the title on Vega — by name and year, double-checked against the IMDb id — and those players join
-  the bar after *Vega*, next to its *Super* player. Series get the link for that exact episode. A title with no IMDb id
-  can still play from Vega. Links are cached (12 h on Vercel, 6 h in the tab).
-
+- **Vega's own players** — Vega lists each title on several hosts of its own (MixDrop, RPM, MultiCloud, Prvs…), with
+  links per title rather than by IMDb id. Iris's one server-side piece, `api/vega.js` (a Vercel Edge function), finds
+  the title on Vega — by name and year, double-checked against the IMDb id — and those players join the bar after
+  *Vega*, next to its *Super* player. Series get the link for that exact episode (Vega's per-episode link, or its
+  Ultra Stream player pointed at the episode). A title with no IMDb id can still play from Vega. Links whose page says
+  the video is gone are dropped, and Vega's retired Ultra Stream V2 host is skipped. Cached 12 h on Vercel, 6 h in the tab.
+- **Starts fast** — the film or show page checks the servers, looks the title up on Vega and opens a connection to the
+  likeliest server while you read, so Play loads a server straight away.
 - **Checked from your network** — hosts are probed (9 s, one retry) and unreachable ones skipped. "Unreachable" is
   usually your internet provider or an ad blocker blocking that host.
 - **Skips "not found" by itself** — VidLink and Videasy report player events as soon as a title loads; when they only
-  send pings, they're showing their "couldn't find this" page, and Iris moves to the next server with a toast.
+  send pings, they're showing their "couldn't find this" page. Vega's Super Player says so outright. Either way Iris
+  moves to the next server with a toast.
 - **Remembers what works** — a server is remembered (per language) only after it actually played, or after you stayed
   on it for five minutes.
 - **Series** play by season and episode, with *Next episode*. Progress feeds *Continue watching*, resume and
   auto-logging; films finished in the player are logged, episodes ticked.
 - Some hosts open an ad pop-up on the first click inside their player; the second click plays.
+- On a phone held upright every server is in view, in rows (Vega's on their own line), with a full-width *Next server*.
 - Titles no server carries (many Indian reality shows) have *Where to watch*. Keys: `N` next server, `1`–`9` pick,
   `F` fullscreen, `Esc` close.
 
@@ -115,7 +119,8 @@ kept. A page that fails on its own shows an error in place instead of taking the
 ```
 index.html            shell, boot loader, early theme
 movie.html            redirect for old links
-api/vega.js           Vercel function: finds a title on Vega and returns its player links
+api/vega.js           Vercel Edge function: finds a title on Vega and returns its player links
+tests/                unit tests (node --test), live server check, in-browser page sweep
 data/catalogue.js     the bundled vault (window.FILM_STATIC_CATALOGUE, schema 2)
 assets/app.css        one token system; theme × mode blocks at the top
 assets/js/
@@ -148,3 +153,24 @@ python3 -m http.server 8000
 
 Open http://localhost:8000. Vercel serves the repo root as-is — no build step — and runs `api/` as functions.
 A local static server has no `/api`, so a copy on localhost asks the deployed function for Vega's links.
+
+## Tests
+
+```bash
+node --test tests/*.test.mjs
+```
+
+Unit tests for the Vega lookup: reading Vega's titles, matching names written differently (K.G.F / KGF), search
+spellings, episode labels, link clean-up and dead-link detection. No network.
+
+```bash
+node tests/servers.mjs
+```
+
+A live check from your network: each fixed server, Vega's Super Player for a few films, and Vega's own players for a
+film and two episodes via the live `/api/vega` (pass another site as an argument, e.g. `http://localhost:8000`). One
+request per host, so it's light enough to run whenever playback seems off.
+
+`tests/smoke.js` checks every page in the browser: open Iris, paste it into the console (or
+`await import("/tests/smoke.js")`), and it visits each route and reports errors, broken pages and anything wider than
+the screen.

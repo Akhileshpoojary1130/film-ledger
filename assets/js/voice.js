@@ -81,16 +81,18 @@
     return best && (score[best.id] || 0) >= 4 ? best : null;
   }
 
-  /* Loads just the glyphs the headline needs (Google Fonts subsets with &text=, a few KB). */
+  /* Loads just the glyphs the headline needs (Google Fonts subsets with &text=, a few KB). Both cases: some styles set
+     the headline in capitals, and a glyph missing from the subset falls back to another font mid-word. */
   const loaded = new Set();
   function loadFont(m, text) {
     const key = m.font + "|" + text;
     if (loaded.has(key)) return;
     loaded.add(key);
+    const glyphs = Array.from(new Set(text + text.toUpperCase() + text.toLowerCase())).sort().join("");
     const link = document.createElement("link");
     link.rel = "stylesheet";
     link.href = "https://fonts.googleapis.com/css2?family=" + encodeURIComponent(m.font) + (m.italic ? ":ital@1" : "") +
-      "&text=" + encodeURIComponent(Array.from(new Set(text)).join("")) + "&display=swap";
+      "&text=" + encodeURIComponent(glyphs) + "&display=swap";
     document.head.appendChild(link);
   }
 

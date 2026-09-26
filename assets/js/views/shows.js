@@ -185,6 +185,7 @@
           const latest = data.seasons.filter((x) => x > 0 && data.episodes.some((v) => v.s === x && v.aired));
           season = up ? up.s : latest.length ? latest[latest.length - 1] : data.seasons[0];
           render();
+          if (up) FL.util.idle(() => FL.player.prefetch(show, { s: up.s, e: up.e }));
         }).catch(() => {
           if (!alive) return;
           el.innerHTML = '<div class="container page">' + FL.ui.empty("This show couldn’t be loaded.", "Check your connection and try again.", '<button type="button" class="btn" data-sa="retry">Try again</button>') + "</div>";

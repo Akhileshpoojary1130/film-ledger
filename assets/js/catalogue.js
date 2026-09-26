@@ -47,6 +47,7 @@
   const aliases = new Map(); // retired superhero ids -> merged film id
   const byImdb = new Map();
   const byKey = new Map();
+  const byFlat = new Map(); // title without spaces: "K.G.F: Chapter 1" and "KGF: Chapter 1" both "kgfchapter1"
   let yearRange = [2026, 2026];
   let version = 1;
 
@@ -93,6 +94,8 @@
     if (f.imdbId) byImdb.set(f.imdbId, f);
     if (!byKey.has(f.key)) byKey.set(f.key, []);
     byKey.get(f.key).push(f);
+    if (!byFlat.has(f.flat)) byFlat.set(f.flat, []);
+    byFlat.get(f.flat).push(f);
   }
 
   function buildFilm(yearStr, lang, row, rank) {
@@ -220,6 +223,8 @@
         aliases.set(f.id, keep.id);
         const same = byKey.get(f.key);
         if (same) same.splice(same.indexOf(f), 1);
+        const flat = byFlat.get(f.flat);
+        if (flat) flat.splice(flat.indexOf(f), 1);
       });
     });
     let minY = 9999;
@@ -295,7 +300,7 @@
     if (tt && byImdb.has(tt)) return byImdb.get(tt);
     const key = normalize(title);
     const near = (f) => f.type !== "series" && year && Math.abs(f.year - year) <= 1;
-    const hit = (byKey.get(key) || []).find(near);
+    const hit = (byKey.get(key) || []).find(near) || (byFlat.get(key.replace(/ /g, "")) || []).find(near);
     if (hit) return hit;
     // IMDb often files a two-part release's first film under the bare title ("Gangs of Wasseypur" = "… – Part 1").
     for (const tail of [" part 1", " part one", " part i", " chapter 1", " 1"]) {

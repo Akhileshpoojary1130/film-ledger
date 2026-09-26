@@ -12,7 +12,7 @@ export const config = { runtime: "edge" };
 const SITE = "https://vegamovito.run";
 const UA = "Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36";
 const NONCE_TTL = 2 * 3600e3; // WordPress nonces live 12–24 h
-const BUDGET = 8000; // stop trying further candidates after this; Vercel cuts functions off at 10 s
+const BUDGET = 8000; // stop trying further candidates after this, well inside Vercel's limits
 
 let nonce = { value: "", at: 0 };
 
@@ -110,14 +110,42 @@ function playerOptions(html) {
   return out;
 }
 
+/* Vega's links come with stray spaces, "//host" and "host//embed//tt…"; anything but a clean https link is dropped. */
+function cleanUrl(raw) {
+  let url = String(raw || "").trim();
+  if (url.startsWith("//")) url = "https:" + url;
+  const parts = url.match(/^(https:\/\/[^/?#]+)([^?#]*)(.*)$/);
+  if (parts) url = parts[1] + parts[2].replace(/\/{2,}/g, "/") + parts[3];
+  return /^https:\/\/[^\s"'<>]+$/.test(url) && !RETIRED.test(url) ? url : "";
+}
+
+/* A show-wide VidSrc-style player (https://host/embed/tt…) pointed at one episode; "" for anything else. */
+function episodeLink(url, s, e) {
+  const m = String(url).match(/^(https:\/\/[^/]+)\/embed\/(tt\d+)\/?$/);
+  return m ? m[1] + "/embed/tv?imdb=" + m[2] + "&season=" + s + "&episode=" + e : "";
+}
+
 function embed(post, opt) {
   return get(SITE + "/wp-json/dooplayer/v2/" + post + "/" + opt.type + "/" + opt.nume, true)
-    .then((text) => {
-      let url = String(JSON.parse(text).embed_url || "").trim();
-      if (url.startsWith("//")) url = "https:" + url;
-      return /^https:\/\/[^\s"'<>]+$/.test(url) ? url : "";
-    })
+    .then((text) => cleanUrl(JSON.parse(text).embed_url))
     .catch(() => "");
+}
+
+/* Vega's "Ultra Stream V2" host plays one placeholder for every video and then says it's unavailable, while Vega moves
+   videos to V3 (a VidSrc-style player that takes an IMDb id). Upgraded posts get new links, so V2 ones are skipped. */
+const RETIRED = /^https:\/\/(?:[\w-]+\.)*molop\.art\//;
+
+/* Drops a link only when its page plainly says the video is gone (a dead MixDrop link: "We can't find the video").
+   Players that fetch the video by script, hosts that refuse us, timeouts: all kept. */
+const GONE = /can.?t find the video|video (?:is )?not found|file (?:was )?(?:deleted|removed|not found)|video (?:has been )?(?:deleted|removed)/i;
+function gone(url) {
+  if (url.includes("#")) return Promise.resolve(false);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 3000);
+  return fetch(url, { signal: ctrl.signal, headers: { "user-agent": UA, referer: SITE + "/" } })
+    .then((res) => (res.status === 404 || res.status === 410 ? true : res.text().then((t) => GONE.test(t.slice(0, 100000)))))
+    .catch(() => false)
+    .finally(() => clearTimeout(timer));
 }
 
 const episodeOf = (label) => { const m = label.match(/\bepisode[\s-]*0*(\d+)\b/i); return m ? +m[1] : 0; };
@@ -140,22 +168,27 @@ async function lookup({ title, year, imdb, s, e }) {
       if (Date.now() - t0 > BUDGET) break;
       seen.add(c.id);
       const options = playerOptions(await get(c.url));
-      // Shows: the episode's own link. "Super Player" and "Ultra Stream" carry the IMDb id, so they're fetched to check the match.
+      // "Super Player" and "Ultra Stream" carry the IMDb id: fetched to check the match, and for shows Ultra Stream's
+      // show-wide player is pointed at the episode.
       const checks = options.filter((o) => /super|ultra/i.test(o.label));
       const wanted = tv ? options.filter((o) => episodeOf(o.label) === e) : options.filter((o) => !episodeOf(o.label));
-      if (!wanted.length) continue;
+      if (!wanted.length && !(tv && checks.length)) continue;
       const list = [...new Set(wanted.concat(checks))];
       const urls = await Promise.all(list.map((o) => embed(c.id, o)));
       const tts = urls.map((u) => (u.match(/\btt\d{6,}\b/) || [])[0]).filter(Boolean);
       if (imdb && tts.length && tts.indexOf(imdb) === -1) continue; // a different film with the same name
       const servers = [];
+      const add = (label, url) => { if (!servers.some((x) => x.url === url)) servers.push({ label, url }); };
       list.forEach((o, i) => {
         const url = urls[i];
-        // /play/tt… is the Vega server Iris already has; show-level players don't know the episode.
-        if (!url || wanted.indexOf(o) === -1 || /\/play\/tt\d+/.test(url) || servers.some((x) => x.url === url)) return;
-        servers.push({ label: o.label, url });
+        if (!url || /\/play\/tt\d+/.test(url)) return; // /play/tt… is the Vega server Iris already has
+        if (wanted.indexOf(o) !== -1) { add(o.label, url); return; }
+        const episode = tv && episodeLink(url, s, e);
+        if (episode) add(o.label, episode);
       });
-      if (servers.length) return { match: { id: c.id, title: c.title }, servers };
+      const dead = await Promise.all(servers.map((x) => gone(x.url)));
+      const live = servers.filter((x, i) => !dead[i]);
+      if (live.length) return { match: { id: c.id, title: c.title }, servers: live };
     }
   }
   return { match: null, servers: [] };
@@ -186,3 +219,6 @@ export default async function handler(req) {
     return reply(502, { error: String((err && err.message) || err) }, "no-store");
   }
 }
+
+// For tests/vega.test.mjs.
+export { parseTitle, similar, queries, playerOptions, episodeOf, cleanUrl, episodeLink, GONE, RETIRED };

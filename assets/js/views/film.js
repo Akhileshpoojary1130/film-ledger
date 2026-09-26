@@ -291,8 +291,8 @@
       });
     }
 
-    // Warm up server probes so Play starts faster.
-    FL.util.idle(() => FL.player.probeAll());
+    // Warm up the servers (and look the title up on Vega) so Play starts faster.
+    FL.util.idle(() => FL.player.prefetch(film));
 
     function act(name) {
       const st = FL.store.state(film.id);

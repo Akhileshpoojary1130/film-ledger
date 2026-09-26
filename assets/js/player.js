@@ -51,7 +51,6 @@
       url: ({ imdb, tv }) => (imdb && !tv ? "https://slast430did.com/play/" + imdb : null),
     },
   ];
-  const ORIGINS = new Set(SERVERS.map((s) => s.origin));
 
   /* ---------- Vega's own players ---------- */
 
@@ -65,22 +64,37 @@
 
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  function vegaLinks(film, ep, imdb) {
+  const vegaInflight = new Map();
+
+  /* The IMDb id only double-checks Vega's match, so it isn't worth a long wait. */
+  function imdbFor(film, ep) {
+    const tt = (x) => (/^tt\d+$/.test(x || "") ? x : "");
+    const known = tt(film.imdbId) || tt(film.id);
+    if (known || ep) return Promise.resolve(known);
+    return Promise.race([FL.meta.resolveImdb(film).catch(() => ""), wait(2500)]).then(tt);
+  }
+
+  function vegaLinks(film, ep) {
     const key = film.id + (ep ? "|" + ep.s + "|" + ep.e : "");
     const hit = session.get(VEGA_KEY, {})[key];
     if (hit && Date.now() - hit.at < VEGA_TTL) return Promise.resolve(hit.list);
-    const q = new URLSearchParams({ title: film.title });
-    if (film.year && !ep) q.set("year", film.year);
-    if (imdb) q.set("imdb", imdb);
-    if (ep) { q.set("s", ep.s); q.set("e", ep.e); }
-    return FL.util.fetchJSON(VEGA_API + "?" + q, { timeout: 12000 }).then((d) => {
+    if (vegaInflight.has(key)) return vegaInflight.get(key);
+    const p = imdbFor(film, ep).then((imdb) => {
+      const q = new URLSearchParams({ title: film.title });
+      if (film.year && !ep) q.set("year", film.year);
+      if (imdb) q.set("imdb", imdb);
+      if (ep) { q.set("s", ep.s); q.set("e", ep.e); }
+      return FL.util.fetchJSON(VEGA_API + "?" + q, { timeout: 12000 });
+    }).then((d) => {
       const list = (d && Array.isArray(d.servers) ? d.servers : []).filter((x) => x && /^https:\/\//.test(x.url));
       const cache = session.get(VEGA_KEY, {});
       cache[key] = { at: Date.now(), list };
       Object.keys(cache).sort((a, b) => cache[b].at - cache[a].at).slice(60).forEach((k) => delete cache[k]);
       session.set(VEGA_KEY, cache);
       return list;
-    }).catch(() => []);
+    }).catch(() => []).finally(() => vegaInflight.delete(key));
+    vegaInflight.set(key, p);
+    return p;
   }
 
   /* Named and remembered by host, so "MixDrop works for Hindi" carries over from one title to the next. */
@@ -98,6 +112,31 @@
   }
 
   const allServers = () => (state.extra.length ? SERVERS.concat(state.extra) : SERVERS);
+  const nameOf = (s) => (s.short ? s.name + " " + s.short : s.name); // "Vega Super" in messages, "Super" on its button
+
+  /* Film and show pages call this while you read: server checks, Vega's links for this title (or the episode you're
+     up to) and an early connection to the likeliest server, so Play starts without waiting on any of it. */
+  function prefetch(film, ep) {
+    probeAll();
+    if (!film) return;
+    vegaLinks(film, ep || null).then((links) => {
+      const taken = {};
+      links.map((l) => vegaServer(l, taken)).filter(Boolean).forEach((s) => probe(s));
+    });
+    const last = lastServerFor(film);
+    const server = SERVERS.find((s) => s.id === last) || SERVERS[0];
+    preconnect(server.origin);
+  }
+
+  const warmed = new Set();
+  function preconnect(origin) {
+    if (warmed.has(origin)) return;
+    warmed.add(origin);
+    const link = document.createElement("link");
+    link.rel = "preconnect";
+    link.href = origin;
+    document.head.appendChild(link);
+  }
 
   /* ---------- reachability ---------- */
 
@@ -327,6 +366,7 @@
     state.logged = false;
     state.runtime = 0;
     state.openedAt = Date.now();
+    root.querySelector(".player-servers").scrollLeft = 0; // a new title starts at the first server
     setTitle();
     renderServers();
     status(FL.ui.loader(44, "Loading") + "<p>Finding " + (ep ? "this episode" : "this film") + " on the stream servers…</p>");
@@ -349,10 +389,7 @@
         });
       });
 
-    // Vega's links: the IMDb id only double-checks its match, so don't wait long for it.
-    const imdb = ep ? Promise.resolve(film.imdbId || film.id) : FL.meta.resolveImdb(film).catch(() => "");
-    const vega = Promise.race([imdb, wait(2500)])
-      .then((tt) => vegaLinks(film, ep, /^tt\d+$/.test(tt || "") ? tt : ""))
+    const vega = vegaLinks(film, ep)
       .then((links) => {
         if (token !== state.token) return;
         const taken = {};
@@ -368,7 +405,7 @@
     const entry = FL.store.peek(film.id);
     const lastVega = /^vg-/.test(lastServerFor(film)) || /^vg-/.test((entry && entry.progress && entry.progress.srv) || "");
     // Join the first pick if they're quick — or worth a longer wait when this title or language last played on Vega.
-    const vegaSoon = Promise.race([vega, wait(lastVega ? 8000 : 2500)]);
+    const vegaSoon = Promise.race([vega, wait(lastVega ? 8000 : 1500)]);
 
     function begin(resolved) {
       state.ids = resolved;
@@ -430,12 +467,12 @@
     iframe.allowFullscreen = true;
     // Browser-default referrer: several hosts refuse to play when the embedding page is anonymous.
     iframe.referrerPolicy = "strict-origin-when-cross-origin";
-    iframe.title = film.title + (state.ep ? " " + epLabel(state.ep) : "") + " · " + server.name;
+    iframe.title = film.title + (state.ep ? " " + epLabel(state.ep) : "") + " · " + nameOf(server);
     frame().appendChild(iframe);
     // Big hosts show a blank or spinning frame for 10–20 s; say so, so a working server isn't abandoned.
     const starting = document.createElement("div");
     starting.className = "player-starting";
-    starting.innerHTML = FL.ui.loader(16) + "<span>Starting " + esc(server.name) + ", can take up to 20 seconds</span>";
+    starting.innerHTML = FL.ui.loader(16) + "<span>Starting " + esc(nameOf(server)) + ", can take up to 20 seconds</span>";
     frame().appendChild(starting);
     const hideStarting = () => starting.classList.add("is-gone");
     iframe.addEventListener("load", () => setTimeout(hideStarting, 7000));
@@ -448,13 +485,7 @@
     if (server.signals) {
       iframe.addEventListener("load", () => setTimeout(() => {
         if (!state.open || state.server !== server || state.confirmed || state.mediaSeen || !state.pinged) return;
-        state.autoTried = state.autoTried || {};
-        if (state.autoTried[server.id]) return;
-        state.autoTried[server.id] = true;
-        bumpStat(server.id, "fail", film);
-        const before = state.server;
-        next();
-        if (state.server !== before) FL.ui.toast("Not on " + server.name + ". Trying " + state.server.name + ".");
+        notOnServer(server);
       }, 11000));
     }
 
@@ -465,7 +496,7 @@
     }
     const h = health[server.id];
     if (h && !h.ok) {
-      notice("<span>" + server.name + " didn't answer a reachability check from your network. If the frame stays blank, press <kbd>N</kbd>.</span>", true);
+      notice("<span>" + esc(nameOf(server)) + " didn't answer a reachability check from your network. If the frame stays blank, press <kbd>N</kbd>.</span>", true);
     }
     clearTimeout(state.hintTimer);
     state.hintTimer = setTimeout(() => {
@@ -478,6 +509,17 @@
       n.dataset.kind = "hint";
       setTimeout(() => { if (n.dataset.kind === "hint") hideNotice(); }, 12000);
     }, 25000);
+  }
+
+  /* This server doesn't have the title: count it, and move on by ourselves (once per server per title). */
+  function notOnServer(server) {
+    state.autoTried = state.autoTried || {};
+    if (state.autoTried[server.id]) return;
+    state.autoTried[server.id] = true;
+    bumpStat(server.id, "fail", state.film);
+    const before = state.server;
+    next();
+    if (state.server !== before) FL.ui.toast("Not on " + nameOf(server) + ". Trying " + nameOf(state.server) + ".");
   }
 
   function switchTo(server) {
@@ -629,10 +671,12 @@
   }
 
   window.addEventListener("message", (ev) => {
-    if (!state.open || !state.server || !ORIGINS.has(ev.origin) || ev.origin !== state.server.origin) return;
+    if (!state.open || !state.server || ev.origin !== state.server.origin) return;
     state.pinged = true;
     const info = parse(ev.data);
     if (!info) return;
+    // Vega's Super Player posts {event: "error"} on its "Video Not Found" page: that's a miss, not playback.
+    if (/^(error|notfound|not_found)$/.test(info.event)) { if (!state.confirmed) notOnServer(state.server); return; }
     if (info.event && info.event !== "sr") state.mediaSeen = true;
     // Hosts post messages even on their own "not found" screens; only a real duration means media loaded.
     if (!state.confirmed && info.d > 0) {
@@ -680,7 +724,7 @@
   }
 
   FL.player = {
-    SERVERS, open, close, trailer, probeAll,
+    SERVERS, open, close, trailer, probeAll, prefetch,
     isOpen: () => state.open,
     current: () => state.film,
   };

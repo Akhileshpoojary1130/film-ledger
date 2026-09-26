@@ -334,7 +334,8 @@
 
   /* Open any title by IMDb id (deep links, backups restored on a new browser). */
   function byId(tt, type) {
-    const f = FL.catalogue.get(tt);
+    // A link by IMDb id to a film that's bundled under another id opens straight away.
+    const f = FL.catalogue.get(tt) || (type !== "series" && FL.catalogue.byImdb(tt));
     if (f) return Promise.resolve(f);
     if (type === "series") return show(tt).then((s) => s.film).catch(() => null);
     return FL.meta.fetchMeta(tt).then((m) => (m ? FL.catalogue.addRemote({
