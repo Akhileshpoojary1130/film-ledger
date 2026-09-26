@@ -250,7 +250,9 @@
       m = meta;
       slot("facts").innerHTML = facts(film, m);
       slot("scores").innerHTML = scores(film, m);
-      slot("overview").textContent = desc() || "No synopsis available.";
+      slot("overview").textContent = desc() || (/^vega-/.test(film.id)
+        ? "Found on Vega. No synopsis is listed anywhere yet; Play finds it on Vega’s servers."
+        : "No synopsis available.");
       paintCredits();
       const tt = FL.meta.idFor(film);
       if (tt && !wdAsked) {

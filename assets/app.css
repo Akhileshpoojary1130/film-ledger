@@ -471,6 +471,131 @@
 [data-mode="light"] .theme-pop { --pv-bg: radial-gradient(rgba(0, 0, 0, 0.12) 1px, transparent 1.3px) 0 0 / 9px 9px, #FFF4DE; --pv-text: #111; --pv-accent: #FF4F8B; --pv-card: #FFFFFF; }
 [data-mode="light"] .theme-pop .theme-preview i:nth-child(3), [data-mode="light"] .theme-pop .theme-preview::after { outline-color: #111; box-shadow: 2px 2px 0 #111; }
 
+/* ---------- Neon: night city — deep violet, magenta and cyan glow ---------- */
+:root[data-theme="neon"] {
+  --accent: #FF3CAC;
+  --accent-ink: #1A0414;
+  --neon-2: #2DE2E6;
+  --bg: #07060F;
+  --s1: #0F0D1C;
+  --s2: #16132A;
+  --s3: #1E1A38;
+  --s4: #2A2550;
+  --raised: rgba(22, 19, 42, 0.97);
+  --line: rgba(170, 150, 255, 0.16);
+  --line-2: rgba(170, 150, 255, 0.32);
+  --text: #F3F0FF;
+  --text-2: #BCB5DD;
+  --text-3: #8078AA;
+  --glass: rgba(7, 6, 15, 0.72);
+  --glass-2: rgba(7, 6, 15, 0.9);
+  --sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --display: "Chakra Petch", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --display-weight: 700;
+  --display-track: 0.01em;
+  --em-style: normal;
+  --em-color: var(--accent);
+  --word: "Chakra Petch", ui-sans-serif, system-ui, sans-serif;
+  --word-style: normal;
+  --word-weight: 700;
+  --word-size: 22px;
+  --r-sm: 6px;
+  --r: 10px;
+  --r-lg: 16px;
+  --r-art: 10px;
+  --r-btn: 10px;
+  --r-seg: 10px;
+  --r-seg-in: 7px;
+  --btn-h: 38px;
+}
+:root[data-theme="neon"][data-mode="light"] {
+  --accent: #D1007A;
+  --accent-ink: #FFFFFF;
+  --neon-2: #008C99;
+  --bg: #F5F2FF;
+  --s1: #FFFFFF;
+  --s2: #EDE8FF;
+  --s3: #E2DBFF;
+  --s4: #D2C8FF;
+  --raised: rgba(255, 255, 255, 0.98);
+  --line: rgba(60, 30, 140, 0.14);
+  --line-2: rgba(60, 30, 140, 0.26);
+  --text: #150F2E;
+  --text-2: #4A4270;
+  --text-3: #7A7299;
+  --glass: rgba(245, 242, 255, 0.76);
+  --glass-2: rgba(245, 242, 255, 0.92);
+}
+[data-theme="neon"] body {
+  background-image: linear-gradient(color-mix(in oklab, var(--accent) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--neon-2) 6%, transparent) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+[data-theme="neon"] .eyebrow, [data-theme="neon"] .label { font-family: var(--display); letter-spacing: 0.18em; color: var(--neon-2); }
+
+/* ---------- Retro: an 80s VHS tape — warm dusk colours, scanlines, a little colour bleed ---------- */
+:root[data-theme="retro"] {
+  --accent: #FF8A3D;
+  --accent-ink: #1B1020;
+  --retro-2: #3DD6D0;
+  --bg: #1A1320;
+  --s1: #231A2B;
+  --s2: #2C2136;
+  --s3: #372A43;
+  --s4: #463653;
+  --raised: #231A2B;
+  --line: rgba(255, 233, 214, 0.14);
+  --line-2: rgba(255, 233, 214, 0.28);
+  --text: #FFEBD9;
+  --text-2: #D8C2B0;
+  --text-3: #9E8A7C;
+  --glass: rgba(26, 19, 32, 0.9);
+  --glass-2: rgba(26, 19, 32, 0.97);
+  --sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --display: "VT323", "Space Mono", ui-monospace, monospace;
+  --display-weight: 400;
+  --display-track: 0.02em;
+  --em-style: normal;
+  --em-color: var(--accent);
+  --word: "VT323", ui-monospace, monospace;
+  --word-style: normal;
+  --word-weight: 400;
+  --word-size: 30px;
+  --r-sm: 3px;
+  --r: 5px;
+  --r-lg: 8px;
+  --r-art: 4px;
+  --r-btn: 5px;
+  --r-seg: 5px;
+  --r-seg-in: 3px;
+  --btn-h: 38px;
+}
+:root[data-theme="retro"][data-mode="light"] {
+  --accent: #E4572E;
+  --accent-ink: #FFF8EE;
+  --retro-2: #0F8B8D;
+  --bg: #F4EAD5;
+  --s1: #FBF4E6;
+  --s2: #EFE2C7;
+  --s3: #E6D5B3;
+  --s4: #D8C49C;
+  --raised: #FBF4E6;
+  --line: rgba(60, 35, 20, 0.14);
+  --line-2: rgba(60, 35, 20, 0.28);
+  --text: #2B1B12;
+  --text-2: #5E4636;
+  --text-3: #8E7564;
+  --glass: rgba(244, 234, 213, 0.9);
+  --glass-2: rgba(244, 234, 213, 0.97);
+}
+[data-theme="retro"] body::after {
+  content: ""; position: fixed; inset: 0; z-index: 250; pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.07) 0 1px, transparent 1px 3px);
+}
+[data-mode="light"][data-theme="retro"] body::after { background: repeating-linear-gradient(0deg, rgba(60, 35, 20, 0.05) 0 1px, transparent 1px 3px); }
+[data-theme="retro"] .display { font-size: clamp(40px, 6.4vw, 78px); line-height: 0.95; }
+[data-theme="retro"] .eyebrow, [data-theme="retro"] .label { font-family: var(--display); font-size: 16px; letter-spacing: 0.12em; color: var(--retro-2); }
+
 /* ---------- base ---------- */
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -673,12 +798,9 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 /* ---------- the aperture mark ---------- */
 
 .mark { display: block; flex: none; overflow: visible; }
-.mark .blade { stroke-width: var(--seam, 3); }
 .mark .mark-fill { fill: var(--accent); }
 .mark .mark-ring { fill: none; stroke: var(--accent); stroke-width: 5; }
 .brand-mark { transition: transform 0.9s var(--ease-out); }
-.brand-mark.is-blink .blade { animation: shutter 0.7s cubic-bezier(0.65, 0, 0.35, 1); }
-@keyframes shutter { 42% { transform: rotate(80deg); } }
 .brand:hover .brand-mark { transform: rotate(60deg); }
 
 .loader { display: inline-flex; align-items: center; gap: 10px; color: var(--text-3); }
@@ -695,13 +817,16 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
   -webkit-mask: radial-gradient(circle at 50% 50%, transparent var(--hole), #000 calc(var(--hole) + 1px));
   mask: radial-gradient(circle at 50% 50%, transparent var(--hole), #000 calc(var(--hole) + 1px));
 }
-.boot-inner { display: flex; flex-direction: column; align-items: center; gap: 18px; animation: bootIn 0.6s var(--ease-out) both; }
+/* The aperture sits at the exact centre of the screen (the word hangs below it), so the opening that reveals the app
+   grows from the aperture itself; the aperture flies toward you as it opens. */
+.boot-inner { position: relative; display: grid; place-items: center; animation: bootIn 0.6s var(--ease-out) both; }
 .boot-word {
+  position: absolute; top: calc(100% + 16px); left: 50%; transform: translateX(-50%); white-space: nowrap;
   font-family: var(--word); font-style: var(--word-style); font-weight: var(--word-weight); font-size: 30px;
   letter-spacing: 0.02em; color: var(--text); animation: bootWord 0.9s 0.15s var(--ease-out) both;
 }
-.boot.is-done { --hole: 150vmax; opacity: 0; transition: --hole 0.85s cubic-bezier(0.7, 0, 0.3, 1), opacity 0.3s 0.55s; pointer-events: none; }
-.boot.is-done .boot-inner { transform: scale(0.9); opacity: 0; transition: transform 0.4s var(--ease), opacity 0.25s; }
+.boot.is-done { --hole: 150vmax; opacity: 0; transition: --hole 0.9s cubic-bezier(0.7, 0, 0.3, 1), opacity 0.3s 0.6s; pointer-events: none; }
+.boot.is-done .boot-inner { transform: scale(2.6); opacity: 0; transition: transform 0.8s cubic-bezier(0.6, 0, 0.3, 1), opacity 0.4s 0.2s; }
 @keyframes bootIn { from { opacity: 0; transform: scale(0.86) rotate(-30deg); } }
 @keyframes bootWord { from { opacity: 0; letter-spacing: 0.3em; filter: blur(6px); } }
 
@@ -770,8 +895,9 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 ::view-transition-new(root) { animation: vtIn 0.34s var(--ease-out) both; }
 ::view-transition-group(poster) { animation-duration: 0.45s; animation-timing-function: cubic-bezier(0.2, 0.85, 0.25, 1); }
 ::view-transition-old(poster), ::view-transition-new(poster) { animation-duration: 0.45s; }
-@keyframes vtOut { to { opacity: 0; } }
-@keyframes vtIn { from { opacity: 0; transform: translateY(10px); } }
+/* Pages change with a gentle zoom from the centre: the new one settles in, the old one eases out. */
+@keyframes vtOut { to { opacity: 0; transform: scale(1.012); } }
+@keyframes vtIn { from { opacity: 0; transform: scale(0.985); } }
 
 .reveal { opacity: 0; transform: translateY(12px); transition: opacity 0.7s var(--ease-out), transform 0.8s var(--ease-out); }
 .reveal.in { opacity: 1; transform: none; }
@@ -1948,13 +2074,16 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 /* The face pokes up over the bubble's edge. */
 .pet-face { flex: none; width: 54px; height: 54px; margin: -18px -2px -8px -6px; }
 .pet-svg { display: block; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.35)); }
-.pet-head { transform-origin: 32px 50px; animation: petTilt 3.4s 0.8s ease-in-out infinite; }
-.pet-eyes { transform-origin: 32px 32px; animation: petBlink 3.2s 1s infinite; }
-.pet-tail { transform-origin: 50px 56px; animation: petTail 1.3s ease-in-out infinite alternate; }
-.pet-ear-l { transform-origin: 20px 24px; animation: petEar 4s 1.6s infinite; }
-.pet-ear-r { transform-origin: 44px 24px; animation: petEar 4s 2.5s infinite; }
-.pet-tongue { transform-origin: 32px 44px; animation: petPant 0.45s ease-in-out infinite alternate; }
-.pet-dog .pet-tail { animation-duration: 0.32s; }
+/* Animated only when a companion drops in (Settings’ picker shows them still). */
+.pet .pet-head { transform-origin: 32px 50px; animation: petTilt 3.4s 0.8s ease-in-out infinite; }
+.pet .pet-eyes { transform-origin: 32px 32px; animation: petBlink 3.2s 1s infinite; }
+.pet .pet-tail { transform-origin: 50px 56px; animation: petTail 1.3s ease-in-out infinite alternate; }
+.pet .pet-ear-l { transform-origin: 20px 24px; animation: petEar 4s 1.6s infinite; }
+.pet .pet-ear-r { transform-origin: 44px 24px; animation: petEar 4s 2.5s infinite; }
+.pet .pet-tongue { transform-origin: 32px 44px; animation: petPant 0.45s ease-in-out infinite alternate; }
+.pet-dog .pet-tail, .pet-bunny .pet-tail { animation-duration: 0.32s; }
+.pet-penguin .pet-paw { transform-origin: 32px 46px; animation: petFlap 0.6s ease-in-out infinite alternate; }
+.pet-owl .pet-head { animation-name: petOwl; animation-duration: 3s; }
 .pet-bubble { line-height: 1.35; }
 .pet-emoji { font-size: 15px; }
 /* The Iris character: two eyes in the aperture. */
@@ -1969,6 +2098,27 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 @keyframes petTail { from { transform: rotate(-14deg); } to { transform: rotate(18deg); } }
 @keyframes petEar { 0%, 86%, 100% { transform: rotate(0); } 91% { transform: rotate(-12deg); } 96% { transform: rotate(7deg); } }
 @keyframes petPant { to { transform: scaleY(1.3); } }
+@keyframes petFlap { to { transform: rotate(6deg); } }
+@keyframes petOwl { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-14deg); } 55% { transform: rotate(12deg); } }
+
+/* A plain grid: a wrapping column flexbox sizes the picker at its narrowest (one pet a row) and keeps that height. */
+.setting-stack { display: grid; gap: 12px; }
+.pet-picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 8px; }
+.pet-pick {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px 6px; border-radius: var(--r);
+  border: 1px solid var(--line); background: var(--s1); color: var(--text-2); font-size: 11.5px; transition: border-color 0.15s, background 0.15s, transform 0.15s;
+}
+.pet-pick:hover { border-color: var(--line-2); color: var(--text); transform: translateY(-1px); }
+.pet-pick.is-on { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+.pet-pick-face { display: grid; place-items: center; width: 40px; height: 40px; }
+.pet-pick-face .pet-svg { width: 40px; height: 40px; filter: none; }
+.pet-pick-face .pet-iris { width: 40px; height: 40px; }
+.pet-pick-face .pet-iris .mark { width: 32px; height: 32px; }
+.pet-pick-face .pet-iris i { top: 14px; width: 3px; height: 5px; }
+.pet-pick-face .pet-iris i:first-of-type { left: 14px; }
+.pet-pick-face .pet-iris i:last-of-type { right: 14px; }
+.pet-pick-mix { font-size: 24px; }
+.pet-pick-face .i { width: 20px; height: 20px; }
 @media (prefers-reduced-motion: reduce) {
   .pet, .pet * { animation: none !important; }
   .pet, .pet.in, .pet.out { transform: none; transition: opacity 0.2s; }
@@ -1996,6 +2146,25 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 .person-head { gap: 16px; padding-top: 4px; }
 .person-intro .h1 { margin: 0; }
 .person-filters { margin: 22px 0 24px; }
+
+/* ---------- player: fullscreen (the whole player, so reminders and toasts can show over the film) ---------- */
+
+.player-hot { display: none; }
+.player.is-fs .player-stage { position: absolute; inset: 0; padding: 0; }
+.player.is-fs .player-frame { width: 100%; height: 100%; aspect-ratio: auto; border-radius: 0; }
+.player.is-fs .player-top, .player.is-fs .player-bar {
+  position: absolute; left: 0; right: 0; z-index: 4; transition: opacity 0.35s var(--ease), transform 0.35s var(--ease);
+}
+.player.is-fs .player-top { top: 0; background: linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.55)); border: 0; }
+.player.is-fs .player-bar { bottom: 0; background: linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.85)); border: 0; }
+.player.is-fs.is-idle .player-top { opacity: 0; transform: translateY(-100%); pointer-events: none; }
+.player.is-fs.is-idle .player-bar { opacity: 0; transform: translateY(100%); pointer-events: none; }
+.player.is-fs .player-hot { display: block; position: absolute; left: 0; right: 0; z-index: 5; height: 10px; }
+.player.is-fs:not(.is-idle) .player-hot { pointer-events: none; }
+.player-hot-top { top: 0; }
+.player-hot-bottom { bottom: 0; }
+.player.is-fs .player-notice { top: 70px; bottom: auto; }
+.player.is-fs .pet { top: 70px; }
 
 /* ---------- player: starting hint ---------- */
 
@@ -2144,3 +2313,73 @@ html.has-page-search:not(.search-docked) [data-page-search] { view-transition-na
   .player-bar [data-pl="next"] { flex: 1; justify-content: center; }
   .player-bar [data-pl="next"] kbd { display: none; }
 }
+
+/* ---------- style signatures (after the glass rules, so they win) ---------- */
+
+/* Material 3: tonal surfaces, big shapes, a FAB for play, tonal buttons. */
+:root[data-theme="material"] .tonight { border-radius: 28px; background: color-mix(in oklab, var(--accent) 6%, var(--s1)); }
+:root[data-theme="material"] :is(.pick-card, .glance-item, .tile) { border-radius: 20px; background: color-mix(in oklab, var(--accent) 10%, var(--s1)); border-color: transparent; }
+:root[data-theme="material"] .pick-play { width: 40px; height: 40px; border-radius: 12px; background: color-mix(in oklab, var(--accent) 34%, var(--s3)); color: var(--text); box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3); }
+:root[data-theme="material"] .btn-ghost { background: color-mix(in oklab, var(--accent) 16%, transparent); border-color: transparent; }
+:root[data-theme="material"] .h2 { font-size: 20px; font-weight: 500; }
+:root[data-theme="material"] .art { border-radius: 16px; }
+
+/* One UI: rounded cards on black, bold titles, roomy. */
+:root[data-theme="oneui"] :is(.tonight, .panel) { border-radius: 26px; }
+:root[data-theme="oneui"] :is(.pick-card, .glance-item, .tile) { border-radius: 22px; border-color: transparent; background: var(--s2); }
+:root[data-theme="oneui"] .h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+:root[data-theme="oneui"] .btn { font-weight: 600; }
+:root[data-theme="oneui"] .art { border-radius: 18px; }
+:root[data-theme="oneui"] .pick-play { width: 36px; height: 36px; }
+
+/* Cupertino: tinted buttons, grouped cards, large bold titles. */
+:root[data-theme="mac"] .btn-ghost { background: color-mix(in oklab, var(--accent) 15%, transparent); color: var(--accent); border-color: transparent; }
+:root[data-theme="mac"] .btn-ghost:hover { background: color-mix(in oklab, var(--accent) 22%, transparent); }
+:root[data-theme="mac"] .h2 { font-size: 21px; font-weight: 700; letter-spacing: -0.02em; }
+:root[data-theme="mac"] :is(.pick-card, .glance-item) { border-radius: 14px; }
+
+/* Glyph: dot-matrix numbers and headings. */
+:root[data-theme="nothing"] :is(.glance-item strong, .tile-value, .stat-big) { font-family: var(--display); font-weight: 800; letter-spacing: 0.03em; }
+:root[data-theme="nothing"] .h2 { font-family: var(--display); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; font-size: 17px; }
+
+/* Neon: glowing edges, a magenta-to-cyan play button, a glowing headline. */
+:root[data-theme="neon"] :is(.tonight, .panel, .glance, .tiles, .modal) {
+  border: 1px solid color-mix(in oklab, var(--accent) 45%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--neon-2) 12%, transparent), 0 0 28px -8px color-mix(in oklab, var(--accent) 55%, transparent);
+}
+:root[data-theme="neon"] :is(.pick-play, .btn-primary) { background: linear-gradient(120deg, var(--accent), var(--neon-2)); color: #0B0716; border: 0; box-shadow: 0 0 18px -2px color-mix(in oklab, var(--accent) 60%, transparent); }
+:root[data-theme="neon"] .hero-words em, :root[data-theme="neon"] .display em { text-shadow: 0 0 22px color-mix(in oklab, var(--accent) 70%, transparent); }
+:root[data-theme="neon"] .nav .nav-pill { background: color-mix(in oklab, var(--accent) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 60%, transparent), 0 0 14px -3px var(--accent); }
+:root[data-theme="neon"] .art { box-shadow: 0 0 0 1px color-mix(in oklab, var(--neon-2) 25%, transparent); }
+:root[data-theme="neon"] .card-link:hover .art { box-shadow: 0 0 0 1px var(--accent), 0 0 24px -4px var(--accent); }
+[data-mode="light"][data-theme="neon"] .hero-words em { text-shadow: none; }
+
+/* Retro: flat tape-box colours, a little colour bleed on the headline, chunky edges. */
+:root[data-theme="retro"] :is(.tonight, .panel, .glance, .tiles, .pick-card) { border: 2px solid var(--line-2); box-shadow: none; }
+:root[data-theme="retro"] .hero-words em, :root[data-theme="retro"] .display em { text-shadow: 2px 0 0 color-mix(in oklab, var(--retro-2) 55%, transparent), -2px 0 0 color-mix(in oklab, #FF3C8E 45%, transparent); }
+:root[data-theme="retro"] .pick-play { border-radius: 4px; }
+:root[data-theme="retro"] .art { border: 2px solid var(--line-2); }
+:root[data-theme="retro"] .nav .nav-pill { background: var(--accent); border-radius: 4px; }
+:root[data-theme="retro"] .nav a.is-on { color: var(--accent-ink); }
+:root[data-theme="retro"] :is(.glance-item strong, .tile-value, .h2) { font-family: var(--display); font-weight: 400; letter-spacing: 0.03em; }
+:root[data-theme="retro"] .h2 { font-size: 24px; }
+:root[data-theme="retro"] .glance-item strong { font-size: 40px; }
+
+/* Style picker previews for the two newest. */
+.theme-neon { --pv-bg: linear-gradient(140deg, #16132A, #07060F); --pv-text: #F3F0FF; --pv-accent: linear-gradient(120deg, #FF3CAC, #2DE2E6); --pv-card: #1E1A38; --pv-r: 4px; --pv-btn: 5px; }
+.theme-neon .theme-preview::after { box-shadow: 0 0 10px -1px #FF3CAC; outline: 1px solid rgba(255, 60, 172, 0.6); }
+[data-mode="light"] .theme-neon { --pv-bg: #F5F2FF; --pv-text: #150F2E; --pv-accent: linear-gradient(120deg, #D1007A, #008C99); --pv-card: #FFFFFF; }
+.theme-retro { --pv-bg: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.12) 0 1px, transparent 1px 3px), #1A1320; --pv-text: #FFEBD9; --pv-accent: #FF8A3D; --pv-card: #372A43; --pv-r: 2px; --pv-btn: 3px; }
+[data-mode="light"] .theme-retro { --pv-bg: repeating-linear-gradient(0deg, rgba(60, 35, 20, 0.08) 0 1px, transparent 1px 3px), #F4EAD5; --pv-text: #2B1B12; --pv-accent: #E4572E; --pv-card: #E6D5B3; }
+
+/* ---------- Aurora: a ribbon of the accent's colours with faint curtain streaks, drifting slowly ---------- */
+.aurora::before {
+  content: ""; position: absolute; left: 8%; right: 8%; top: 14%; height: 36%; opacity: 0.9;
+  background: linear-gradient(100deg, transparent 8%, var(--a1) 30%, var(--a2) 52%, var(--a3) 72%, transparent 92%);
+  -webkit-mask: repeating-linear-gradient(90deg, #000 0 10px, rgba(0, 0, 0, 0.72) 10px 22px);
+  mask: repeating-linear-gradient(90deg, #000 0 10px, rgba(0, 0, 0, 0.72) 10px 22px);
+  filter: blur(16px); transform: skewY(-9deg); border-radius: 50%;
+  animation: auroraRibbon 36s ease-in-out infinite alternate;
+}
+@keyframes auroraRibbon { 0% { transform: skewY(-9deg) translateX(-6%); } 50% { transform: skewY(-5deg) translate(4%, 6%) scaleY(1.15); } 100% { transform: skewY(-11deg) translateX(8%); } }
+[data-motion="calm"] .aurora::before { animation: none; }

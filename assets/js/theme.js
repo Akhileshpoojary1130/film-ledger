@@ -13,6 +13,8 @@
     oneui: { label: "One UI", note: "Samsung · big and round", accent: { dark: "#5E9EFF", light: "#3E91FF" } },
     nothing: { label: "Glyph", note: "Dot-matrix, Nothing-style", accent: { dark: "#D71921", light: "#D71921" } },
     pop: { label: "Pop", note: "Bold outlines, flat colour", accent: { dark: "#C6FF4F", light: "#FF4F8B" } },
+    neon: { label: "Neon", note: "Night city, glowing edges", accent: { dark: "#FF3CAC", light: "#D1007A" } },
+    retro: { label: "Retro", note: "80s VHS, scanlines", accent: { dark: "#FF8A3D", light: "#E4572E" } },
   };
   const ACCENTS = [
     ["#D6A75D", "Amber"], ["#FF7A59", "Coral"], ["#E5484D", "Red"], ["#F472B6", "Pink"],
@@ -174,6 +176,14 @@
   /* ---------- fonts ---------- */
 
   function loadFonts(theme) {
+    const extra = { neon: "family=Chakra+Petch:wght@500;600;700", retro: "family=VT323&family=Space+Grotesk:wght@400..700" };
+    if (extra[theme] && !document.getElementById("font-" + theme)) {
+      const x = document.createElement("link");
+      x.id = "font-" + theme;
+      x.rel = "stylesheet";
+      x.href = "https://fonts.googleapis.com/css2?" + extra[theme] + "&display=swap";
+      document.head.appendChild(x);
+    }
     if (theme === "pop" && !document.getElementById("font-pop")) {
       const p = document.createElement("link");
       p.id = "font-pop";
@@ -207,34 +217,76 @@
   let markId = 0;
 
   /* Six blades pivoting on the rim; `open` is the blade angle (0° = wide open, ~80° = shut). */
-  function mark(opts) {
-    const o = Object.assign({ size: 28, open: 50, animate: false, fill: "", ring: "" }, opts);
-    const id = "irismask" + ++markId;
-    const R = 46;
-    let blades = "";
+  /* The aperture, from exact geometry: a hexagonal opening whose six sides run straight on to the rim (the seams
+     between blades). Drawn rather than stacked from overlapping blades, so all six seams are identical at any size.
+     `open` 0 (nearly shut) – 1 (wide): the opening shrinks and turns as it closes, like real blades. */
+  function aperture(open, w) {
+    const r = 4 + open * 13;
+    const phase = (1 - open) * 40;
+    const R = 46.5;
+    const V = [];
     for (let i = 0; i < 6; i++) {
-      const anim = o.animate
-        ? '<animateTransform attributeName="transform" type="rotate" values="' + o.open + ";10;" + o.open +
-          '" keyTimes="0;.5;1" calcMode="spline" keySplines=".65 0 .35 1;.65 0 .35 1" dur="2s" repeatCount="indefinite"/>'
-        : "";
-      blades += '<g transform="rotate(' + i * 60 + ") translate(" + R + ' 0) rotate(90)"><path class="blade" d="M-130 0H130V-130H-130Z" transform="rotate(' +
-        o.open + ')" fill="#fff" stroke="#000" stroke-linejoin="round">' + anim + "</path></g>";
+      const a = ((phase + 60 * i - 90) * Math.PI) / 180;
+      V.push([r * Math.cos(a), r * Math.sin(a)]);
     }
-    // The blades live in a mask: their seams and the opening are cut out of the disc, so whatever is behind (glass,
-    // aurora, a light page) shows through both alike. Painted seams read as cracks on anything but flat black.
-    // Seams stay about one screen pixel at any size.
-    const seam = Math.min(6, Math.max(3, 110 / o.size)).toFixed(1);
-    return '<svg class="mark' + (o.cls ? " " + o.cls : "") + '" viewBox="-50 -50 100 100" width="' + o.size + '" height="' + o.size + '" style="--seam:' + seam + '" aria-hidden="true" focusable="false">' +
-      '<defs><mask id="' + id + '" maskUnits="userSpaceOnUse" x="-50" y="-50" width="100" height="100">' + blades + "</mask></defs>" +
-      '<circle class="mark-fill" r="' + R + '" mask="url(#' + id + ')"' + (o.fill ? ' fill="' + o.fill + '"' : "") + "/>" +
-      '<circle class="mark-ring" r="' + R + '"' + (o.ring ? ' stroke="' + o.ring + '"' : "") + "/></svg>";
+    const n = (x) => x.toFixed(2);
+    const poly = (pts) => "M" + pts.map((p) => n(p[0]) + " " + n(p[1])).join("L") + "Z";
+    let d = poly(V);
+    for (let i = 0; i < 6; i++) {
+      const a = V[i];
+      const b = V[(i + 1) % 6];
+      let dx = b[0] - a[0];
+      let dy = b[1] - a[1];
+      const len = Math.hypot(dx, dy);
+      dx /= len; dy /= len;
+      const bd = b[0] * dx + b[1] * dy;
+      const t = -bd + Math.sqrt(bd * bd - (b[0] * b[0] + b[1] * b[1] - R * R)) + 2;
+      // The seam's inner side is the hexagon's side carried straight on, and its width lies away from the centre:
+      // the opening's corner flows into the seam without a notch.
+      let nx = -dy;
+      let ny = dx;
+      if (nx * (a[0] + b[0]) + ny * (a[1] + b[1]) < 0) { nx = -nx; ny = -ny; }
+      const s0 = [b[0] - dx * 0.4, b[1] - dy * 0.4];
+      const e = [b[0] + dx * t, b[1] + dy * t];
+      d += poly([s0, e, [e[0] + nx * w, e[1] + ny * w], [s0[0] + nx * w, s0[1] + ny * w]]);
+    }
+    return d;
+  }
+
+  const SPLINE = 'calcMode="spline" keyTimes="0;.5;1" keySplines=".65 0 .35 1;.65 0 .35 1"';
+
+  /* opts: size, open (0–1), animate (a slow open-and-shut loop, for loaders), blink (can close and reopen on cue:
+     markBlink), fill / ring colours for contexts without the stylesheet (the favicon). */
+  function mark(opts) {
+    const o = Object.assign({ size: 28, open: 0.9, animate: false, blink: false, fill: "", ring: "" }, opts);
+    const id = "irismask" + ++markId;
+    // Seams stay about one screen pixel wide at any size.
+    const w = Math.max(3.4, (100 / o.size) * 1.05);
+    const d = aperture(o.open, w);
+    const shut = aperture(0.08, w);
+    const anim = o.animate
+      ? '<animate attributeName="d" values="' + d + ";" + shut + ";" + d + '" ' + SPLINE + ' dur="2s" repeatCount="indefinite"/>'
+      : o.blink ? '<animate class="mark-blink" attributeName="d" values="' + d + ";" + shut + ";" + d + '" ' + SPLINE + ' dur=".7s" begin="indefinite"/>' : "";
+    // The opening and seams are cut out of the disc with a mask, so whatever is behind (glass, aurora, a light page)
+    // shows through them alike.
+    return '<svg class="mark' + (o.cls ? " " + o.cls : "") + '" viewBox="-50 -50 100 100" width="' + o.size + '" height="' + o.size + '" aria-hidden="true" focusable="false">' +
+      '<defs><mask id="' + id + '" maskUnits="userSpaceOnUse" x="-50" y="-50" width="100" height="100"><circle r="46" fill="#fff"/>' +
+        '<path d="' + d + '" fill="#000">' + anim + "</path></mask></defs>" +
+      '<circle class="mark-fill" r="46" mask="url(#' + id + ')"' + (o.fill ? ' fill="' + o.fill + '"' : "") + "/>" +
+      '<circle class="mark-ring" r="46"' + (o.ring ? ' stroke="' + o.ring + '"' : "") + "/></svg>";
+  }
+
+  /* Close and reopen a mark made with { blink: true } (the logo, as you change pages). */
+  function markBlink(svg) {
+    const a = svg && svg.querySelector("animate.mark-blink");
+    if (a && a.beginElement) a.beginElement();
   }
 
   function favicon() {
     const a = accent();
     const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="-50 -50 100 100"><rect x="-50" y="-50" width="100" height="100" rx="22" fill="#0A0A0B"/>' +
-      mark({ size: 100, open: 54, fill: a, ring: a }).replace(/^<svg[^>]*>/, "<g transform=\"scale(.78)\">").replace(/<\/svg>$/, "</g>")
-        .replace(/class="blade"/g, 'stroke-width="6"').replace(/class="mark-ring"/, 'fill="none" stroke-width="5"') + "</svg>";
+      mark({ size: 64, open: 0.95, fill: a, ring: a }).replace(/^<svg[^>]*>/, "<g transform=\"scale(.78)\">").replace(/<\/svg>$/, "</g>")
+        .replace(/class="mark-ring"/, 'fill="none" stroke-width="5"') + "</svg>";
     let link = document.querySelector('link[rel="icon"]');
     if (!link) { link = document.createElement("link"); link.rel = "icon"; document.head.appendChild(link); }
     link.href = "data:image/svg+xml," + encodeURIComponent(svg);
@@ -248,7 +300,7 @@
     const a = accent();
     root.dataset.theme = t;
     root.dataset.mode = m;
-    root.dataset.glass = t === "pop" ? "off" : glass(); // Pop is flat colour by design
+    root.dataset.glass = t === "pop" || t === "retro" ? "off" : glass(); // Pop and Retro are flat colour by design
     root.dataset.ambient = ambient();
     root.dataset.motion = calm() ? "calm" : "full";
     const tk = tokens(palette(), m);
@@ -283,7 +335,7 @@
   apply();
 
   FL.theme = {
-    THEMES, ACCENTS, PALETTES, PRESETS, GLASS, AMBIENT, apply, set, mark, mode, accent, palette, glass, ambient, calm,
+    THEMES, ACCENTS, PALETTES, PRESETS, GLASS, AMBIENT, apply, set, mark, markBlink, mode, accent, palette, glass, ambient, calm,
     preview, parseHex, id: themeId, icons: () => (themeId() === "material" ? "material" : "line"),
   };
 })(window.FL = window.FL || {});

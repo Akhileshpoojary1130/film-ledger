@@ -22,7 +22,9 @@ Live: https://film-ledger-mocha.vercel.app/
   language, to-watch / watched / **Must watch**.
 - **Must watch** — a tag on films rated 8+ by enough people (or 7.8+ by a huge audience).
 - **Watch later** — the bookmark on every poster; it stays visible once saved. Watched films show one tick.
-- **Collections** — 300+ in release order: the superhero universes, film series from **Wikidata** ("part of the
+- **Collections** — 300+ in release order: the superhero universes, India's shared universes (the YRF Spy Universe,
+  Rohit Shetty's Cop Universe, Maddock's Horror-Comedy Universe, the Lokesh Cinematic Universe), film series from
+  **Wikidata** ("part of the
   series": Rocky → Creed III, Jurassic Park → Jurassic World, the Bond films, Dhoom, Housefull, K.G.F…) and, for series
   Wikidata doesn't have, strict title rules: a film joins only as a marked instalment (*Baaghi 2*, *Golmaal Returns*,
   *Phir Hera Pheri*, *Kantara: Chapter 1*) or the one original they follow, so namesakes (Baaghi 1990) and look-alikes
@@ -35,7 +37,8 @@ Live: https://film-ledger-mocha.vercel.app/
 - **Film page** — live IMDb score, the **trailer inline** (a still that plays in place), the **full cast** with the
   parts they play (Wikidata adds everyone after Cinemeta's leads), director, writers, music and camera, with photos
   (tap one for their full filmography), the series in order, *More from* the director, similar films, rating, watch
-  dates, *Where to watch*. Shows get their full cast too.
+  dates, *Where to watch*. Shows get their full cast too. A bundled film Cinemeta can't match by title is found
+  through its Wikipedia article (Wikipedia → Wikidata → IMDb id), so its details and servers still work.
 - **For you** — scored on your taste (genres, languages, decades) and quality, lifted for films closest to the ones
   you rated highest, lowered for ones like those you rated 1–2, a little for new releases; varied so a row isn't one
   genre, and each "Because you liked…" is honest about which film.
@@ -46,7 +49,8 @@ Live: https://film-ledger-mocha.vercel.app/
   of day** and **day of the week** you watch, records.
 - **Break reminders** — on long sittings (anywhere in Iris, not only while watching) a little friend drops in at the
   top right for five seconds: water at 45 minutes, a stretch at 1½ hours, rest your eyes, and a nudge if it's past
-  midnight. A cat by default, or a dog, or the Iris aperture (Settings → Home, or Off). Tap it to send it away.
+  midnight. A cat by default, or a dog, bunny, panda, fox, penguin, owl, the Iris aperture, or *Mix* for a different
+  one each time (Settings → Home, or Off). Tap it to send it away. It shows in Iris's fullscreen player too.
 - **Movie night** — send a friend a link to your Watch later (Library → Movie night). When they open it, Iris shows
   the films you've both saved (best three first, ready to play), what they want to watch that you don't (one tap on
   the bookmark moves it to the shared list), and what you've already seen. They can send theirs back; recent movie
@@ -58,8 +62,10 @@ New visitors start in Cupertino, high-contrast dark, clear glass over a slow aur
 Appearance, in order:
 
 1. **Style** — Cinema, Material (Android), Cupertino (Apple), Fluent (Windows 11), One UI (Samsung), Glyph
-   (dot-matrix, Nothing-style) or **Pop** (neo-brutalist: ink outlines, hard shadows, flat colour, buttons that press
-   in): type, shapes and controls. The active tab's highlight glides between tabs.
+   (dot-matrix, Nothing-style), **Pop** (neo-brutalist: ink outlines, hard shadows, flat colour, buttons that press
+   in), **Neon** (night city: glowing edges, magenta-to-cyan) or **Retro** (80s VHS: warm dusk, pixel type,
+   scanlines): type, shapes and controls. The active tab's highlight glides between tabs; pages change with a gentle
+   zoom from the centre.
 2. **Glass & background** — liquid glass (off → clear), a background (*Lights* drifting dimly behind frosted glass,
    or *Aurora*), and motion (Full / Calm).
 3. **Colour** — dark / light / auto, 44 palettes (scroll the strip), any accent colour.
@@ -104,6 +110,10 @@ Hindi-dubbed titles.
   auto-logging; films finished in the player are logged, episodes ticked.
 - Some hosts open an ad pop-up on the first click inside their player; the second click plays.
 - On a phone held upright every server is in view, in rows (Vega's on their own line), with a full-width *Next server*.
+- **Next server** goes to the best-ranked server not tried yet for this title, then rounds the list. Hindi and Indian
+  titles start on Vega (its Super Player is what Vega's own site uses) until your own history says otherwise.
+- **Fullscreen** takes the whole player, not just the video's frame, so break reminders and toasts still show; the
+  bars fade after a few still seconds and come back at the top or bottom edge.
 - Titles no server carries (many Indian reality shows) have *Where to watch*. Keys: `N` next server, `1`–`9` pick,
   `F` fullscreen, `Esc` close.
 

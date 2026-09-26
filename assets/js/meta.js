@@ -15,7 +15,7 @@
   const CINEMETA = "https://v3-cinemeta.strem.io";
 
   let metaCache = storage.get(META_KEY, {});
-  const imdbMap = storage.get(IMDB_KEY, {}); // filmId -> "tt…" (hit) | timestamp (miss)
+  const imdbMap = storage.get(IMDB_KEY, {}); // filmId -> "tt…" (hit) | { m: timestamp } (miss; older bare-number misses are retried)
   const posterCache = storage.get(POSTER_KEY, {});
   let posterMiss = storage.get(MISS_KEY, {}); // filmId -> { wiki: ts, web: ts }
 
@@ -109,11 +109,30 @@
 
   const inflightResolve = new Map();
 
+  /* Films Cinemeta can't place by title ("Kantara: Chapter 1" goes by a longer name there) are found through their
+     Wikipedia article: Wikipedia names the Wikidata item, and Wikidata has the IMDb id (checked against the year). */
+  function wikidataImdb(film) {
+    const title = film.wiki || film.title;
+    if (!title || /^List of /.test(title)) return Promise.resolve("");
+    const url = "https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1&prop=pageprops&ppprop=wikibase_item&titles=" +
+      encodeURIComponent(title);
+    return fetchJSON(url, { timeout: 10000 }).then((d) => {
+      const q = Object.values((d && d.query && d.query.pages) || {}).map((p) => p.pageprops && p.pageprops.wikibase_item).find(Boolean);
+      if (!/^Q\d+$/.test(q || "")) return "";
+      const sparql = "SELECT ?imdb ?date WHERE { wd:" + q + " wdt:P345 ?imdb . OPTIONAL { wd:" + q + " wdt:P577 ?date } }";
+      return fetchJSON("https://query.wikidata.org/sparql?format=json&query=" + encodeURIComponent(sparql), { timeout: 12000 }).then((r) => {
+        const rows = (r && r.results && r.results.bindings) || [];
+        const hit = rows.find((b) => /^tt\d+$/.test(b.imdb.value) && (!film.year || !b.date || Math.abs(parseInt(b.date.value, 10) - film.year) <= 1));
+        return hit ? hit.imdb.value : "";
+      });
+    }).catch(() => "");
+  }
+
   function resolveImdb(film) {
     const known = idFor(film);
     if (known) return Promise.resolve(known);
-    const missAt = imdbMap[film.id];
-    if (typeof missAt === "number" && Date.now() - missAt < MISS_TTL) return Promise.resolve("");
+    const miss = imdbMap[film.id];
+    if (miss && typeof miss === "object" && Date.now() - miss.m < MISS_TTL) return Promise.resolve("");
     if (inflightResolve.has(film.id)) return inflightResolve.get(film.id);
 
     const p = cinemetaSearch(cleanTitle(film.title), false)
@@ -124,11 +143,16 @@
           setImdb(film, tt);
           FL.catalogue.setRating(film, hit.imdbRating);
           if (hit.poster && !film.poster) notePoster(film, hit.poster);
-        } else if (metas.length) {
-          imdbMap[film.id] = Date.now(); // searched fine, no match — don't ask again for a week
-          saveImdb();
+          return tt;
         }
-        return tt;
+        return wikidataImdb(film).then((wtt) => {
+          if (wtt) setImdb(film, wtt);
+          else if (metas.length) {
+            imdbMap[film.id] = { m: Date.now() }; // searched fine, no match anywhere — don't ask again for a week
+            saveImdb();
+          }
+          return wtt;
+        });
       })
       .finally(() => inflightResolve.delete(film.id));
     inflightResolve.set(film.id, p);

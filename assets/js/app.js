@@ -33,7 +33,7 @@
   /* ---------- chrome ---------- */
 
   function brand() {
-    return '<a class="brand" href="#/" aria-label="Iris home">' + FL.theme.mark({ size: 26, cls: "brand-mark" }) + '<span class="brand-word">Iris</span></a>';
+    return '<a class="brand" href="#/" aria-label="Iris home">' + FL.theme.mark({ size: 26, blink: true, cls: "brand-mark" }) + '<span class="brand-word">Iris</span></a>';
   }
 
   function chromeHtml() {
@@ -217,11 +217,8 @@
 
   /* The logo's shutter closes and reopens as you move between pages. */
   function blink() {
-    const m = document.querySelector(".brand-mark");
-    if (!m || FL.theme.calm()) return;
-    m.classList.remove("is-blink");
-    void m.getBoundingClientRect();
-    m.classList.add("is-blink");
+    if (FL.theme.calm()) return;
+    FL.theme.markBlink(document.querySelector(".brand-mark"));
   }
 
   /* Cross-fade between pages; the poster you clicked glides into the film page's poster. */

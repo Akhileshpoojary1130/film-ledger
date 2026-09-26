@@ -719,11 +719,15 @@
      a film counts only as a marked instalment ("Baaghi 2") or as the one original those follow — the latest
      same-named film before the first sequel, within 15 years (Baaghi 2016, not the 1990 Baaghi; Golmaal 2006, not
      1979). Films that merely share a title ("Super", "Super 8", "The Super") never make a series. */
+  // Title stems that look like a series but aren't one (the 2009 Watchmen and 2024's animated two-parter).
+  const NOT_SERIES = new Set(["watchmen"]);
+
   function series(film) {
     const wd = wikidataSeriesOf(film);
     if (wd) return wd.films.length >= 2 ? wd : null;
     if (!seriesIndex || seriesVersion !== version) buildSeries();
     const k = seriesKey(film);
+    if (NOT_SERIES.has(k)) return null;
     // Same language only ("War" 2019 isn't a sequel to the 2007 English "War"); web finds come from targeted searches.
     const w = wikidata();
     const members = k ? (seriesIndex.get(k) || []).filter((f) => (f.lang === film.lang || f.remote || film.remote) && !w.byFilm.has(f.id)) : null;
@@ -778,8 +782,8 @@
       const next = s.films.slice(last + 1).find((f) => !FL.store.state(f.id).watched && f.year && f.year <= cy);
       if (next && !out.has(next.id)) out.set(next.id, { film: next, reason: "Next after " + s.films[last].title });
     });
-    // Universes (MCU, X-Men…) continue in release order too.
-    franchises().forEach((g) => {
+    // Universes (MCU, X-Men, the YRF spy films…) continue in release order too.
+    franchises().concat(indianUniverses()).forEach((g) => {
       const idx = g.films.map((f, i) => (FL.store.state(f.id).watched ? i : -1)).filter((i) => i >= 0);
       if (!idx.length) return;
       const last = Math.max.apply(null, idx);
@@ -969,6 +973,33 @@
       .sort((a, b) => b.rating * 10 + b.pop - (a.rating * 10 + a.pop));
   }
 
+  /* ---------- India's shared universes (Wikidata doesn't record them as series) ---------- */
+
+  const UNIVERSES = [
+    { id: "yrf-spy", name: "YRF Spy Universe", lang: "Hindi",
+      films: [["Ek Tha Tiger", 2012], ["Tiger Zinda Hai", 2017], ["War", 2019], ["Pathaan", 2023], ["Tiger 3", 2023], ["War 2", 2025], ["Alpha", 2026]] },
+    { id: "cop-universe", name: "Rohit Shetty's Cop Universe", lang: "Hindi",
+      films: [["Singham", 2011], ["Singham Returns", 2014], ["Simmba", 2018], ["Sooryavanshi", 2021], ["Singham Again", 2024]] },
+    { id: "maddock-horror", name: "Maddock Horror-Comedy Universe", lang: "Hindi",
+      films: [["Stree", 2018], ["Bhediya", 2022], ["Munjya", 2024], ["Stree 2", 2024], ["Thamma", 2025], ["Shakti Shalini", 2026]] },
+    { id: "lcu", name: "Lokesh Cinematic Universe", lang: "OtherIndian",
+      films: [["Kaithi", 2019], ["Vikram", 2022], ["Leo", 2023], ["Kaithi 2", 2027]] },
+  ];
+
+  /* A universe's films Iris has, matched by title, year (±1) and language ("Leo" 2023 is the Tamil film, not the
+     English cartoon), in release order. */
+  function universeFilms(u) {
+    return u.films.map(([t, y]) => {
+      const key = normalize(t);
+      const near = (f) => f.type !== "series" && Math.abs(f.year - y) <= 1 && f.lang === u.lang;
+      return (byKey.get(key) || []).find(near) || (byFlat.get(key.replace(/ /g, "")) || []).find(near) || null;
+    }).filter(Boolean).sort(byRelease);
+  }
+
+  function indianUniverses() {
+    return UNIVERSES.map((u) => ({ id: u.id, name: u.name, films: universeFilms(u) })).filter((g) => g.films.length >= 2);
+  }
+
   /* ---------- franchises (Marvel & DC eras from the vault) ---------- */
 
   let franchiseList = null;
@@ -991,7 +1022,7 @@
   function collections() {
     if (collectionCache.v === version) return collectionCache.list;
     if (!seriesIndex || seriesVersion !== version) buildSeries();
-    const out = franchises().map((g) => Object.assign({ kind: "universe" }, g));
+    const out = franchises().concat(indianUniverses()).map((g) => Object.assign({ kind: "universe" }, g));
     const seen = new Set();
     const ids = new Set(out.map((c) => c.id));
     // Wikidata's series that include a film Iris knows (the obscure ones, never met, stay out).
@@ -1023,8 +1054,8 @@
   const collection = (id) => collections().find((c) => c.id === id) || null;
 
   function franchiseOf(film) {
-    if (!film.universe) return null;
-    return franchises().find((g) => g.films.indexOf(film) !== -1) || null;
+    if (film.universe) return franchises().find((g) => g.films.indexOf(film) !== -1) || null;
+    return indianUniverses().find((g) => g.films.indexOf(film) !== -1) || null;
   }
 
   function langLabel(id) { return LANG_LABEL[id] || id; }

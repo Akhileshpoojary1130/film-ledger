@@ -318,7 +318,7 @@
     const T = FL.theme;
     const mode = T.mode();
     const current = T.accent();
-    const DEF_BG = { cinema: "#0A0A0B", material: "#17151B", mac: "#1C1C1E", fluent: "#1C1C1C", oneui: "#000000", nothing: "#000000", pop: "#1B1A22" };
+    const DEF_BG = { cinema: "#0A0A0B", material: "#17151B", mac: "#1C1C1E", fluent: "#1C1C1C", oneui: "#000000", nothing: "#000000", pop: "#1B1A22", neon: "#07060F", retro: "#1A1320" };
     const styleDefault = (id) => ({ bg: DEF_BG[id] || "#0A0A0B", s: "#2A2A2E", text: "#F5F5F2", accent: T.THEMES[id].accent.dark });
     const themes = Object.keys(T.THEMES).map((id) => {
       const t = T.THEMES[id];
@@ -359,8 +359,12 @@
     const max = (FL.store.prefs().home || {}).continueMax || 3;
     return '<div class="setting-row"><span>Continue watching<small>How many unfinished titles Home shows</small></span>' +
       FL.ui.segmented("cwmax", [["1", "1"], ["2", "2"], ["3", "3"]], String(max)) + "</div>" +
-      '<div class="setting-row"><span>Break reminders<small>On long sittings a little friend drops in at the top right: water, a stretch, rest your eyes</small></span>' +
-      FL.ui.segmented("pet", [["cat", "Cat"], ["dog", "Dog"], ["iris", "Iris"], ["off", "Off"]], FL.pet ? FL.pet.choice() : "cat") + "</div>";
+      (FL.pet ? '<div class="setting-row setting-stack"><span>Break reminders<small>On long sittings a little friend drops in at the top right: water, a stretch, rest your eyes</small></span>' +
+        '<div class="pet-picker" role="radiogroup" aria-label="Break reminder companion">' + FL.pet.PETS.map(([k, label]) => {
+          const on = FL.pet.choice() === k;
+          return '<button type="button" role="radio" aria-checked="' + on + '" class="pet-pick' + (on ? " is-on" : "") + '" data-pet="' + k + '">' +
+            '<span class="pet-pick-face">' + (k === "off" ? icon("x") : k === "mix" ? '<span class="pet-pick-mix">🎲</span>' : FL.pet.face(k)) + "</span><small>" + label + "</small></button>";
+        }).join("") + "</div></div>" : "");
   }
 
   function storageHtml(status, protectedStorage) {
@@ -492,11 +496,11 @@
       if (ht) { FL.store.patchPref("appearance", { hoverTrailer: ht.dataset.value === "on" }); repaintAppearance(); return; }
       const mt = e.target.closest('[data-seg="moodtype"]');
       if (mt) { FL.store.patchPref("appearance", { moodType: mt.dataset.value === "on" }); repaintAppearance(); FL.app.refresh(); return; }
-      const pt = e.target.closest('[data-seg="pet"]');
+      const pt = e.target.closest("[data-pet]");
       if (pt) {
-        FL.store.patchPref("care", { pet: pt.dataset.value });
+        FL.store.patchPref("care", { pet: pt.dataset.pet });
         $("[data-homeset]", m.el).innerHTML = homeHtml();
-        if (pt.dataset.value !== "off" && FL.pet) FL.pet.hello(pt.dataset.value);
+        if (pt.dataset.pet !== "off") FL.pet.hello(pt.dataset.pet);
         return;
       }
       const cw = e.target.closest('[data-seg="cwmax"]');

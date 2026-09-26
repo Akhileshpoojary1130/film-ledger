@@ -21,15 +21,16 @@
 
   /* Each line: [plain part, emphasised part]. */
   const LINES = {
-    late: [["Still up?", "Something short, then sleep."], ["The late show", "is on."], ["Can't sleep?", "Neither can cinema."], ["It's late,", "maybe a comfort watch."], ["Night owl mode.", "Pick gently."], ["Quiet house,", "loud film?"]],
-    dawn: [["Up before the sun?", "Something gentle, then."], ["Early start.", "A short one before the day?"], ["Morning light,", "quiet cinema."], ["First chai,", "first frame."]],
-    morning: [["Good morning.", "What's on the reel today?"], ["Coffee first,", "then a classic?"], ["A fresh day", "for a fresh film."], ["Slow morning?", "Queue something for tonight."], ["Rise and shine,", "roll the credits later."]],
-    lunch: [["Had lunch yet?", "Grab a bite, pick a film."], ["How was lunch?", "Here's dessert."], ["Lunch break?", "Something under two hours."], ["Eat first.", "The film can wait five minutes."], ["Lunch sorted?", "Let's find a side of cinema."]],
-    afternoon: [["Slow afternoon?", "Make it a matinee."], ["Afternoon matinee,", "anyone?"], ["Tea and", "a good story?"], ["Post-lunch slump?", "A lively one, then."], ["Drink some water,", "then pick a film."]],
+    late: [["Still up?", "Let's make it a short one."], ["The late show", "starts whenever you say."], ["Can't sleep?", "A comfort film might help."], ["Midnight screening,", "just for you."], ["Night owl hours.", "Pick something gentle."], ["Quiet house.", "Perfect for a loud film."]],
+    dawn: [["Up before the sun?", "Start with something gentle."], ["Early start.", "Room for a short one?"], ["First light,", "first frame."], ["Chai's brewing.", "So is the reel."]],
+    morning: [["Good morning.", "What's on the reel today?"], ["Coffee first,", "classics after."], ["Fresh day,", "fresh film."], ["Slow morning?", "Line up something for tonight."], ["Rise and shine.", "The credits can roll later."]],
+    lunch: [["Had lunch yet?", "Grab a bite, then a film."], ["How was lunch?", "Here's dessert."], ["Lunch break?", "Something under two hours."], ["Eat first.", "The film will wait."], ["Lunch sorted?", "Let's find a side of cinema."]],
+    afternoon: [["Lazy afternoon?", "Perfect matinee weather."], ["It's matinee time.", "What are we watching?"], ["Tea's ready.", "Now for a good story."], ["Post-lunch slump?", "Something lively, then."], ["Sip some water,", "then pick a film."]],
     evening: [["Evening's here.", "What's the mood?"], ["Done for the day?", "Put your feet up."], ["Golden hour,", "golden films."], ["Long day?", "Let a story carry you."]],
-    dinner: [["Had dinner?", "Pick something for after."], ["Dinner and", "a film, the classic pairing."], ["Plates down,", "lights down."], ["Food's ready?", "So is the screen."]],
-    night: [["What are we", "watching tonight?"], ["Lights down,", "screen up."], ["Tonight's feature", "is your call."], ["One more before bed?", "Make it a good one."], ["Settle in.", "Something worth staying up for."]],
+    dinner: [["Dinner done?", "Pick something for after."], ["Dinner and a movie.", "The classic pairing."], ["Plates down,", "lights down."], ["Food's ready,", "and so is the screen."]],
+    night: [["What are we", "watching tonight?"], ["Lights down,", "screen up."], ["Tonight's feature", "is your call."], ["One more before bed?", "Make it a good one."], ["Settle in.", "This one's worth staying up for."]],
   };
+
 
   /* A little variety at the bottom of every page — no small print. */
   const SIGNOFFS = ["That's a wrap.", "Roll credits.", "Fin.", "See you at the next screening.", "Popcorn's on you next time.", "Lights up.", "The end. For now."];

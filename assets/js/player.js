@@ -231,6 +231,9 @@
       score += Math.min(40, local.ok * 6 + all.ok * 2) - Math.min(40, local.fail * 5 + all.fail * 1.5);
       if (s.id === last) score += 15;
       if (s.id === filmSrv) score += 30;
+      // Vega is built for Hindi and Indian films (its Super Player is what Vega's own site plays Pushpa on); until
+      // your own history says otherwise, its servers lead for them.
+      if (film && (film.lang === "Hindi" || film.lang === "OtherIndian") && (s.id === "vega" || /^vg-/.test(s.id))) score += 22;
       return [score, s];
     }).sort((a, b) => b[0] - a[0]).map((x) => x[1]);
   }
@@ -238,7 +241,7 @@
   /* ---------- state & DOM ---------- */
 
   const state = {
-    open: false, film: null, ids: null, ep: null, show: null, server: null, extra: [], start: 0, confirmed: false, runtime: 0,
+    open: false, film: null, ids: null, ep: null, show: null, server: null, extra: [], tried: new Set(), start: 0, confirmed: false, runtime: 0,
     lastSave: 0, logged: false, hintTimer: 0, openedAt: 0, token: 0,
   };
   let root = null;
@@ -266,6 +269,7 @@
         "</div>" +
       "</header>" +
       '<div class="player-stage"><div class="player-frame"></div></div>' +
+      '<div class="player-hot player-hot-top" aria-hidden="true"></div><div class="player-hot player-hot-bottom" aria-hidden="true"></div>' +
       '<div class="player-notice" hidden></div>' +
       '<footer class="player-bar">' +
         '<span class="label">Server</span>' +
@@ -273,6 +277,8 @@
         '<button type="button" class="btn btn-sm" data-pl="next">Next server <kbd>N</kbd></button>' +
       "</footer>";
     document.body.appendChild(root);
+    // In fullscreen, moving over Iris's own parts (the bars, the edges) brings the bars back.
+    root.addEventListener("pointermove", () => { if (root.classList.contains("is-fs")) wake(); });
 
     FL.util.on(root, "click", "[data-pl]", (e, el) => {
       const act = el.dataset.pl;
@@ -366,6 +372,7 @@
   /* Resolve ids, probe servers, then load the best candidate. */
   function start(film, ep) {
     state.autoTried = {}; // each title or episode gets its own automatic server hop
+    state.tried = new Set(); // servers loaded for this title or episode, so "Next" moves on to fresh ones
     settle();
     const token = ++state.token;
     state.film = film;
@@ -463,6 +470,7 @@
     const film = state.film;
     if (state.server && state.server.id !== server.id) settleServer();
     state.server = server;
+    state.tried.add(server.id);
     state.confirmed = false;
     state.openedAt = Date.now();
     const url = server.url(Object.assign(params(), { start: server.resume ? state.start : 0 }));
@@ -540,13 +548,17 @@
   }
 
   /* Cycle in the fixed server order, skipping hosts that failed the reachability probe (unless all did). */
+  /* The best-ranked server not yet tried for this title (skipping ones that failed the reachability check, unless
+     all did); once every one has had a go, round the list again. */
   function next() {
     if (!state.ids) return;
-    const usable = allServers().filter((s) => s.url(params()));
+    const usable = ranked(state.film, FL.store.peek(state.film.id)).filter((s) => s.url(params()));
     const reachable = usable.filter((s) => !health[s.id] || health[s.id].ok);
     const order = reachable.length > 1 || (reachable.length === 1 && reachable[0] !== state.server) ? reachable : usable;
-    const i = order.indexOf(state.server);
-    const nxt = order[(i + 1) % order.length];
+    const fresh = order.find((s) => s !== state.server && !state.tried.has(s.id));
+    if (fresh) { load(fresh); return; }
+    const list = allServers().filter((s) => order.indexOf(s) !== -1);
+    const nxt = list[(list.indexOf(state.server) + 1) % list.length];
     if (nxt && nxt !== state.server) load(nxt);
   }
 
@@ -564,12 +576,33 @@
     start(state.film, { s: n.s, e: n.e });
   }
 
+  /* The whole player goes fullscreen (not just the video's frame), so Iris's own things — break reminders, toasts,
+     the server bar — can still appear over the film. The bars fade after a few still seconds and come back when
+     the pointer reaches the top or bottom edge. Phones without element fullscreen fall back to the video's. */
   function fullscreen() {
-    const target = root.querySelector(".player-iframe") || root;
-    if (document.fullscreenElement) document.exitFullscreen();
-    else if (target.requestFullscreen) target.requestFullscreen().catch(() => {});
-    else if (target.webkitRequestFullscreen) target.webkitRequestFullscreen();
+    const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+    if (fsEl) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+    const target = root.requestFullscreen || root.webkitRequestFullscreen ? root : root.querySelector(".player-iframe");
+    if (!target) return;
+    const req = target.requestFullscreen || target.webkitRequestFullscreen;
+    const p = req && req.call(target);
+    if (p && p.catch) p.catch(() => {});
   }
+
+  let idleTimer = 0;
+  function wake() {
+    root.classList.remove("is-idle");
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => { if (root.classList.contains("is-fs")) root.classList.add("is-idle"); }, 2600);
+  }
+  function onFullscreen() {
+    if (!root) return;
+    const fs = (document.fullscreenElement || document.webkitFullscreenElement) === root;
+    root.classList.toggle("is-fs", fs);
+    if (fs) wake(); else { clearTimeout(idleTimer); root.classList.remove("is-idle"); }
+  }
+  document.addEventListener("fullscreenchange", onFullscreen);
+  document.addEventListener("webkitfullscreenchange", onFullscreen);
 
   /* ---------- outcomes: learning which server works, and logging what you watched ---------- */
 

@@ -73,7 +73,7 @@
 
   /* The aperture, animated — used wherever something is loading. */
   function loader(size, label) {
-    return '<span class="loader" role="status"' + (label ? ' aria-label="' + esc(label) + '"' : "") + ">" + FL.theme.mark({ size: size || 28, open: 74, animate: true, cls: "mark-spin" }) + "</span>";
+    return '<span class="loader" role="status"' + (label ? ' aria-label="' + esc(label) + '"' : "") + ">" + FL.theme.mark({ size: size || 28, open: 1, animate: true, cls: "mark-spin" }) + "</span>";
   }
 
   /* ---------- stars ---------- */
@@ -522,6 +522,10 @@
       toastRoot.setAttribute("aria-live", "polite");
       document.body.appendChild(toastRoot);
     }
+    // Shown inside a fullscreen player (only what's inside the fullscreen element is visible).
+    const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+    const host = fsEl && fsEl.tagName !== "IFRAME" ? fsEl : document.body;
+    if (toastRoot.parentNode !== host) host.appendChild(toastRoot);
     const el = document.createElement("div");
     el.className = "toast";
     el.innerHTML = "<span>" + esc(message) + "</span>" + (o.action ? '<button type="button" class="toast-action">' + esc(o.action) + "</button>" : "");
