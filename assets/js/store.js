@@ -88,7 +88,7 @@
     if (!storage.set(LIB_KEY, lib)) {
       // Quota: shed disposable caches first, then retry once.
       if (FL.meta) FL.meta.trimCaches();
-      if (!storage.set(LIB_KEY, lib) && FL.ui) FL.ui.toast("Couldn't save — browser storage is full. Export a backup from Settings.");
+      if (!storage.set(LIB_KEY, lib) && FL.ui) FL.ui.toast("Couldn't save: browser storage is full. Export a backup from Settings.");
     }
   }
 

@@ -283,7 +283,7 @@
         (all ? "Your cinema, in numbers." : "Your cinema in " + scope + ".") + "</h1></div></header>" +
         '<div class="scope-nav">' + scopeNav + "</div>" +
         FL.ui.empty(all ? "No films watched yet." : "Nothing logged in " + scope + ".",
-          all ? "Mark films as watched and log dates — this page fills itself in." : "Log a watch with a date on any film page and it will show up here.",
+          all ? "Mark films as watched and log dates, and this page fills itself in." : "Log a watch with a date on any film page and it will show up here.",
           '<a class="btn" href="#/browse">Browse films</a>') + "</div>";
       return;
     }
@@ -376,7 +376,7 @@
         '<div class="hero-figure"><span class="hero-num">' + s.films.toLocaleString() + '</span><span class="hero-label">' + (s.films === 1 ? "film" : "films") + (all ? " watched" : " in " + scope) + "</span></div>" +
         '<div class="tiles">' +
           tile(fmtHours(s.minutes), "Cinema time", s.timed ? fmtRuntime(Math.round(s.minutes / s.timed)) + " on average" : "") +
-          tile(s.rated ? s.avgRating.toFixed(1) + " ★" : "—", "Average rating", s.rated ? plural(s.rated, "film") + " rated" : "") +
+          tile(s.rated ? s.avgRating.toFixed(1) + " ★" : "None", "Average rating", s.rated ? plural(s.rated, "film") + " rated" : "") +
           tile(s.rewatches.toLocaleString(), "Rewatches", s.viewings + " viewings in all") +
           tile(s.favorites.toLocaleString(), "Favourites", "") +
         "</div></section>" +

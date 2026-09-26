@@ -50,9 +50,9 @@
 
   function emptyFor(tab) {
     if (tab === "watchlist") return empty("Your next favourite hasn’t been saved yet.", "Tap the bookmark on any poster to keep it here.", '<a class="btn" href="#/browse">Browse films</a>');
-    if (tab === "watched") return empty("No films logged yet.", "Mark films you’ve seen with ✓ — your stats build from here.", '<a class="btn" href="#/browse">Browse films</a>');
-    if (tab === "shows") return empty("No shows yet.", "Follow a show or tick an episode — it lands here with your place kept.", '<a class="btn" href="#/shows">Browse shows</a>');
-    return empty("No films have earned the heart yet.", "Favourite a film from its page — they’ll collect here.");
+    if (tab === "watched") return empty("No films logged yet.", "Mark films you’ve seen with ✓ and your stats build from here.", '<a class="btn" href="#/browse">Browse films</a>');
+    if (tab === "shows") return empty("No shows yet.", "Follow a show or tick an episode and it lands here with your place kept.", '<a class="btn" href="#/shows">Browse shows</a>');
+    return empty("No films have earned the heart yet.", "Favourite a film from its page and it collects here.");
   }
 
   function collectionsHtml(list) {
@@ -96,7 +96,7 @@
         const items = list();
         el.innerHTML = '<div class="container page">' +
           '<header class="page-head"><div><p class="eyebrow">Collections</p><h1 class="display">Series &amp; <em>universes.</em></h1>' +
-          '<p class="sub">' + FL.catalogue.collections().length + " collections, each in release order — tick your way through.</p></div></header>" +
+          '<p class="sub">' + FL.catalogue.collections().length + " collections, each in release order. Tick your way through.</p></div></header>" +
           '<div class="filter-row coll-filters">' + segmented("cfilter", COLL_FILTERS, filter) + "</div>" +
           (items.length ? collectionsHtml(items) : empty("Nothing here yet.", filter === "started" ? "Watch one film from a series and it shows up here." : "Try another filter.")) + "</div>";
         FL.ui.watchPosters(el);
@@ -225,7 +225,7 @@
       const titles = byDay[iso] || [];
       const lvl = Math.min(3, titles.length);
       if (d.getDate() === 1) monthCols.push([d.getMonth(), Math.floor((i + offset) / 7)]);
-      cells.push('<i class="l' + lvl + '"' + (titles.length ? ' data-tip="' + esc(plural(titles.length, "film") + "\n" + fmtDate(iso) + " — " + titles.join(", ")) + '"' : ' data-tip="' + esc("No films\n" + fmtDate(iso)) + '"') + "></i>");
+      cells.push('<i class="l' + lvl + '"' + (titles.length ? ' data-tip="' + esc(plural(titles.length, "film") + "\n" + fmtDate(iso) + ": " + titles.join(", ")) + '"' : ' data-tip="' + esc("No films\n" + fmtDate(iso)) + '"') + "></i>");
     }
     const weeks = Math.ceil((days + offset) / 7);
     const activeDays = Object.keys(byDay).length;
@@ -254,7 +254,7 @@
           '<a class="diary-art" href="#/film/' + encodeURIComponent(film.id) + '" tabindex="-1" aria-hidden="true">' + art(film) + "</a>" +
           '<div class="diary-main"><a class="diary-title" href="#/film/' + encodeURIComponent(film.id) + '">' + esc(film.title) + "</a> <span class='muted'>" + film.year + "</span>" +
           (r.rewatch ? ' <span class="rewatch" title="Rewatch">' + icon("rewatch") + "</span>" : "") +
-          (r.marked ? ' <span class="diary-mark" title="Ticked as watched on this day — no watch date">ticked</span>' : "") + "</div>" +
+          (r.marked ? ' <span class="diary-mark" title="Ticked as watched on this day, with no watch date">ticked</span>' : "") + "</div>" +
           '<div class="diary-rating">' + (r.entry.rating ? stars(r.entry.rating, "stars-sm") : "") + (r.entry.fav ? '<span class="fav-mark" title="Favourite">' + icon("heart") + "</span>" : "") + "</div></li>";
       }).join("") + "</ol></section>";
   }
@@ -288,7 +288,7 @@
             : rows.length ? "<strong>" + plural(rows.length, "film") + "</strong> in " + chosen + " · ticked as watched" : "Nothing in " + chosen + " yet.") + "</p></section>" +
           (groups.length ? groups.map(([k, list]) => monthBlock(k, list)).join("")
             : empty("Your film history, day by day.", "Tick a film as watched, or finish one in the player, and it shows up here on that day.", '<a class="btn" href="#/years">Pick from the years</a>')) +
-          (undated ? '<p class="footnote">' + plural(undated, "film") + " marked watched without a date — they count in all-time stats. <a class=\"link\" href=\"#/library/watched\">Add dates from their pages</a>.</p>" : "") +
+          (undated ? '<p class="footnote">' + plural(undated, "film") + " marked watched without a date. They count in all-time stats. <a class=\"link\" href=\"#/library/watched\">Add dates from their pages</a>.</p>" : "") +
           "</div>";
         FL.ui.watchPosters(el);
       }

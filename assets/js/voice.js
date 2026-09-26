@@ -21,18 +21,18 @@
 
   /* Each line: [plain part, emphasised part]. */
   const LINES = {
-    late: [["Still up?", "Something short, then sleep."], ["The late show", "is on."], ["Can't sleep?", "Neither can cinema."], ["It's late —", "maybe a comfort watch."], ["Night owl mode.", "Pick gently."], ["Quiet house,", "loud film?"]],
+    late: [["Still up?", "Something short, then sleep."], ["The late show", "is on."], ["Can't sleep?", "Neither can cinema."], ["It's late,", "maybe a comfort watch."], ["Night owl mode.", "Pick gently."], ["Quiet house,", "loud film?"]],
     dawn: [["Up before the sun?", "Something gentle, then."], ["Early start.", "A short one before the day?"], ["Morning light,", "quiet cinema."], ["First chai,", "first frame."]],
     morning: [["Good morning.", "What's on the reel today?"], ["Coffee first,", "then a classic?"], ["A fresh day", "for a fresh film."], ["Slow morning?", "Queue something for tonight."], ["Rise and shine,", "roll the credits later."]],
     lunch: [["Had lunch yet?", "Grab a bite, pick a film."], ["How was lunch?", "Here's dessert."], ["Lunch break?", "Something under two hours."], ["Eat first.", "The film can wait five minutes."], ["Lunch sorted?", "Let's find a side of cinema."]],
     afternoon: [["Slow afternoon?", "Make it a matinee."], ["Afternoon matinee,", "anyone?"], ["Tea and", "a good story?"], ["Post-lunch slump?", "A lively one, then."], ["Drink some water,", "then pick a film."]],
     evening: [["Evening's here.", "What's the mood?"], ["Done for the day?", "Put your feet up."], ["Golden hour,", "golden films."], ["Long day?", "Let a story carry you."]],
-    dinner: [["Had dinner?", "Pick something for after."], ["Dinner and", "a film — the classic pairing."], ["Plates down,", "lights down."], ["Food's ready?", "So is the screen."]],
+    dinner: [["Had dinner?", "Pick something for after."], ["Dinner and", "a film, the classic pairing."], ["Plates down,", "lights down."], ["Food's ready?", "So is the screen."]],
     night: [["What are we", "watching tonight?"], ["Lights down,", "screen up."], ["Tonight's feature", "is your call."], ["One more before bed?", "Make it a good one."], ["Settle in.", "Something worth staying up for."]],
   };
 
   /* A little variety at the bottom of every page — no small print. */
-  const SIGNOFFS = ["That's a wrap.", "Roll credits.", "Fin.", "See you at the next screening.", "Popcorn's on you next time.", "Lights up.", "The end — for now."];
+  const SIGNOFFS = ["That's a wrap.", "Roll credits.", "Fin.", "See you at the next screening.", "Popcorn's on you next time.", "Lights up.", "The end. For now."];
 
   function slotAt(h) {
     let s = SLOTS[0];
@@ -106,7 +106,7 @@
   /* ---------- care ---------- */
 
   const CARE = [
-    [60, "An hour in — sip some water.", "💧"],
+    [60, "An hour in. Sip some water.", "💧"],
     [120, "Two hours! Stretch, blink, breathe.", "🧘"],
     [180, "Three hours… maybe pause for real?", "🌙"],
     [240, "Marathon mode. Your eyes deserve a break.", "👀"],

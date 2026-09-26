@@ -62,7 +62,7 @@
     const rows = [];
     rows.push(["Released", film.date ? fmtDate(film.date) : m && m.released ? fmtDate(m.released) : String(film.year)]);
     rows.push(["Language", FL.catalogue.filmLang(film)]);
-    if (film.universe) rows.push(["Universe", film.universe + (film.era ? " — " + film.era : "")]);
+    if (film.universe) rows.push(["Universe", film.universe + (film.era ? " · " + film.era : "")]);
     if (m && m.country) rows.push(["Country", m.country]);
     if (m && m.awards) rows.push(["Awards", m.awards]);
     return '<dl class="details">' + rows.map(([k, v]) => "<dt>" + k + "</dt><dd>" + esc(v) + "</dd>").join("") + "</dl>";
@@ -168,7 +168,7 @@
     if (film.remote) FL.remote.touch(film);
 
     let m = FL.meta.cached(film);
-    const desc = () => (m && m.desc) || film.desc || "";
+    const desc = () => FL.util.prose((m && m.desc) || film.desc || "");
 
     el.innerHTML =
       '<article class="film">' +
@@ -324,7 +324,7 @@
       if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
       if (d > todayISO()) { FL.ui.toast("That date is in the future."); return; }
       FL.store.logWatch(film, d);
-      FL.ui.toast("Logged " + film.title + " — " + fmtDate(d));
+      FL.ui.toast("Logged " + film.title + " · " + fmtDate(d));
     }
 
     el.addEventListener("click", onClick);

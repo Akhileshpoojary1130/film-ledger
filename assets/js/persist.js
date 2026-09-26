@@ -43,7 +43,7 @@
       state.lastSaved = Date.now();
       state.error = "";
     } catch (e) {
-      state.error = e && e.name === "NotAllowedError" ? "Permission was withdrawn — reconnect the file." : "Couldn't write the file.";
+      state.error = e && e.name === "NotAllowedError" ? "Permission was withdrawn. Reconnect the file." : "Couldn't write the file.";
       if (e && e.name === "NotAllowedError") { state.active = false; state.needsPermission = true; }
     }
     notify();

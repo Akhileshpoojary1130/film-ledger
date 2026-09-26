@@ -22,7 +22,7 @@
         s.crossOrigin = "anonymous";
         s.async = true;
         s.onload = () => (window[name] ? resolve(window[name]) : reject(new Error("the QR helper didn’t start")));
-        s.onerror = () => { delete loading[name]; s.remove(); reject(new Error("couldn’t load the QR helper — check your connection")); };
+        s.onerror = () => { delete loading[name]; s.remove(); reject(new Error("couldn’t load the QR helper (check your connection)")); };
         document.head.appendChild(s);
       });
     }
@@ -60,7 +60,7 @@
     const bytes = fromB64u(String(str).slice(1));
     let raw;
     if (kind === "z") {
-      if (!canZip) throw new Error("This browser is too old to open it — update it and try again.");
+      if (!canZip) throw new Error("This browser is too old to open it. Update it and try again.");
       raw = await through(bytes, DecompressionStream);
     } else if (kind === "j") raw = bytes;
     else throw new Error("That code isn’t from Iris.");
