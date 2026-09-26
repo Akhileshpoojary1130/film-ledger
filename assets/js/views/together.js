@@ -32,7 +32,7 @@
       el.innerHTML = '<div class="container page move-page">' +
         '<header class="page-head"><div><p class="eyebrow">Phone ↔ laptop</p>' +
           '<h1 class="display-sm">Move your <em>library.</em></h1>' +
-          '<p class="sub">Show the code on one device and scan it with Iris on the other. It all travels inside the code — nothing is uploaded, and whatever is already on the other device stays.</p></div></header>' +
+          '<p class="sub">Show the code on one device and scan it with Iris on the other. It all travels inside the code. Nothing is uploaded, and whatever is already on the other device stays.</p></div></header>' +
         '<div class="move-grid">' +
           '<section class="panel move-card" data-send>' +
             '<div class="move-head"><span class="move-ico">' + icon("qr") + '</span><div><h2 class="h3">Send from this device</h2>' +
@@ -81,9 +81,9 @@
           let i = 0;
           const foot = () => {
             qrFoot.innerHTML = n === 1
-              ? "Scan with Iris on your other device — or with its camera app."
+              ? "Scan with Iris on your other device, or with its camera app."
               : '<span class="qr-parts">' + Array.from({ length: n }, (_, k) => "<i" + (k === i ? ' class="on"' : "") + "></i>").join("") + "</span>" +
-                "<span>Part " + (i + 1) + " of " + n + " · " + (paused ? "paused — tap the code to resume" : "keep it steady; tap to pause") + "</span>";
+                "<span>Part " + (i + 1) + " of " + n + " · " + (paused ? "paused, tap the code to resume" : "keep it steady; tap to pause") + "</span>";
           };
           const show = (k) => {
             const fr = qrStage.children;
@@ -110,7 +110,7 @@
           qrStage.scrollIntoView({ block: "nearest", behavior: "smooth" });
         } catch (err) {
           btn.innerHTML = icon("qr") + "Show code";
-          toast("Couldn’t make the code — " + (err.message || "try again") + ".");
+          toast("Couldn’t make the code: " + (err.message || "try again") + ".");
         }
         btn.disabled = false;
       }
@@ -153,7 +153,7 @@
           const none = err && (err.name === "NotFoundError" || err.name === "OverconstrainedError");
           recvBody.innerHTML = '<p class="move-note warn">' + esc(blocked
             ? "Camera access is off for this site. Allow the camera in your browser’s site settings, then try again."
-            : none ? "No camera found on this device — show the code here and scan it from the other one instead."
+            : none ? "No camera found on this device. Show the code here and scan it from the other one instead."
             : (err && err.message) || "The camera didn’t start.") + "</p>";
           recvBtns.innerHTML = '<button type="button" class="btn btn-primary" data-move="scan">' + icon("camera") + "Try again</button>";
         });
@@ -185,7 +185,7 @@
           if (alive) offer(payload);
         } catch (err) {
           if (!alive) return;
-          recvBody.innerHTML = '<p class="move-note warn">Couldn’t read that code. Scan it again — hold steady until every part is in.</p>';
+          recvBody.innerHTML = '<p class="move-note warn">Couldn’t read that code. Scan it again and hold steady until every part is in.</p>';
           recvBtns.innerHTML = '<button type="button" class="btn btn-primary" data-move="scan">' + icon("camera") + "Scan again</button>";
         }
       }
@@ -197,7 +197,7 @@
         recvBody.innerHTML = '<div class="move-found"><span class="move-ico">' + icon("devices") + "</span><div>" +
           "<strong>" + who + "</strong>" +
           "<span>" + [plural(d.watched, "film") + " watched", d.listed + " to watch", d.shows ? plural(d.shows, "show") : ""].filter(Boolean).join(" · ") + "</span></div></div>" +
-          '<p class="footnote">Added to what’s already here — nothing on this device is removed. Where both have a rating, the newer one wins.</p>';
+          '<p class="footnote">Added to what’s already here. Nothing on this device is removed. Where both have a rating, the newer one wins.</p>';
         recvBtns.innerHTML = '<button type="button" class="btn btn-primary" data-move="import">' + icon("download") + "Add to this device</button>" +
           '<button type="button" class="btn btn-ghost" data-move="cancel">Cancel</button>';
       }
@@ -207,10 +207,10 @@
         try {
           const n = FL.share.importLibrary(pending);
           pending = null;
-          recvBody.innerHTML = '<div class="move-found is-done"><span class="move-ico">' + icon("check") + "</span><div><strong>All in — " + plural(n, "title") + " merged.</strong>" +
+          recvBody.innerHTML = '<div class="move-found is-done"><span class="move-ico">' + icon("check") + "</span><div><strong>All in: " + plural(n, "title") + " merged.</strong>" +
             "<span>Watched, Watch later, ratings, shows and where you stopped.</span></div></div>";
           recvBtns.innerHTML = '<a class="btn btn-primary" href="#/library/watched">Open Library</a><button type="button" class="btn btn-ghost" data-move="scan">' + icon("camera") + "Scan another</button>";
-          toast("Library moved — " + plural(n, "title") + " merged.");
+          toast("Library moved: " + plural(n, "title") + " merged.");
         } catch (err) {
           toast(err.message || "That didn’t work.");
         }
@@ -229,7 +229,7 @@
           if (Object.keys(parts.got).length === parts.n) finish();
           else {
             storage.set(PARTS_KEY, saved);
-            recvBody.innerHTML = '<p class="move-note">Got ' + Object.keys(parts.got).length + " of " + f.n + " parts. The library is split over several codes — scan the rest here with Iris; it collects them in any order.</p>";
+            recvBody.innerHTML = '<p class="move-note">Got ' + Object.keys(parts.got).length + " of " + f.n + " parts. The library is split over several codes. Scan the rest here with Iris; it collects them in any order.</p>";
             recvBtns.innerHTML = '<button type="button" class="btn btn-primary" data-move="scan">' + icon("camera") + "Scan the rest</button>";
           }
         }
@@ -322,11 +322,11 @@
     if (btn) btn.disabled = true;
     FL.share.matchLink().then((url) => {
       if (how === "copy") return FL.share.copy(url);
-      return FL.share.send(url, "Movie night", (name ? name + "’s" : "My") + " Watch later on Iris — open it to see what we both want to watch.");
+      return FL.share.send(url, "Movie night", (name ? name + "’s" : "My") + " Watch later on Iris. Open it to see what we both want to watch.");
     }).then((r) => {
-      if (r === "copied") toast("Link copied — send it to a friend.");
+      if (r === "copied") toast("Link copied. Send it to a friend.");
       else if (r === "shared") toast("Sent.");
-    }).catch(() => toast("Couldn’t copy the link — try again.")).then(() => { if (btn) btn.disabled = false; });
+    }).catch(() => toast("Couldn’t copy the link. Try again.")).then(() => { if (btn) btn.disabled = false; });
   }
 
   function home(el) {
@@ -340,11 +340,11 @@
       el.innerHTML = '<div class="container page match-page">' +
         '<header class="page-head"><div><p class="eyebrow">Movie night</p>' +
           '<h1 class="display-sm">What should we <em>watch together?</em></h1>' +
-          '<p class="sub">Send your Watch later to a friend. When they open the link, Iris shows the films you’ve both saved — and they can send theirs back. The list travels inside the link; nothing is uploaded.</p></div></header>' +
+          '<p class="sub">Send your Watch later to a friend. When they open the link, Iris shows the films you’ve both saved, and they can send theirs back. The list travels inside the link; nothing is uploaded.</p></div></header>' +
         '<div class="move-grid">' +
           '<section class="panel move-card">' +
             '<div class="move-head"><span class="match-covers">' + (covers.length ? covers.map((f) => art(f)).join("") : '<span class="move-ico">' + icon("bookmark") + "</span>") + "</span>" +
-              '<div><h2 class="h3">Your Watch later</h2><p class="sub">' + (list.length ? plural(list.length, "film") + " saved" : "Empty for now — tap the bookmark on any poster to save one.") + "</p></div></div>" +
+              '<div><h2 class="h3">Your Watch later</h2><p class="sub">' + (list.length ? plural(list.length, "film") + " saved" : "Empty for now. Tap the bookmark on any poster to save one.") + "</p></div></div>" +
             (prefs.name ? "" : '<label class="label" for="mn-name">Your name</label><input class="input" id="mn-name" maxlength="40" placeholder="So your friend knows it’s you">') +
             '<div class="btn-row">' +
               (canShare ? '<button type="button" class="btn btn-primary" data-mn="send"' + (list.length ? "" : " disabled") + ">" + icon("share") + "Send link</button>" : "") +
@@ -397,8 +397,8 @@
         attempt(0).then(({ url, k }) => FL.share.qrSvg(url).then((svg) => {
           const n = FL.store.watchlist().length;
           slot.innerHTML = '<div class="qr-stage is-static">' + svg + '</div><p class="qr-foot">Scan with a phone camera to open it' +
-            (k && n > tries[k] ? " — it holds your " + tries[k] + " most recent saves" : "") + ".</p>";
-        })).catch((err) => toast("Couldn’t make the code — " + (err.message || "try again") + "."))
+            (k && n > tries[k] ? " (it holds your " + tries[k] + " most recent saves)" : "") + ".</p>";
+        })).catch((err) => toast("Couldn’t make the code: " + (err.message || "try again") + "."))
           .then(() => { b.disabled = false; });
       }
     }
@@ -463,13 +463,13 @@
         '<header class="page-head"><div><p class="eyebrow"><a href="#/match">Movie night</a></p>' +
           '<h1 class="display-sm">You &amp; <em>' + who + ".</em></h1>" +
           '<p class="sub">' + who + " saved " + plural(films.length, "film") + (waiting ? " (" + waiting + " still loading)" : "") + " · " +
-            (both.length ? "<strong>" + both.length + "</strong> " + (both.length === 1 ? "is" : "are") + " on your Watch later too." : "none on your Watch later yet — add any that appeal below.") + "</p></div>" +
+            (both.length ? "<strong>" + both.length + "</strong> " + (both.length === 1 ? "is" : "are") + " on your Watch later too." : "none on your Watch later yet. Add any that appeal below.") + "</p></div>" +
           '<div class="btn-row head-actions"><button type="button" class="btn btn-primary" data-mn="back">' + icon("share") + "Send yours back</button></div></header>" +
         (both.length ? '<article class="tonight match-top"><header class="tonight-head"><div><p class="eyebrow">You both want to watch</p><h2 class="h2">' +
           (both.length === 1 ? "Tonight’s pick" : "Best of the overlap") + "</h2></div></header>" +
           '<ol class="tonight-list">' + both.slice(0, 3).map(pickCard).join("") + "</ol></article>" : "") +
         section("Also on both lists", "", both.slice(3)) +
-        section(who + " wants to watch", "Tap the bookmark on any you’d watch too — it moves up to the shared list.", theirs) +
+        section(who + " wants to watch", "Tap the bookmark on any you’d watch too and it moves up to the shared list.", theirs) +
         section("You’ve already seen", "Tell " + who + " which ones are worth it.", seen) +
         (films.length ? "" : empty("This list is empty.", who + " hasn’t saved anything to Watch later yet.")) +
         "</div>";
@@ -501,7 +501,7 @@
       if (res.later.length) Promise.all([next(), next(), next(), next()]).then(() => { if (alive) render(); });
     }).catch(() => {
       if (!alive) return;
-      el.innerHTML = '<div class="container page">' + empty("That link didn’t open.", "It may have been cut short when it was copied — ask your friend to send it again.", '<a class="btn" href="#/match">Movie night</a>') + "</div>";
+      el.innerHTML = '<div class="container page">' + empty("That link didn’t open.", "It may have been cut short when it was copied. Ask your friend to send it again.", '<a class="btn" href="#/match">Movie night</a>') + "</div>";
     });
 
     return {

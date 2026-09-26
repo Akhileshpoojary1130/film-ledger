@@ -170,7 +170,7 @@
       '<div class="rail-loading">' + FL.ui.loader(28) + "</div></section>");
     const ty = throwbackYear();
     out.push('<section class="rail" data-rail-id="throwback"><header class="section-head"><div><h2 class="h2">Throwback <em>' + ty + "</em></h2>" +
-      '<p class="sub">The best-rated films of the year — a different year every day</p></div>' +
+      '<p class="sub">The best-rated films of the year, a different year every day</p></div>' +
       '<div class="section-tools"><a class="link-more" href="#/years/' + ty + '">See ' + ty + icon("arrow-right") + "</a></div></header>" +
       '<div class="rail-loading">' + FL.ui.loader(28) + "</div></section>");
     const mcu = FL.catalogue.franchises()[0];

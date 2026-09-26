@@ -35,10 +35,10 @@
       const mine = FL.store.shows().map((e) => FL.catalogue.get(e.id)).filter(Boolean);
       el.innerHTML = '<div class="container page">' +
         '<header class="page-head"><div><p class="eyebrow">Shows</p><h1 class="display">Reality, talent <em>&amp; series.</em></h1>' +
-        '<p class="sub">Seasons and episodes update on their own as they air. Tick episodes as you go — your place is kept.</p></div></header>' +
+        '<p class="sub">Seasons and episodes update on their own as they air. Tick episodes as you go and your place is kept.</p></div></header>' +
         (mine.length ? rail("Your shows", mine) : "") +
         slot("reality", "Indian reality &amp; talent") +
-        slot("indian", "Indian web series", "Mirzapur, Panchayat, The Family Man and more — new seasons appear as they drop") +
+        slot("indian", "Indian web series", "Mirzapur, Panchayat, The Family Man and more. New seasons appear as they drop") +
         slot("top", "Popular series right now") +
         slot("realityworld", "Reality TV worldwide") +
         "</div>";
@@ -129,7 +129,7 @@
                 (v.aired ? '<span class="ep-play">' + icon("play") + "</span>" : "") + "</a>" +
               '<div class="ep-main"><div class="ep-title"><span class="ep-num">E' + v.e + "</span>" + esc(title) + "</div>" +
                 '<div class="ep-date">' + (v.date ? (v.date > today ? "Airs " : "") + fmtDate(v.date) : "Date to be announced") + "</div>" +
-                (v.overview ? '<p class="ep-overview">' + esc(v.overview) + "</p>" : "") + "</div>" +
+                (v.overview ? '<p class="ep-overview">' + esc(FL.util.prose(v.overview)) + "</p>" : "") + "</div>" +
               (v.aired ? '<button type="button" class="qa' + (w ? " on" : "") + '" data-sa="ep" aria-pressed="' + w + '" aria-label="' + (w ? "Watched" : "Mark watched") + '">' + icon("check") + "</button>" : "") +
               "</li>";
           }).join("") + "</ol>";
@@ -144,7 +144,7 @@
         el.innerHTML = '<article class="film show">' + header() +
           '<div class="container film-body">' +
             '<div class="film-main">' +
-              (show.desc ? '<section><h2 class="label">About</h2><p class="lede">' + esc(show.desc) + "</p></section>" : "") +
+              (show.desc ? '<section><h2 class="label">About</h2><p class="lede">' + esc(FL.util.prose(show.desc)) + "</p></section>" : "") +
               (data.cast.length ? '<section class="show-cast"><h2 class="label">Cast &amp; hosts</h2><div class="people">' + data.cast.slice(0, 10).map((n) => FL.people.chip(n, "")).join("") + "</div></section>" : "") +
               '<section class="show-season"><div class="season-nav">' + seasonsNav() + '</div><div data-episodes>' + episodes() + "</div></section>" +
             "</div>" +

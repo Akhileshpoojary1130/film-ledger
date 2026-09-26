@@ -482,7 +482,7 @@
       const st = FL.store.state(film.id);
       if (st.watched && st.count) {
         location.hash = "#/film/" + encodeURIComponent(film.id);
-        toast("This film has dated watches — edit them here.");
+        toast("This film has dated watches. Edit them here.");
         return;
       }
       FL.store.setSeen(film, !st.watched);

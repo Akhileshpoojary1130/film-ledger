@@ -33,7 +33,7 @@
   /* ---------- chrome ---------- */
 
   function brand() {
-    return '<a class="brand" href="#/" aria-label="Iris — home">' + FL.theme.mark({ size: 26, cls: "brand-mark" }) + '<span class="brand-word">Iris</span></a>';
+    return '<a class="brand" href="#/" aria-label="Iris home">' + FL.theme.mark({ size: 26, cls: "brand-mark" }) + '<span class="brand-word">Iris</span></a>';
   }
 
   function chromeHtml() {

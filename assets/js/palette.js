@@ -11,15 +11,15 @@
     { id: "home", label: "Go to Home", icon: "home", keys: "g h", run: () => go("#/") },
     { id: "years", label: "Year by year", icon: "years", keys: "g y", run: () => go("#/years") },
     { id: "browse", label: "Browse everything", icon: "compass", keys: "g b", run: () => go("#/browse") },
-    { id: "shows", label: "Shows — reality, talent & series", icon: "tv", keys: "g t", run: () => go("#/shows") },
+    { id: "shows", label: "Shows: reality, talent & series", icon: "tv", keys: "g t", run: () => go("#/shows") },
     { id: "watchlist", label: "Open watchlist", icon: "bookmark", keys: "g w", run: () => go("#/library/watchlist") },
     { id: "library", label: "Open library", icon: "layers", keys: "g l", run: () => go("#/library/watched") },
     { id: "diary", label: "Open diary", icon: "calendar", keys: "g d", run: () => go("#/diary") },
     { id: "stats", label: "Open stats", icon: "chart", keys: "g s", run: () => go("#/stats") },
-    { id: "collections", label: "Collections — series & universes", icon: "film", run: () => go("#/collections") },
-    { id: "match", label: "Movie night — compare Watch later with a friend", icon: "users", run: () => go("#/match") },
+    { id: "collections", label: "Collections: series & universes", icon: "film", run: () => go("#/collections") },
+    { id: "match", label: "Movie night: compare Watch later with a friend", icon: "users", run: () => go("#/match") },
     { id: "move", label: "Move your library to another device (QR code)", icon: "qr", run: () => go("#/move") },
-    { id: "pick", label: "Surprise me — pick a film", icon: "shuffle", keys: "r", run: () => pick() },
+    { id: "pick", label: "Surprise me: pick a film", icon: "shuffle", keys: "r", run: () => pick() },
     { id: "appearance", label: "Theme & colours", icon: "palette", run: () => settings("appearance") },
     { id: "settings", label: "Settings, storage & backup", icon: "sliders", run: () => settings() },
     { id: "export", label: "Export backup (.json)", icon: "download", run: () => exportJSON() },
@@ -207,7 +207,7 @@
     const m = FL.meta.cached(film);
     const facts = [FL.catalogue.yearLabel(film), FL.catalogue.filmLang(film), film.genres.slice(0, 2).join(", "), m && m.runtime ? fmtRuntime(m.runtime) : "", film.rating ? "IMDb " + film.rating.toFixed(1) : ""]
       .filter((x) => x && x !== "World").map(esc).join(" · ");
-    const desc = (m && m.desc) || film.desc || "";
+    const desc = FL.util.prose((m && m.desc) || film.desc || "");
     return '<p class="eyebrow">' + label + "</p>" +
       '<h2 class="display-sm">' + esc(film.title) + "</h2>" +
       '<p class="muted">' + facts + "</p>" +
@@ -257,7 +257,7 @@
         if (!FL.meta.cached(film)) {
           FL.meta.details(film).then((meta) => {
             const d = $("[data-pick-desc]", body);
-            if (d && meta && meta.desc && pickState.last === film && !d.textContent) d.textContent = meta.desc;
+            if (d && meta && meta.desc && pickState.last === film && !d.textContent) d.textContent = FL.util.prose(meta.desc);
           });
         }
       }, reduced ? 0 : 900);
@@ -341,23 +341,23 @@
 
   function storageHtml(status, protectedStorage) {
     const fileBlock = !status.supported
-      ? '<p class="sub">This browser can’t keep a live file. Use <strong>Export backup</strong> now and then — or open Iris in Chrome or Edge on a computer to save automatically.</p>'
+      ? '<p class="sub">This browser can’t keep a live file. Use <strong>Export backup</strong> now and then, or open Iris in Chrome or Edge on a computer to save automatically.</p>'
       : status.active
         ? '<div class="file-status ok">' + icon("folder") + "<div><strong>" + esc(status.name) + "</strong><small>Saving automatically" + (status.lastSaved ? " · last saved " + new Date(status.lastSaved).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "") + "</small></div>" +
           '<button type="button" class="btn btn-sm btn-ghost" data-set="file-stop">Stop</button></div>'
         : status.needsPermission
-          ? '<div class="file-status warn">' + icon("folder") + "<div><strong>" + esc(status.name) + "</strong><small>Paused — the browser needs your permission again.</small></div>" +
+          ? '<div class="file-status warn">' + icon("folder") + "<div><strong>" + esc(status.name) + "</strong><small>Paused. The browser needs your permission again.</small></div>" +
             '<button type="button" class="btn btn-sm btn-primary" data-set="file-reconnect">Resume saving</button></div>'
           : '<button type="button" class="btn btn-primary" data-set="file-connect">' + icon("folder") + "Keep a copy on this computer…</button>" +
             '<p class="footnote">Iris saves every change to a file you choose. It survives clearing browser data. Put it in iCloud Drive, Google Drive or Dropbox and it follows you to other computers.</p>';
-    return '<p class="sub">Your library lives in this browser (' + plural(FL.store.entries().length, "title") + ", " + kb(FL.store.storageBytes()) + " incl. caches). Clearing browsing data erases it — keep a copy below." +
+    return '<p class="sub">Your library lives in this browser (' + plural(FL.store.entries().length, "title") + ", " + kb(FL.store.storageBytes()) + " incl. caches). Clearing browsing data erases it, so keep a copy below." +
       (protectedStorage ? " The browser won’t clear it on its own." : "") + "</p>" + fileBlock +
       '<div class="btn-row">' +
         (status.supported ? '<button type="button" class="btn" data-set="file-restore">' + icon("upload") + "Restore from file…</button>" : '<label class="btn">' + icon("upload") + 'Restore from file…<input type="file" accept="application/json,.json" data-set="import" hidden></label>') +
         '<button type="button" class="btn btn-ghost" data-set="export">' + icon("download") + "Export backup</button>" +
         '<button type="button" class="btn btn-ghost" data-set="csv">' + icon("download") + "Letterboxd CSV</button>" +
       "</div>" +
-      '<div class="setting-row move-row"><span>Phone ↔ laptop<small>Copy this library to another device with a QR code — no account, nothing uploaded</small></span>' +
+      '<div class="setting-row move-row"><span>Phone ↔ laptop<small>Copy this library to another device with a QR code. No account, nothing uploaded</small></span>' +
         '<a class="btn btn-sm" href="#/move">' + icon("qr") + "Move library</a></div>";
   }
 
@@ -376,7 +376,7 @@
           '<input class="input" id="set-name" maxlength="40" placeholder="Used in the greeting" value="' + esc(prefs.name || "") + '"></section>' +
         '<section data-sec="storage"><h3 class="label">Storage</h3><div data-storage>' + storageHtml(FL.persist.status(), false) + "</div></section>" +
         '<section><h3 class="label">Stream servers</h3><p class="sub">Reachability from your network right now; the player skips servers that don’t answer. ' +
-          "“Unreachable” usually means your internet provider or an ad blocker blocks that server — it isn’t something Iris can change. Titles no server carries have a <em>Where to watch</em> link.</p>" +
+          "“Unreachable” usually means your internet provider or an ad blocker blocks that server, which Iris can’t change. Titles no server carries have a <em>Where to watch</em> link.</p>" +
           '<ul class="server-list">' + serverRows() + '</ul><button type="button" class="btn btn-sm btn-ghost" data-set="recheck">Re-check</button></section>' +
         '<section><h3 class="label">Maintenance</h3><div class="btn-row">' +
           '<button type="button" class="btn btn-ghost" data-set="clear-cache">Clear artwork & details cache</button>' +
@@ -478,7 +478,7 @@
       const b = e.target.closest("[data-set]");
       if (!b) return;
       const act = b.dataset.set;
-      const fail = (err) => { if (err && err.name !== "AbortError") toast("That didn’t work — " + (err.message || "try again") + "."); };
+      const fail = (err) => { if (err && err.name !== "AbortError") toast("That didn’t work: " + (err.message || "try again") + "."); };
       if (act === "export") exportJSON();
       else if (act === "csv") { download("iris-" + todayISO() + ".csv", FL.store.exportCSV(), "text/csv"); toast("CSV downloaded."); }
       else if (act === "file-connect") FL.persist.connect().then(() => toast("Saving to " + FL.persist.status().name + "."), fail);
@@ -486,7 +486,7 @@
       else if (act === "file-stop") FL.persist.disconnect();
       else if (act === "file-restore") FL.persist.restore().then((n) => toast("Restored " + plural(n, "title") + "."), fail);
       else if (act === "recheck") { $$("[data-srv-row] em", m.el).forEach((x) => { x.textContent = "…"; }); FL.player.probeAll(true).then(paintServers); }
-      else if (act === "clear-cache") { FL.meta.clearCaches(); toast("Cache cleared — artwork and details will reload."); }
+      else if (act === "clear-cache") { FL.meta.clearCaches(); toast("Cache cleared. Artwork and details will reload."); }
       else if (act === "reset") {
         FL.ui.confirm({ title: "Erase your whole library?", body: "Watch history, ratings, shows and Watch later will be deleted from this browser. Export a backup first if you might want it back.", confirmLabel: "Erase everything", danger: true })
           .then((ok) => { if (ok) { FL.store.resetLibrary(); toast("Library erased."); } });

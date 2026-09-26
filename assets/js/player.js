@@ -203,7 +203,7 @@
     const ep = state.ep;
     const epInfo = ep && state.show ? state.show.episodes.find((x) => x.s === ep.s && x.e === ep.e) : null;
     root.querySelector(".player-title").innerHTML = "<strong>" + esc(f.title) + "</strong><span>" +
-      (ep ? esc(epLabel(ep) + (epInfo && epInfo.title && !/^episode \d+$/i.test(epInfo.title) ? " — " + epInfo.title : "")) : esc(FL.catalogue.yearLabel(f)) + (f.genres[0] ? " · " + esc(f.genres[0]) : "")) + "</span>";
+      (ep ? esc(epLabel(ep) + (epInfo && epInfo.title && !/^episode \d+$/i.test(epInfo.title) ? " · " + epInfo.title : "")) : esc(FL.catalogue.yearLabel(f)) + (f.genres[0] ? " · " + esc(f.genres[0]) : "")) + "</span>";
     const nextBtn = root.querySelector('[data-pl="next-ep"]');
     nextBtn.hidden = !(ep && nextEp());
   }
@@ -310,7 +310,7 @@
   function needId(film) {
     renderServers();
     if (!navigator.onLine) {
-      status("<h3>You're offline.</h3><p>Reconnect and reopen the player — your library still works offline.</p>");
+      status("<h3>You're offline.</h3><p>Reconnect and reopen the player. Your library still works offline.</p>");
       return;
     }
     const q = encodeURIComponent(film.title + " " + (film.year || ""));
@@ -342,12 +342,12 @@
     iframe.allowFullscreen = true;
     // Browser-default referrer: several hosts refuse to play when the embedding page is anonymous.
     iframe.referrerPolicy = "strict-origin-when-cross-origin";
-    iframe.title = film.title + (state.ep ? " " + epLabel(state.ep) : "") + " — " + server.name;
+    iframe.title = film.title + (state.ep ? " " + epLabel(state.ep) : "") + " · " + server.name;
     frame().appendChild(iframe);
     // Big hosts show a blank or spinning frame for 10–20 s; say so, so a working server isn't abandoned.
     const starting = document.createElement("div");
     starting.className = "player-starting";
-    starting.innerHTML = FL.ui.loader(16) + "<span>Starting " + esc(server.name) + " — can take up to 20 seconds</span>";
+    starting.innerHTML = FL.ui.loader(16) + "<span>Starting " + esc(server.name) + ", can take up to 20 seconds</span>";
     frame().appendChild(starting);
     const hideStarting = () => starting.classList.add("is-gone");
     iframe.addEventListener("load", () => setTimeout(hideStarting, 7000));
@@ -366,7 +366,7 @@
         bumpStat(server.id, "fail", film);
         const before = state.server;
         next();
-        if (state.server !== before) FL.ui.toast("Not on " + server.name + " — trying " + state.server.name + ".");
+        if (state.server !== before) FL.ui.toast("Not on " + server.name + ". Trying " + state.server.name + ".");
       }, 11000));
     }
 
@@ -383,7 +383,7 @@
     state.hintTimer = setTimeout(() => {
       // Clicking into the frame (to press play) moves focus to the iframe — take that as "it's working".
       if (!state.open || state.confirmed || state.server !== server || document.activeElement === iframe) return;
-      notice('<span>Not playing? Try the next server — or see where it streams officially.</span><button type="button" class="btn btn-sm" data-pl="next">Next server <kbd>N</kbd></button>' +
+      notice('<span>Not playing? Try the next server, or see where it streams officially.</span><button type="button" class="btn btn-sm" data-pl="next">Next server <kbd>N</kbd></button>' +
         '<a class="btn btn-sm btn-ghost" target="_blank" rel="noopener noreferrer" href="' + FL.ui.whereToWatch(film) + '">Where to watch ↗</a>' +
         '<button type="button" class="icon-btn icon-btn-sm" data-pl="dismiss" aria-label="Dismiss">' + icon("x") + "</button>", true);
       const n = root.querySelector(".player-notice");
@@ -496,7 +496,7 @@
     const due = FL.voice.CARE.find(([m]) => s.min >= m && s.shown.indexOf(m) === -1);
     const h = new Date().getHours();
     if (due) { s.shown.push(due[0]); FL.ui.nudge(due[1], due[2]); }
-    else if (h < 4 && s.min >= 40 && s.shown.indexOf("late") === -1) { s.shown.push("late"); FL.ui.nudge("It's getting late — this one could finish tomorrow.", "🌙"); }
+    else if (h < 4 && s.min >= 40 && s.shown.indexOf("late") === -1) { s.shown.push("late"); FL.ui.nudge("It's getting late. This one could finish tomorrow.", "🌙"); }
     session.set(CARE_KEY, s);
   }
 

@@ -116,7 +116,7 @@
       '<button type="button" class="dial-step" data-dstep="-1" aria-label="Previous year">' + icon("chevron-left") + "</button>" +
       '<div class="dial-window"><span class="dial-lens" aria-hidden="true"></span>' +
         (style === "ruler" ? '<span class="dial-tag" aria-hidden="true">' + year + "</span>" : "") +
-        '<div class="dial-track" role="listbox" aria-label="Year — scroll, drag or tap to choose" tabindex="0">' +
+        '<div class="dial-track" role="listbox" aria-label="Year: scroll, drag or tap to choose" tabindex="0">' +
           '<span class="dial-pad" aria-hidden="true"></span>' + items + '<span class="dial-pad" aria-hidden="true"></span>' +
         "</div></div>" +
       '<button type="button" class="dial-step" data-dstep="1" aria-label="Next year">' + icon("chevron-right") + "</button>" +
@@ -328,7 +328,7 @@
         if (!items.length && (webDone || webBusy)) {
           results.className = "";
           results.innerHTML = webBusy ? "" : FL.ui.empty(s.show === "watched" ? "Nothing watched from " + year + " yet." : "Nothing here yet.",
-            s.show === "watched" ? "Tick films as you watch them — this year fills up." : "Try another language.");
+            s.show === "watched" ? "Tick films as you watch them and this year fills up." : "Try another language.");
         }
         append(count);
       }
@@ -338,7 +338,7 @@
         const slice = items.slice(shown, shown + n);
         shown += slice.length;
         results.insertAdjacentHTML("beforeend", slice.map((f, i) =>
-          (start + i === items.splitAt && start + i > 0 ? '<p class="grid-divider">Fewer IMDb votes — still by rating</p>' : "") +
+          (start + i === items.splitAt && start + i > 0 ? '<p class="grid-divider">Fewer IMDb votes, still by rating</p>' : "") +
           (s.view === "list" ? row(f) : card(f))).join(""));
         FL.ui.watchPosters(results);
       }

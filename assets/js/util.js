@@ -8,6 +8,11 @@
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
+  /* Synopses from the web: em dashes read as commas. "A man — haunted by his past — returns" → "A man, haunted by his past, returns". */
+  function prose(text) {
+    return String(text == null ? "" : text).replace(/\s*—\s*/g, ", ").replace(/,\s*([,.;:!?)])/g, "$1").replace(/^,\s*|,\s*$/g, "");
+  }
+
   function esc(value) {
     return String(value == null ? "" : value)
       .replace(/&/g, "&amp;")
@@ -215,7 +220,7 @@
     : (fn) => setTimeout(fn, 200);
 
   FL.util = {
-    MONTHS, MONTHS_SHORT, $, $$, esc, normalize, skeleton, debounce, clamp, hash, pad,
+    MONTHS, MONTHS_SHORT, $, $$, esc, prose, normalize, skeleton, debounce, clamp, hash, pad,
     todayISO, parseISO, fmtDate, fmtRuntime, fmtHours, fmtClock, compact, plural, greeting,
     storage, session, on, fetchJSON, limiter, isTyping, download, idle,
   };
