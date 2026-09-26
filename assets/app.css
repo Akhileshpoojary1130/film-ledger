@@ -1095,7 +1095,11 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 
 /* ---------- home ---------- */
 
-.home-hero { padding-top: 24px; }
+.home-hero { padding-top: 0; }
+/* The greeting is a hello, not a poster: smaller than a page title, whatever the style or mood font. */
+.home-hero .hero-line { font-size: clamp(30px, 4.4vw, 52px); line-height: 1.04; }
+[data-theme="retro"] .home-hero .hero-line { font-size: clamp(36px, 5.4vw, 64px); }
+.lib-tabs-top .tabs { margin-top: 0; }
 .hero-search {
   --isz: 20px;
   display: flex; align-items: center; gap: 12px; width: min(640px, 100%); height: 56px; margin-top: 28px; padding: 0 12px 0 18px;

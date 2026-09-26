@@ -149,7 +149,9 @@
       votes,
       date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : "",
       wiki,
-      poster: /^https?:\/\//.test(poster) ? poster.replace(/^http:/, "https:") : "",
+      // aoneroom.com artwork in the bundle is mismatched (Stree 2 carried Dangal's poster): Wikipedia, IMDb and
+      // metahub supply those films instead.
+      poster: /^https?:\/\//.test(poster) && !/aoneroom\.com/.test(poster) ? poster.replace(/^http:/, "https:") : "",
       desc,
       imdbId,
       universe,

@@ -58,7 +58,7 @@
           '<a href="#/years" data-nav="years">' + icon("years") + "<span>Years</span></a>" +
           '<button type="button" class="tab-search" data-open="palette" aria-label="Search">' + icon("search") + "</button>" +
           '<a href="#/shows" data-nav="shows">' + icon("tv") + "<span>Shows</span></a>" +
-          '<a href="#/library/watchlist" data-nav="library">' + icon("layers") + "<span>Library</span></a>" +
+          '<a href="#/library/watchlist" data-nav="library" data-nav-also="collections">' + icon("layers") + "<span>Library</span></a>" +
         "</nav>",
     };
   }
@@ -107,7 +107,7 @@
     const key = NAV_FOR[name];
     document.documentElement.classList.toggle("is-home", name === "home");
     $$("[data-nav]").forEach((a) => {
-      const on = a.dataset.nav === key;
+      const on = a.dataset.nav === key || (!!key && a.dataset.navAlso === key); // the tab bar's Library also covers Collections
       a.classList.toggle("is-on", !!on);
       if (on) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
     });

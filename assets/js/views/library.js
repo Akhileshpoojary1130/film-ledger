@@ -71,6 +71,15 @@
 
   const COLL_FILTERS = [["all", "All"], ["started", "In progress"], ["Hindi", "Hindi"], ["English", "English"], ["OtherIndian", "Regional"], ["universe", "Universes"]];
 
+  /* Library's sections, with Collections at the end (on phones the tab bar has no room for it, so this is its door). */
+  function libraryTabs(active) {
+    const counts = { watchlist: FL.store.watchlist().length, watched: FL.store.watched().length, favorites: FL.store.favorites().length, shows: FL.store.shows().length };
+    return '<nav class="tabs" aria-label="Library sections">' + TABS.map(([t, label]) =>
+      '<a class="tab' + (t === active ? " is-on" : "") + '" href="#/library/' + t + '"' + (t === active ? ' aria-current="page"' : "") + ">" + label + "<span>" + counts[t] + "</span></a>").join("") +
+      '<a class="tab' + (active === "collections" ? " is-on" : "") + '" href="#/collections"' + (active === "collections" ? ' aria-current="page"' : "") + ">Collections<span>" +
+      FL.catalogue.collections().length + "</span></a></nav>";
+  }
+
   FL.views.collections = {
     title: "Collections",
     mount(el) {
@@ -95,6 +104,7 @@
       function render() {
         const items = list();
         el.innerHTML = '<div class="container page">' +
+          '<div class="lib-tabs-top">' + libraryTabs("collections") + "</div>" +
           '<header class="page-head"><div><p class="eyebrow">Collections</p><h1 class="display">Series &amp; <em>universes.</em></h1>' +
           '<p class="sub">' + FL.catalogue.collections().length + " collections, each in release order. Tick your way through.</p></div></header>" +
           '<div class="filter-row coll-filters">' + segmented("cfilter", COLL_FILTERS, filter) + "</div>" +
@@ -126,9 +136,8 @@
 
       function render() {
         const prefs = FL.store.prefs().library;
-        const counts = { watchlist: FL.store.watchlist().length, watched: FL.store.watched().length, favorites: FL.store.favorites().length, shows: FL.store.shows().length };
-        const tabs = '<nav class="tabs" aria-label="Library sections">' + TABS.map(([t, label]) =>
-          '<a class="tab' + (t === tab ? " is-on" : "") + '" href="#/library/' + t + '"' + (t === tab ? ' aria-current="page"' : "") + ">" + label + "<span>" + counts[t] + "</span></a>").join("") + "</nav>";
+        const counts = { watchlist: FL.store.watchlist().length, watched: FL.store.watched().length };
+        const tabs = libraryTabs(tab);
         const toolbar = tab === "collections" ? "" :
           '<div class="filter-row"><label class="select"><span class="sr-only">Sort</span><select data-lib="sort">' +
           SORTS.map(([v, l]) => '<option value="' + v + '"' + (v === prefs.sort ? " selected" : "") + ">" + (v === "recent" && tab === "watched" ? "Recently watched" : l) + "</option>").join("") +
