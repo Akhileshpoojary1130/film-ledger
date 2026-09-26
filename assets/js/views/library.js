@@ -76,7 +76,7 @@
     const counts = { watchlist: FL.store.watchlist().length, watched: FL.store.watched().length, favorites: FL.store.favorites().length, shows: FL.store.shows().length };
     return '<nav class="tabs" aria-label="Library sections">' + TABS.map(([t, label]) =>
       '<a class="tab' + (t === active ? " is-on" : "") + '" href="#/library/' + t + '"' + (t === active ? ' aria-current="page"' : "") + ">" + label + "<span>" + counts[t] + "</span></a>").join("") +
-      '<a class="tab' + (active === "collections" ? " is-on" : "") + '" href="#/collections"' + (active === "collections" ? ' aria-current="page"' : "") + ">Collections<span>" +
+      '<a class="tab tab-coll' + (active === "collections" ? " is-on" : "") + '" href="#/collections"' + (active === "collections" ? ' aria-current="page"' : "") + ">Collections<span>" +
       FL.catalogue.collections().length + "</span></a></nav>";
   }
 

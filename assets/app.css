@@ -1949,10 +1949,10 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
   .page { padding-block: 22px 48px; }
   .rail { margin-top: 36px; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 22px 12px; }
-  .glance { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .glance-item { padding: 10px 10px 9px; }
-  .glance-item strong { font-size: 19px; }
-  .glance-item span { font-size: 11px; line-height: 1.25; }
+  .glance { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 16px; }
+  .glance-item { padding: 8px 9px 7px; }
+  .glance-item strong { font-size: 17px; }
+  .glance-item span { font-size: 10.5px; line-height: 1.2; }
   .hero-search { height: 50px; margin-top: 22px; font-size: 14px; }
   .hero-search kbd { display: none; }
   .hide-sm { display: none; }
@@ -2421,10 +2421,21 @@ html.has-page-search:not(.search-docked) [data-page-search] { view-transition-na
 .collections > .coll { content-visibility: auto; contain-intrinsic-size: auto 250px; }
 .rows > .row { content-visibility: auto; contain-intrinsic-size: auto 72px; }
 
-/* Collections: a top-bar button on phones only (the tab bar is full); the tab row fits more on a narrow screen. */
+/* Collections: a top-bar button on phones only (the tab bar is full). */
 .topbar-coll { display: none; }
 @media (max-width: 760px) {
   .topbar-coll { display: grid; }
   .topbar-coll.is-on { color: var(--accent); }
-  .tab { padding: 10px 10px; gap: 6px; }
+  /* Library's tabs all fit on a phone: Collections has its button up top, the counts are in the line above, and the
+     four share the width, so nothing hides off to the side. */
+  .tabs .tab-coll { display: none; }
+  .tabs { overflow: visible; }
+  .tabs .tab { flex: 1 1 0; justify-content: center; min-width: 0; padding: 10px 2px; font-size: 13.5px; }
+  .tabs .tab span { display: none; }
+  .lib-tabs-top { display: none; }
+  /* Movie night, Diary, Stats: one row of small buttons, not two rows of big ones. */
+  .head-actions { flex-wrap: nowrap; gap: 6px; }
+  .head-actions .btn { --isz: 15px; height: 32px; padding: 0 11px; font-size: 13px; gap: 6px; }
 }
+
+@media (max-width: 350px) { .tabs .tab { font-size: 12.5px; } }
