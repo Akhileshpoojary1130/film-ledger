@@ -1111,13 +1111,14 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 .hero-search:hover { border-color: var(--accent-line); color: var(--text-2); transform: translateY(-1px); }
 
 .glance {
-  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin-top: 30px; overflow: hidden;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin-top: 22px; overflow: hidden;
   background: var(--line); border: 1px solid var(--line); border-radius: var(--r-lg);
 }
-.glance-item { display: flex; flex-direction: column; gap: 2px; padding: 18px 20px; background: var(--bg); transition: background 0.15s; }
+/* A compact strip: numbers you glance at, not a dashboard. */
+.glance-item { display: flex; flex-direction: column; gap: 1px; padding: 12px 16px; background: var(--bg); transition: background 0.15s; }
 .glance-item:hover { background: var(--s1); }
-.glance-item strong { font-size: 30px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; font-variant-numeric: tabular-nums; }
-.glance-item span { font-size: 12.5px; color: var(--text-3); }
+.glance-item strong { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.glance-item span { font-size: 12px; color: var(--text-3); }
 [data-theme="material"] .glance { gap: 8px; background: transparent; border: 0; border-radius: 0; }
 [data-theme="material"] .glance-item { background: var(--s2); border-radius: var(--r-lg); }
 
@@ -1948,9 +1949,10 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
   .page { padding-block: 22px 48px; }
   .rail { margin-top: 36px; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 22px 12px; }
-  .glance { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .glance-item { padding: 14px 16px; }
-  .glance-item strong { font-size: 24px; }
+  .glance { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .glance-item { padding: 10px 10px 9px; }
+  .glance-item strong { font-size: 19px; }
+  .glance-item span { font-size: 11px; line-height: 1.25; }
   .hero-search { height: 50px; margin-top: 22px; font-size: 14px; }
   .hero-search kbd { display: none; }
   .hide-sm { display: none; }
@@ -2418,3 +2420,11 @@ html.has-page-search:not(.search-docked) [data-page-search] { view-transition-na
    their hover tilt and Pop's offset shadows.) */
 .collections > .coll { content-visibility: auto; contain-intrinsic-size: auto 250px; }
 .rows > .row { content-visibility: auto; contain-intrinsic-size: auto 72px; }
+
+/* Collections: a top-bar button on phones only (the tab bar is full); the tab row fits more on a narrow screen. */
+.topbar-coll { display: none; }
+@media (max-width: 760px) {
+  .topbar-coll { display: grid; }
+  .topbar-coll.is-on { color: var(--accent); }
+  .tab { padding: 10px 10px; gap: 6px; }
+}

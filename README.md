@@ -29,7 +29,7 @@ Live: https://film-ledger-mocha.vercel.app/
   Wikidata doesn't have, strict title rules: a film joins only as a marked instalment (*Baaghi 2*, *Golmaal Returns*,
   *Phir Hera Pheri*, *Kantara: Chapter 1*) or the one original they follow, so namesakes (Baaghi 1990) and look-alikes
   (*Super 8*, *Apollo 13*) stay out. Films Iris hasn't met yet appear from Wikidata and open like any other. On a
-  phone, Collections is the last tab in Library.
+  phone, Collections has a button in the top bar (and is the last tab in Library).
 - **Shows** — Indian reality & talent (Bigg Boss, India's Got Talent, Lock Upp…), **Indian web series** (Mirzapur,
   Panchayat, The Family Man, Scam 1992, Kota Factory…), popular and reality series worldwide. Seasons and episodes
   are fetched live, so new ones appear on their own.

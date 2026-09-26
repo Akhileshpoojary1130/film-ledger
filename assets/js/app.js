@@ -47,6 +47,8 @@
         "</nav>" +
         '<div class="topbar-actions">' +
           '<button type="button" class="search-trigger" data-open="palette" aria-label="Search (' + mod + ')">' + icon("search") + "<span>Search</span><kbd>" + mod + "</kbd></button>" +
+          // Phones: the tab bar has no room for Collections, so it gets a button up here (hidden on wider screens).
+          '<a class="icon-btn topbar-coll" href="#/collections" data-nav="collections" aria-label="Collections" title="Collections">' + icon("grid") + "</a>" +
           '<button type="button" class="icon-btn" data-open="pick" aria-label="Surprise me" title="Surprise me (R)">' + icon("shuffle") + "</button>" +
           '<button type="button" class="icon-btn" data-open="settings" aria-label="Settings" title="Settings, theme & storage">' + icon("sliders") + "</button>" +
         "</div></div></header>",

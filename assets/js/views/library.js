@@ -80,6 +80,13 @@
       FL.catalogue.collections().length + "</span></a></nav>";
   }
 
+  /* On a phone the tab row is wider than the screen: bring the current tab into view. */
+  function showActiveTab(el) {
+    const row = el.querySelector(".tabs");
+    const on = row && row.querySelector(".is-on");
+    if (on && row.scrollWidth > row.clientWidth) row.scrollLeft = on.offsetLeft - (row.clientWidth - on.offsetWidth) / 2;
+  }
+
   FL.views.collections = {
     title: "Collections",
     mount(el) {
@@ -110,6 +117,7 @@
           '<div class="filter-row coll-filters">' + segmented("cfilter", COLL_FILTERS, filter) + "</div>" +
           (items.length ? collectionsHtml(items) : empty("Nothing here yet.", filter === "started" ? "Watch one film from a series and it shows up here." : "Try another filter.")) + "</div>";
         FL.ui.watchPosters(el);
+        showActiveTab(el);
       }
       function onClick(e) {
         const seg = e.target.closest('[data-seg="cfilter"]');
@@ -150,6 +158,7 @@
           '<a class="btn btn-ghost" href="#/diary">' + icon("calendar") + "Diary</a>" +
           '<a class="btn btn-ghost" href="#/stats">' + icon("chart") + "Stats</a></div></header>" +
           tabs + toolbar + '<div data-lib-results></div><div class="sentinel" aria-hidden="true"></div></div>';
+        showActiveTab(el);
 
         const results = $("[data-lib-results]", el);
         if (tab === "collections") {
