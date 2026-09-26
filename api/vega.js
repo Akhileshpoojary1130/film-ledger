@@ -6,6 +6,7 @@
    GET /api/vega?title=K.G.F: Chapter 2&year=2022&imdb=tt10698680
    GET /api/vega?title=Mirzapur&imdb=tt6473300&s=3&e=4
    → { match: { id, title } | null, servers: [{ label, url }] } */
+// Edge, not Node: Vega's Cloudflare answers 403 to Vercel's Node functions (AWS addresses) but lets the Edge network in.
 export const config = { runtime: "edge" };
 
 const SITE = "https://vegamovito.run";
