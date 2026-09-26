@@ -18,9 +18,11 @@
     [/^\/collections$/, "collections"],
     [/^\/collection\/([\w-]+)$/, "collection"],
     [/^\/person\/(.+)$/, "person"],
+    [/^\/move(?:\/(.+))?$/, "move"],
+    [/^\/match(?:\/(.+))?$/, "match"],
   ];
 
-  const NAV_FOR = { home: "home", years: "years", browse: "browse", shows: "shows", show: "shows", film: "", library: "library", collection: "collections", collections: "collections", diary: "library", stats: "stats", person: "" };
+  const NAV_FOR = { home: "home", years: "years", browse: "browse", shows: "shows", show: "shows", film: "", library: "library", collection: "collections", collections: "collections", diary: "library", stats: "stats", person: "", move: "", match: "library" };
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
 
   let viewEl = null;

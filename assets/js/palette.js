@@ -16,7 +16,9 @@
     { id: "library", label: "Open library", icon: "layers", keys: "g l", run: () => go("#/library/watched") },
     { id: "diary", label: "Open diary", icon: "calendar", keys: "g d", run: () => go("#/diary") },
     { id: "stats", label: "Open stats", icon: "chart", keys: "g s", run: () => go("#/stats") },
-    { id: "collections", label: "Marvel & DC collections", icon: "film", run: () => go("#/library/collections") },
+    { id: "collections", label: "Collections — series & universes", icon: "film", run: () => go("#/collections") },
+    { id: "match", label: "Movie night — compare Watch later with a friend", icon: "users", run: () => go("#/match") },
+    { id: "move", label: "Move your library to another device (QR code)", icon: "qr", run: () => go("#/move") },
     { id: "pick", label: "Surprise me — pick a film", icon: "shuffle", keys: "r", run: () => pick() },
     { id: "appearance", label: "Theme & colours", icon: "palette", run: () => settings("appearance") },
     { id: "settings", label: "Settings, storage & backup", icon: "sliders", run: () => settings() },
@@ -354,7 +356,9 @@
         (status.supported ? '<button type="button" class="btn" data-set="file-restore">' + icon("upload") + "Restore from file…</button>" : '<label class="btn">' + icon("upload") + 'Restore from file…<input type="file" accept="application/json,.json" data-set="import" hidden></label>') +
         '<button type="button" class="btn btn-ghost" data-set="export">' + icon("download") + "Export backup</button>" +
         '<button type="button" class="btn btn-ghost" data-set="csv">' + icon("download") + "Letterboxd CSV</button>" +
-      "</div>";
+      "</div>" +
+      '<div class="setting-row move-row"><span>Phone ↔ laptop<small>Copy this library to another device with a QR code — no account, nothing uploaded</small></span>' +
+        '<a class="btn btn-sm" href="#/move">' + icon("qr") + "Move library</a></div>";
   }
 
   function serverRows() {

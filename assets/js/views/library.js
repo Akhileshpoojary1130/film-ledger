@@ -137,7 +137,8 @@
 
         el.innerHTML = '<div class="container page">' +
           '<header class="page-head"><div><h1 class="h1">Library</h1><p class="sub">' + plural(counts.watched, "film") + " watched · " + plural(counts.watchlist, "film") + " to watch</p></div>" +
-          '<div class="btn-row head-actions"><a class="btn btn-ghost" href="#/diary">' + icon("calendar") + "Diary</a>" +
+          '<div class="btn-row head-actions"><a class="btn btn-ghost" href="#/match">' + icon("users") + "Movie night</a>" +
+          '<a class="btn btn-ghost" href="#/diary">' + icon("calendar") + "Diary</a>" +
           '<a class="btn btn-ghost" href="#/stats">' + icon("chart") + "Stats</a></div></header>" +
           tabs + toolbar + '<div data-lib-results></div><div class="sentinel" aria-hidden="true"></div></div>';
 

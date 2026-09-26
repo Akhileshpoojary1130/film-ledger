@@ -185,7 +185,7 @@
       "chevron_left", "chevron_right", "close", "dark_mode", "delete", "download", "edit", "expand_more", "explore", "favorite",
       "folder_open", "fullscreen", "grid_view", "history", "home", "keyboard", "light_mode", "live_tv", "movie", "open_in_new",
       "palette", "person", "play_arrow", "replay", "schedule", "search", "shuffle", "smart_display", "star", "tune", "upload",
-      "video_library", "view_list"];
+      "video_library", "view_list", "qr_code_2", "ios_share", "group", "photo_camera", "link", "devices"];
     const link = document.createElement("link");
     link.id = "font-material";
     link.rel = "stylesheet";
@@ -212,7 +212,9 @@
       blades += '<g transform="rotate(' + i * 60 + ") translate(" + R + ' 0) rotate(90)"><path class="blade" d="M-130 0H130V-130H-130Z" transform="rotate(' +
         o.open + ')"' + (o.fill ? ' fill="' + o.fill + '"' : "") + ">" + anim + "</path></g>";
     }
-    return '<svg class="mark' + (o.cls ? " " + o.cls : "") + '" viewBox="-50 -50 100 100" width="' + o.size + '" height="' + o.size + '" aria-hidden="true" focusable="false">' +
+    // Blade seams are about 1.3 screen pixels at any size; thinner ones blur away and the shutter reads as a lopsided blob.
+    const seam = Math.min(7, Math.max(3, 150 / o.size)).toFixed(1);
+    return '<svg class="mark' + (o.cls ? " " + o.cls : "") + '" viewBox="-50 -50 100 100" width="' + o.size + '" height="' + o.size + '" style="--seam:' + seam + '" aria-hidden="true" focusable="false">' +
       '<defs><clipPath id="' + id + '"><circle r="' + R + '"/></clipPath></defs>' +
       '<g clip-path="url(#' + id + ')">' + blades + "</g>" +
       '<circle class="mark-ring" r="' + R + '"' + (o.ring ? ' stroke="' + o.ring + '"' : "") + "/></svg>";
@@ -222,7 +224,7 @@
     const a = accent();
     const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="-50 -50 100 100"><rect x="-50" y="-50" width="100" height="100" rx="22" fill="#0A0A0B"/>' +
       mark({ size: 100, open: 54, fill: a, ring: a }).replace(/^<svg[^>]*>/, "<g transform=\"scale(.78)\">").replace(/<\/svg>$/, "</g>")
-        .replace(/class="blade"/g, 'stroke="#0A0A0B" stroke-width="3"').replace(/class="mark-ring"/, 'fill="none" stroke-width="5"') + "</svg>";
+        .replace(/class="blade"/g, 'stroke="#0A0A0B" stroke-width="6"').replace(/class="mark-ring"/, 'fill="none" stroke-width="5"') + "</svg>";
     let link = document.querySelector('link[rel="icon"]');
     if (!link) { link = document.createElement("link"); link.rel = "icon"; document.head.appendChild(link); }
     link.href = "data:image/svg+xml," + encodeURIComponent(svg);

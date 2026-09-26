@@ -45,6 +45,12 @@
     palette: '<path d="M12 3.5a8.5 8.5 0 1 0 0 17c1.1 0 1.8-.8 1.8-1.7 0-1.3-1-1.6-1-2.6 0-.8.7-1.4 1.5-1.4h2.1a4.1 4.1 0 0 0 4.1-4.1C20.5 6.6 16.7 3.5 12 3.5z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7.5" r="1"/><circle cx="14.5" cy="7.5" r="1"/>',
     folder: '<path d="M3.5 7a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/>',
     years: '<path d="M4 20V9M9 20V5M14 20v-8M19 20V8"/><path d="M3 20h18"/>',
+    qr: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.2"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.2"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.2"/><path d="M13.5 13.5h2.5v2.5h-2.5zM20 13.5v2.5M13.5 20h2.5M18.5 18.5H20V20h-1.5z"/>',
+    share: '<path d="M12 14.5V3.5M8 7.5l4-4 4 4"/><path d="M8.5 10.5H6.5a1 1 0 0 0-1 1V19a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-7.5a1 1 0 0 0-1-1h-2"/>',
+    users: '<circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5a5.5 5.5 0 0 1 11 0"/><circle cx="16.8" cy="9.3" r="2.5"/><path d="M16 14.3a4.6 4.6 0 0 1 4.8 4.7"/>',
+    camera: '<path d="M4 8.5a1.5 1.5 0 0 1 1.5-1.5h2.2L9.3 5h5.4l1.6 2h2.2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="12.8" r="3.3"/>',
+    link: '<path d="M10.5 13.5a3.8 3.8 0 0 0 5.4 0l3-3a3.8 3.8 0 0 0-5.4-5.4l-1 1"/><path d="M13.5 10.5a3.8 3.8 0 0 0-5.4 0l-3 3a3.8 3.8 0 0 0 5.4 5.4l1-1"/>',
+    devices: '<rect x="3" y="5" width="13" height="10" rx="1.5"/><path d="M1.5 18.5h11"/><rect x="16" y="9" width="5.5" height="10.5" rx="1.3"/>',
   };
 
   const MSR = {
@@ -54,7 +60,8 @@
     "chevron-down": "expand_more", shuffle: "shuffle", external: "open_in_new", expand: "fullscreen", sliders: "tune",
     download: "download", upload: "upload", film: "movie", tv: "live_tv", rewatch: "replay", trash: "delete", keyboard: "keyboard",
     trailer: "smart_display", grid: "grid_view", list: "view_list", clock: "schedule", history: "history", spark: "auto_awesome",
-    palette: "palette", folder: "folder_open", years: "bar_chart",
+    palette: "palette", folder: "folder_open", years: "bar_chart", qr: "qr_code_2", share: "ios_share", users: "group",
+    camera: "photo_camera", link: "link", devices: "devices",
   };
 
   function icon(name, cls) {

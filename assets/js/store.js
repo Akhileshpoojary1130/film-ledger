@@ -22,6 +22,7 @@
     searches: [],
     servers: {},
     lastServer: "",
+    friends: [],
   };
 
   let lib = { v: 1, films: {} };
@@ -381,8 +382,21 @@
         if (src.episodes && typeof src.episodes === "object") {
           Object.keys(src.episodes).forEach((k) => { if (/^\d+:\d+$/.test(k)) episodes[k] = String(src.episodes[k]).slice(0, 10); });
         }
+        const now = Date.now();
+        const times = Array.isArray(src.times) ? src.times.map(Number).filter((t) => t > 1e12 && t < now + 864e5).slice(-40) : [];
+        const pr = src.progress;
+        let progress;
+        if (pr && typeof pr === "object" && +pr.d > 0 && +pr.t >= 0) {
+          progress = { t: Math.floor(+pr.t), d: Math.floor(+pr.d), at: +pr.at || 0 };
+          if (typeof pr.srv === "string") progress.srv = pr.srv.slice(0, 24);
+          if (+pr.s && +pr.e) { progress.s = +pr.s; progress.e = +pr.e; }
+          if (pr.approx) progress.approx = true;
+        }
         incoming[film.id] = Object.assign(base, {
           seen: !!src.seen,
+          seenAt: +src.seenAt || 0,
+          times: times.length ? times : undefined,
+          progress,
           watches: watches.sort(),
           episodes,
           listed: !!src.listed,
@@ -410,6 +424,14 @@
           cur.episodes = Object.assign({}, inc.episodes, cur.episodes);
           cur.fav = cur.fav || inc.fav;
           cur.listed = !isWatched(cur) && (cur.listed || inc.listed);
+          cur.listedAt = cur.listed ? Math.max(cur.listedAt || 0, inc.listedAt || 0) || Date.now() : 0;
+          if (isWatched(cur) && !cur.seenAt) cur.seenAt = inc.seenAt || cur.updated;
+          // Watch moments from both devices; the same moment copied back and forth (rounded to the minute) counts once.
+          if (inc.times) {
+            const all = (cur.times || []).concat(inc.times).sort((a, b) => a - b);
+            cur.times = all.filter((t, i) => i === 0 || t - all[i - 1] > 120e3).slice(-40);
+          }
+          if (inc.progress && (!cur.progress || (inc.progress.at || 0) > (cur.progress.at || 0))) cur.progress = inc.progress;
           if (!cur.rating || (newer && inc.rating)) cur.rating = inc.rating;
           if (!cur.note || (newer && inc.note)) cur.note = inc.note;
           cur.runtime = cur.runtime || inc.runtime;

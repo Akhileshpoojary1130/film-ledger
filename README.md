@@ -7,7 +7,7 @@ Live: https://film-ledger-mocha.vercel.app/
 
 ## What it does
 
-- **Home** — a big logo that docks into the top bar as you scroll, and one search bar that does the same. The
+- **Home** — one big search bar that docks into the top bar's search as you scroll. The
   headline follows the time of day (early bird, lunch — "Had lunch yet?", dinner, late night), changes every six hours
   with different wording each day, and takes a typeface from what you've been watching (eerie for horror, bold for
   action, sunny for comedy). Then *Continue watching* (1–3, in Settings), **three picks** — one from your taste, one
@@ -37,6 +37,10 @@ Live: https://film-ledger-mocha.vercel.app/
   of day** and **day of the week** you watch, records.
 - **Care** — during long sessions a small Iris character peeks in at the top right for five seconds: water after an
   hour, a stretch after two, and a nudge if it's very late.
+- **Movie night** — send a friend a link to your Watch later (Library → Movie night). When they open it, Iris shows
+  the films you've both saved (best three first, ready to play), what they want to watch that you don't (one tap on
+  the bookmark moves it to the shared list), and what you've already seen. They can send theirs back; recent movie
+  nights are remembered. There's a QR code for a friend in the same room.
 
 ## Appearance
 
@@ -55,10 +59,15 @@ In this browser (`localStorage`). Clearing site data erases it, so Settings → 
 
 - **Keep a copy on this computer** (Chrome / Edge desktop) — every change is written to a JSON file you pick.
   It survives clearing browser data; put it in iCloud Drive / Google Drive / Dropbox to carry it to other computers.
+- **Phone ↔ laptop** (Settings → Storage → Move library, or `#/move`) — one device shows a QR code, Iris on the other
+  scans it. A big library becomes a few codes shown in turn; the scanner collects them in any order. It merges
+  (watched, Watch later, ratings, shows, where you stopped) and never deletes. Each code is also a link, so a phone's
+  own camera app can open it.
 - **Export backup** / **Restore from file** anywhere, and a Letterboxd-compatible CSV.
 - The app also asks the browser for persistent storage so it isn't evicted on its own.
 
-Syncing between devices automatically would need a server; this stays serverless on purpose.
+Movie-night links and moving codes carry the data inside the code or after the `#` of the link, which browsers never
+send to a server. Syncing automatically would need a server; this stays serverless on purpose.
 
 ## Player
 
@@ -112,9 +121,11 @@ assets/js/
   people.js           cast & crew portraits (Wikipedia), filmographies, favourite people
   persist.js          File System Access backup file
   ui.js               icons, cards, rails, rating, reveal & tilt motion, toasts, modals
+  share.js            packing, QR codes (qrcode-generator), camera scanner (BarcodeDetector / jsQR), share links
   player.js           theatre player, auto-logging
   palette.js          ⌘K palette, surprise me, settings, shortcuts
-  views/              home, years (dial), browse, film, shows, person, library + collections + diary, insights (stats)
+  views/              home, years (dial), browse, film, shows, person, library + collections + diary, insights (stats),
+                      together (Move and Movie night)
   app.js              router, chrome, page transitions
 ```
 
