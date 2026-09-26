@@ -210,8 +210,8 @@
 
   function heatmap(year, rows) {
     const byDay = {};
-    // Ticks without a date aren't viewings — the calendar shows days you actually watched.
-    rows.filter((r) => !r.marked).forEach((r) => { (byDay[r.date] = byDay[r.date] || []).push(r.entry.title); });
+    // Films you ticked count on the day you ticked them, so the calendar fills in as you use Iris.
+    rows.forEach((r) => { (byDay[r.date] = byDay[r.date] || []).push(r.entry.title + (r.marked ? " (ticked)" : "")); });
     const start = new Date(year, 0, 1);
     const offset = (start.getDay() + 6) % 7; // Monday-first
     const days = (new Date(year + 1, 0, 1) - start) / 864e5;
@@ -284,7 +284,7 @@
           '<section class="panel">' + heatmap(chosen, rows) +
           '<p class="heat-summary">' + (rows.some((r) => !r.marked)
             ? "<strong>" + plural(s.films, "film") + "</strong> · " + plural(s.viewings, "viewing") + (s.minutes ? " · " + fmtHours(s.minutes) : "") + (s.rated ? " · avg " + s.avgRating.toFixed(1) + " ★" : "") + (s.rewatches ? " · " + plural(s.rewatches, "rewatch", "rewatches") : "")
-            : rows.length ? plural(rows.length, "film") + " ticked in " + chosen + " — films you play here fill the calendar." : "Nothing in " + chosen + " yet.") + "</p></section>" +
+            : rows.length ? "<strong>" + plural(rows.length, "film") + "</strong> in " + chosen + " · ticked as watched" : "Nothing in " + chosen + " yet.") + "</p></section>" +
           (groups.length ? groups.map(([k, list]) => monthBlock(k, list)).join("")
             : empty("Your film history, day by day.", "Tick a film as watched, or finish one in the player, and it shows up here on that day.", '<a class="btn" href="#/years">Pick from the years</a>')) +
           (undated ? '<p class="footnote">' + plural(undated, "film") + " marked watched without a date — they count in all-time stats. <a class=\"link\" href=\"#/library/watched\">Add dates from their pages</a>.</p>" : "") +

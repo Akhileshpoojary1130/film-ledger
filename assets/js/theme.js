@@ -206,8 +206,8 @@
     let blades = "";
     for (let i = 0; i < 6; i++) {
       const anim = o.animate
-        ? '<animateTransform attributeName="transform" type="rotate" values="' + o.open + ";14;" + o.open +
-          '" keyTimes="0;.5;1" calcMode="spline" keySplines=".6 0 .4 1;.6 0 .4 1" dur="2.4s" repeatCount="indefinite"/>'
+        ? '<animateTransform attributeName="transform" type="rotate" values="' + o.open + ";10;" + o.open +
+          '" keyTimes="0;.5;1" calcMode="spline" keySplines=".65 0 .35 1;.65 0 .35 1" dur="2s" repeatCount="indefinite"/>'
         : "";
       blades += '<g transform="rotate(' + i * 60 + ") translate(" + R + ' 0) rotate(90)"><path class="blade" d="M-130 0H130V-130H-130Z" transform="rotate(' +
         o.open + ')"' + (o.fill ? ' fill="' + o.fill + '"' : "") + ">" + anim + "</path></g>";

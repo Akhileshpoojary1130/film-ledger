@@ -70,7 +70,7 @@
     const genres = FL.catalogue.genresFor(s.lang).map((g) => [g, g]);
     const sorts = (s.q ? ["relevance"] : []).concat(["popular", "rating", "newest", "oldest", "title"]).map((k) => [k, SORT_LABELS[k]]);
     return '<div class="filters">' +
-      '<div class="search-field"><span class="search-field-icon">' + icon("search") + '</span>' +
+      '<div class="search-field" data-page-search><span class="search-field-icon">' + icon("search") + '</span>' +
         '<input type="search" data-f="q" value="' + esc(s.q) + '" placeholder="Search 15,000+ titles, genres, years…" aria-label="Search films" autocomplete="off" spellcheck="false">' +
         '<kbd class="hide-sm">/</kbd></div>' + recentChips(s) +
       '<div class="filter-row filter-main">' + segmented("lang", CATEGORIES, s.lang) +
@@ -286,6 +286,7 @@
             const q = $('[data-f="q"]', el);
             const hadFocus = document.activeElement === q;
             box.outerHTML = controls(s);
+            if (FL.app && FL.app.watchSearch) FL.app.watchSearch();
             if (hadFocus) $('[data-f="q"]', el).focus();
           } else {
             seg.parentNode.querySelectorAll(".seg-btn").forEach((b) => {
@@ -325,6 +326,7 @@
         if (e.target.closest("[data-clear]")) {
           Object.assign(s, { q: "", lang: "all", year: "all", genre: "", region: "", minRating: 0, status: "all", sort: "popular" });
           $(".filters", el).outerHTML = controls(s);
+            if (FL.app && FL.app.watchSearch) FL.app.watchSearch();
           persist();
           run();
         }

@@ -227,6 +227,8 @@
     // a Brazilian one). The bundled Wikipedia poster, then IMDb's own, are the Indian artwork.
     if ((film.lang === "Hindi" || film.lang === "OtherIndian") && !film.remote) {
       if (own) list.push(own);
+      const wiki = sized(posterCache[wikiKey(film)], size);
+      if (wiki && list.indexOf(wiki) === -1) list.push(wiki);
       const imdbPoster = tt && metaCache[tt] && sized(metaCache[tt].poster, size);
       if (imdbPoster && /media-amazon/.test(imdbPoster) && list.indexOf(imdbPoster) === -1) list.push(imdbPoster);
     }

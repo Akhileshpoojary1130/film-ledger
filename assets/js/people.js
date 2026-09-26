@@ -123,23 +123,93 @@
 
   const works = new Map(); // name -> Promise<[{ film, role }]>
 
+  /* The person's Wikidata item, found through their Wikipedia page (trying "(actor)", "(director)"… for common names). */
+  function qidFor(name) {
+    const e = cache[name];
+    if (e && e.q) return Promise.resolve(e.q);
+    const titles = [name, name + " (actor)", name + " (actress)", name + " (director)", name + " (filmmaker)"];
+    const url = "https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1&prop=pageprops%7Cdescription" +
+      "&ppprop=wikibase_item&titles=" + encodeURIComponent(titles.join("|"));
+    return queue(() => fetchJSON(url, { timeout: 12000 })).then((data) => {
+      const q = (data && data.query) || {};
+      const alias = {};
+      (q.normalized || []).forEach((n) => { alias[n.from] = n.to; });
+      (q.redirects || []).forEach((r) => { alias[r.from] = r.to; });
+      const pages = {};
+      Object.values(q.pages || {}).forEach((p) => { pages[p.title] = p; });
+      for (const t of titles) {
+        let cur = t;
+        for (let i = 0; i < 3 && alias[cur]; i++) cur = alias[cur];
+        const p = pages[cur];
+        const id = p && p.pageprops && p.pageprops.wikibase_item;
+        if (id && ROLE.test(p.description || "")) {
+          cache[name] = Object.assign({ u: "", d: p.description || "", t: p.title, at: Date.now() }, cache[name], { q: id });
+          save();
+          return id;
+        }
+      }
+      return "";
+    }).catch(() => "");
+  }
+
+  /* Every film and series Wikidata credits them on — as cast, director or writer — with IMDb ids and years. */
+  function wikidataWorks(name) {
+    const e = cache[name];
+    if (e && e.w && Date.now() - (e.wat || 0) < 14 * 864e5) return Promise.resolve(e.w);
+    return qidFor(name).then((qid) => {
+      if (!qid) return [];
+      const sparql = 'SELECT ?imdb ?filmLabel ?date ?role ?kind WHERE { VALUES (?prop ?role) { (wdt:P161 "Cast") (wdt:P57 "Director") (wdt:P58 "Writer") } ' +
+        "VALUES ?kind { wd:Q11424 wd:Q5398426 } ?film ?prop wd:" + qid + " ; wdt:P31 ?kind ; wdt:P345 ?imdb . OPTIONAL { ?film wdt:P577 ?date } " +
+        'SERVICE wikibase:label { bd:serviceParam wikibase:language "en". } }';
+      return fetchJSON("https://query.wikidata.org/sparql?format=json&query=" + encodeURIComponent(sparql), { timeout: 20000 }).then((d) => {
+        const byTt = new Map();
+        ((d && d.results && d.results.bindings) || []).forEach((b) => {
+          const tt = b.imdb.value;
+          if (!/^tt\d+$/.test(tt)) return;
+          const year = b.date ? +b.date.value.slice(0, 4) : 0;
+          const row = byTt.get(tt) || { tt, title: b.filmLabel.value, year: 0, roles: [], series: /Q5398426$/.test(b.kind.value) };
+          if (year && (!row.year || year < row.year)) row.year = year;
+          if (row.roles.indexOf(b.role.value) === -1) row.roles.push(b.role.value);
+          byTt.set(tt, row);
+        });
+        const rows = Array.from(byTt.values());
+        cache[name] = Object.assign({ u: "", d: "", t: "", at: Date.now() }, cache[name], { w: rows, wat: Date.now() });
+        save();
+        return rows;
+      });
+    }).catch(() => []);
+  }
+
   function filmography(name) {
     if (works.has(name)) return works.get(name);
     const key = normalize(name);
     const credited = (list) => (list || []).some((x) => normalize(x) === key);
-    const p = Promise.all(["movie", "series"].map((type) => FL.meta.cinemetaSearch(name, true, type).catch(() => [])))
-      .then(([movies, shows]) => {
-        const out = [];
-        const add = (metas, type) => metas.forEach((m) => {
-          const role = credited(m.director) ? "Director" : credited(m.cast) ? "Cast" : credited(m.writer) ? "Writer" : "";
-          if (!role) return;
-          const [film] = FL.remote.ingest([m], { type, keepBare: true });
-          if (film) out.push({ film, role });
-        });
-        add(movies, "movie");
-        add(shows, "series");
-        return out.sort((a, b) => (b.film.year || 9999) - (a.film.year || 9999));
+    const search = Promise.all(["movie", "series"].map((type) => FL.meta.cinemetaSearch(name, true, type).catch(() => [])));
+    const p = Promise.all([wikidataWorks(name), search]).then(([rows, [movies, shows]]) => {
+      const out = [];
+      const have = new Set();
+      const push = (film, role) => {
+        if (!film) return;
+        const k = film.id + "|" + role;
+        if (have.has(k)) return;
+        have.add(k);
+        out.push({ film, role });
+      };
+      rows.forEach((r) => {
+        const film = FL.catalogue.byImdb(r.tt) || FL.catalogue.findLocal(r.tt, r.title, r.year) ||
+          FL.catalogue.addRemote({ imdbId: r.tt, type: r.series ? "series" : "movie", title: r.title, year: r.year, genres: [], poster: "" });
+        r.roles.forEach((role) => push(film, role));
       });
+      const add = (metas, type) => metas.forEach((m) => {
+        const role = credited(m.director) ? "Director" : credited(m.cast) ? "Cast" : credited(m.writer) ? "Writer" : "";
+        if (!role) return;
+        const [film] = FL.remote.ingest([m], { type, keepBare: true });
+        push(film, role);
+      });
+      add(movies, "movie");
+      add(shows, "series");
+      return out.sort((a, b) => (b.film.year || 9999) - (a.film.year || 9999));
+    });
     works.set(name, p);
     // An empty answer is usually a failed request — don't remember it.
     p.then((list) => { if (!list.length) works.delete(name); }, () => works.delete(name));

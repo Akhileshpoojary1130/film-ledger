@@ -66,7 +66,7 @@
 
   /* The aperture, animated — used wherever something is loading. */
   function loader(size, label) {
-    return '<span class="loader" role="status"' + (label ? ' aria-label="' + esc(label) + '"' : "") + ">" + FL.theme.mark({ size: size || 28, animate: true, cls: "mark-spin" }) + "</span>";
+    return '<span class="loader" role="status"' + (label ? ' aria-label="' + esc(label) + '"' : "") + ">" + FL.theme.mark({ size: size || 28, open: 74, animate: true, cls: "mark-spin" }) + "</span>";
   }
 
   /* ---------- stars ---------- */
@@ -146,7 +146,9 @@
       ? '<img src="' + esc(cands[0]) + '" data-alt="' + esc(cands.slice(1).join("|")) + '" alt="" loading="' + (o.eager ? "eager" : "lazy") +
         '" decoding="async" referrerpolicy="no-referrer" draggable="false">'
       : "";
-    return '<div class="art" data-pid="' + esc(film.id) + '"' + (cands.length ? "" : " data-need") + ">" + placeholder(film) + img + "</div>";
+    // Indian films whose best artwork is metahub's (sometimes a foreign release poster) also ask Wikipedia for theirs.
+    const indianFallback = cands.length && /metahub/.test(cands[0]) && !film.remote && (film.lang === "Hindi" || film.lang === "OtherIndian") && FL.meta.wantsLookup(film);
+    return '<div class="art" data-pid="' + esc(film.id) + '"' + (!cands.length || indianFallback ? " data-need" : "") + ">" + placeholder(film) + img + "</div>";
   }
 
   document.addEventListener("load", (e) => {
@@ -208,7 +210,9 @@
 
   FL.meta.onPoster((film, url) => {
     $$('.art[data-pid="' + CSS.escape(film.id) + '"]').forEach((wrap) => {
-      if (wrap.querySelector("img")) return;
+      const cur = wrap.querySelector("img");
+      if (cur && /metahub/.test(cur.src) && (film.lang === "Hindi" || film.lang === "OtherIndian")) { wrap.removeAttribute("data-need"); cur.src = url; return; }
+      if (cur) return;
       wrap.removeAttribute("data-need");
       const img = document.createElement("img");
       img.alt = "";
@@ -264,6 +268,77 @@
         target.style.setProperty("--rx", (-y * 6).toFixed(2) + "deg");
       });
     }, { passive: true });
+  }
+
+  /* ---------- trailer preview: rest the mouse on a poster for ~3 s and its trailer plays inside it ---------- */
+
+  let hoverCard = null;
+  let hoverTimer = 0;
+  let preview = null;
+  const previewsOn = () => (FL.store.prefs().appearance || {}).hoverTrailer !== false && !reduced.matches;
+
+  function endPreview() {
+    clearTimeout(hoverTimer);
+    if (!preview) return;
+    const box = preview;
+    preview = null;
+    box.classList.remove("in");
+    setTimeout(() => box.remove(), 300);
+  }
+
+  function startPreview(card, film) {
+    const m = FL.meta.cached(film);
+    const id = m && m.trailer;
+    const artEl = card.isConnected && card.querySelector(".card-link .art");
+    if (!id || !artEl || hoverCard !== card) return;
+    const box = document.createElement("div");
+    box.className = "art-trailer";
+    box.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/' + esc(id) + "?autoplay=1&mute=1&controls=0&loop=1&playlist=" + esc(id) +
+      "&modestbranding=1&playsinline=1&rel=0&iv_load_policy=3&disablekb=1&enablejsapi=1&origin=" + encodeURIComponent(location.origin) +
+      '" allow="autoplay; encrypted-media" title="Trailer" tabindex="-1" aria-hidden="true"></iframe>' +
+      '<span class="art-trailer-tag">' + icon("trailer") + "Trailer</span>";
+    artEl.appendChild(box);
+    preview = box;
+    // Only show it once YouTube says it's actually playing — a paused embed would cover the poster with a play button.
+    const frame = box.querySelector("iframe");
+    const send = (msg) => { try { frame.contentWindow.postMessage(JSON.stringify(msg), "*"); } catch (e) { /* gone */ } };
+    frame.addEventListener("load", () => {
+      send({ event: "listening", id: 1, channel: "widget" });
+      send({ event: "command", func: "mute", args: [] });
+      send({ event: "command", func: "playVideo", args: [] });
+    });
+    box._frame = frame;
+    setTimeout(() => { if (preview === box && !box.classList.contains("in")) endPreview(); }, 7000);
+  }
+
+  window.addEventListener("message", (e) => {
+    if (!preview || !/youtube(-nocookie)?\.com$/.test(new URL(e.origin || "http://x").hostname)) return;
+    if (e.source !== (preview._frame && preview._frame.contentWindow)) return;
+    let d = e.data;
+    try { if (typeof d === "string") d = JSON.parse(d); } catch (err) { return; }
+    const playing = d && ((d.event === "onStateChange" && d.info === 1) || (d.info && d.info.playerState === 1));
+    if (playing) preview.classList.add("in");
+  });
+
+  if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+    document.addEventListener("pointerover", (e) => {
+      if (e.pointerType !== "mouse") return;
+      const card = e.target.closest && e.target.closest(".card[data-id]");
+      if (card === hoverCard) return;
+      endPreview();
+      hoverCard = card;
+      if (!card || !previewsOn()) return;
+      const film = FL.catalogue.get(card.dataset.id);
+      if (!film) return;
+      if (!FL.meta.cached(film)) FL.meta.details(film); // fetch the trailer id while you hover
+      hoverTimer = setTimeout(() => startPreview(card, film), 2600);
+    });
+    document.addEventListener("pointerout", (e) => {
+      if (!hoverCard || (e.relatedTarget && hoverCard.contains(e.relatedTarget))) return;
+      if (e.target.closest && e.target.closest(".card[data-id]") === hoverCard) { endPreview(); hoverCard = null; }
+    });
+    window.addEventListener("hashchange", () => { endPreview(); hoverCard = null; });
+    document.addEventListener("visibilitychange", () => { if (document.hidden) endPreview(); });
   }
 
   /* ---------- film cards ---------- */

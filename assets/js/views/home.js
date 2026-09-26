@@ -16,7 +16,7 @@
       '<div class="home-brand" aria-hidden="true">' + FL.theme.mark({ size: 60, cls: "home-mark" }) + '<span class="home-word">Iris</span></div>' +
       '<p class="eyebrow">' + esc(g.eyebrow) + "</p>" +
       '<h1 class="display hero-line"><span class="hero-words"' + FL.voice.moodAttrs(text) + ">" + esc(g.line[0]) + " <em>" + esc(g.line[1]) + "</em></span></h1>" +
-      '<button type="button" class="hero-search" data-open="palette">' + icon("search") +
+      '<button type="button" class="hero-search" data-open="palette" data-page-search>' + icon("search") +
         "<span>Search " + Math.floor(count / 1000) + ",000+ films and shows</span><kbd>" + mod + "</kbd></button>" +
       (hasLibrary ? glance() : (FL.persist.supported ? '<p class="footnote"><button type="button" class="link" data-home="restore">Restore your library from a file</button></p>' : "")) +
       "</section>";
@@ -116,19 +116,14 @@
       }).join("") + "</ol></article>";
   }
 
+  /* What you watched (or ticked) lately, as posters, newest first. */
   function recentDiary() {
-    const rows = FL.store.diary().slice(0, 6);
-    if (!rows.length) return "";
-    return '<section class="panel recent"><header class="section-head"><div><h2 class="h2">Recently watched</h2></div>' +
-      '<a class="link-more" href="#/diary">Diary' + icon("arrow-right") + "</a></header><ol class='mini-diary'>" +
-      rows.map((r) => {
-        const film = FL.catalogue.get(r.id);
-        if (!film) return "";
-        return '<li><a href="#/film/' + encodeURIComponent(film.id) + '"><span class="mini-date">' + fmtDate(r.date, "short") + "</span>" +
-          '<span class="mini-art">' + art(film) + '</span><span class="mini-title">' + esc(film.title) +
-          (r.rewatch ? ' <span class="rewatch" title="Rewatch">' + icon("rewatch") + "</span>" : "") + "</span>" +
-          (r.entry.rating ? stars(r.entry.rating, "stars-sm") : "") + "</a></li>";
-      }).join("") + "</ol></section>";
+    const seen = new Set();
+    const rows = FL.store.diary().filter((r) => (seen.has(r.id) ? false : seen.add(r.id))).slice(0, 18);
+    const films = rows.map((r) => FL.catalogue.get(r.id)).filter(Boolean);
+    if (!films.length) return "";
+    const when = new Map(rows.map((r) => [r.id, (r.marked ? "Ticked " : "Watched ") + fmtDate(r.date, "short")]));
+    return rail("Recently watched", films, { more: "#/diary", caption: (f) => esc(when.get(f.id) || "") });
   }
 
   /* ---------- rails ---------- */
@@ -270,7 +265,8 @@
     el.innerHTML = '<div class="container page">' +
       hero(name, true) +
       continueRail() +
-      '<div class="home-split">' + tonight() + recentDiary() + "</div>" +
+      tonight() +
+      recentDiary() +
       reasonRail("Up next in your series", next, { sub: "The next film after the ones you’ve seen" }) +
       reasonRail("For you", forYou, { sub: "From your ratings, favourites and what you watch" }) +
       peopleSlots() +
@@ -332,9 +328,6 @@
         const brand = el.querySelector(".home-brand");
         if (brand) brand.style.setProperty("--dock", p.toFixed(3));
         root.classList.toggle("brand-docked", p > 0.8);
-        const search = el.querySelector(".hero-search");
-        const bar = document.querySelector(".topbar");
-        root.classList.toggle("search-docked", !!(search && bar && search.getBoundingClientRect().bottom < bar.getBoundingClientRect().bottom + 8));
       }
       const onScroll = () => { if (!dockFrame) dockFrame = requestAnimationFrame(dock); };
       window.addEventListener("scroll", onScroll, { passive: true });

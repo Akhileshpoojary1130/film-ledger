@@ -27,8 +27,11 @@ Live: https://film-ledger-mocha.vercel.app/
   Panchayat, The Family Man, Scam 1992, Kota Factory…), popular and reality series worldwide. Seasons and episodes
   are fetched live, so new ones appear on their own.
 - **Search** — `⌘K` / `Ctrl K`, tolerant of spellings and typos; anything not bundled is fetched from the web.
-- **Film page** — live IMDb score, cast & crew with small photos (tap one for all their films), the series in order,
-  *More from* the director, similar films, rating, watch dates, *Where to watch*.
+- **Film page** — live IMDb score, the **trailer inline** (a still that plays in place), cast & crew with small photos
+  (tap one for their full filmography, from Wikidata), the series in order, *More from* the director, similar films,
+  rating, watch dates, *Where to watch*.
+- **Trailer on hover** — rest the mouse on a poster for ~3 seconds and its trailer plays, muted, inside it
+  (Settings → More to turn off).
 - **Diary** — films you tick appear on the day you ticked them; films you play fill the calendar.
 - **Stats** — films, hours, genres, languages, decades, ratings vs IMDb, **faces you watch most**, directors, **time
   of day** and **day of the week** you watch, records.
@@ -37,7 +40,8 @@ Live: https://film-ledger-mocha.vercel.app/
 
 ## Appearance
 
-Settings → Appearance, in order:
+New visitors start in Cupertino, high-contrast dark, clear glass over a slow aurora, calm motion. Settings →
+Appearance, in order:
 
 1. **Style** — Cinema, Material (Android), Cupertino (Apple), Fluent (Windows 11), One UI (Samsung) or Glyph
    (dot-matrix, Nothing-style): type, shapes and controls.

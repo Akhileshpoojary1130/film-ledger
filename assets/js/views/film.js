@@ -187,6 +187,7 @@
         '<div class="container film-body">' +
           '<div class="film-main">' +
             '<section><h2 class="label">Overview</h2><p class="lede" data-slot="overview">' + (desc() ? esc(desc()) : '<span class="skeleton-line"></span><span class="skeleton-line"></span><span class="skeleton-line short"></span>') + "</p></section>" +
+            '<section data-slot="trailer" hidden></section>' +
             '<section data-slot="credits">' + credits(m) + "</section>" +
             franchiseBlock(film) +
             '<section><h2 class="label">Details</h2><div data-slot="details">' + detailsList(film, m) + "</div>" + links(film) + "</section>" +
@@ -232,11 +233,31 @@
       slot("details").innerHTML = detailsList(film, m);
       const tr = $('[data-fa="trailer"]', el);
       if (tr) tr.hidden = !(m && m.trailer);
+      showTrailer();
       setBackdrop();
       const poster = $(".film-poster .art", el);
       if (poster && !poster.querySelector("img.is-in") && FL.meta.idFor(film)) {
         poster.outerHTML = art(film, { size: "medium", eager: true });
       }
+    }
+
+    /* The trailer, right on the page: a still with a play button that turns into the video in place. */
+    function showTrailer() {
+      const box = slot("trailer");
+      if (!box || !m || !m.trailer || box.dataset.id === m.trailer) return;
+      box.dataset.id = m.trailer;
+      box.hidden = false;
+      box.innerHTML = '<h2 class="label">Trailer</h2><button type="button" class="trailer-inline" data-fa="play-trailer" aria-label="Play the trailer">' +
+        '<img src="https://i.ytimg.com/vi/' + esc(m.trailer) + '/hqdefault.jpg" alt="" loading="lazy" referrerpolicy="no-referrer">' +
+        '<span class="trailer-play">' + icon("play") + "</span></button>";
+    }
+    function playTrailer() {
+      const box = slot("trailer");
+      if (!box || !m || !m.trailer) return;
+      box.hidden = false;
+      box.querySelector(".trailer-inline, .trailer-frame").outerHTML = '<div class="trailer-frame"><iframe src="https://www.youtube-nocookie.com/embed/' + esc(m.trailer) +
+        '?autoplay=1&rel=0&modestbranding=1&playsinline=1" title="' + esc(film.title) + ' trailer" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>';
+      box.scrollIntoView({ behavior: FL.theme.calm() ? "auto" : "smooth", block: "center" });
     }
 
     /* "More from Rajkumar Hirani": the director's other films, fetched once per session. */
@@ -284,7 +305,7 @@
         } else {
           FL.store.setSeen(film, !st.watched);
         }
-      } else if (name === "trailer" && m && m.trailer) FL.player.trailer(film, m.trailer);
+      } else if ((name === "trailer" || name === "play-trailer") && m && m.trailer) playTrailer();
       else if (name === "play") location.hash = "#/watch/" + encodeURIComponent(film.id);
     }
 

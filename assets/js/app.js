@@ -166,7 +166,24 @@
     }
     FL.ui.watchPosters(viewEl);
     setNav(name);
+    watchPageSearch();
     blink();
+  }
+
+  /* Pages with their own big search (Home, Browse) keep the top bar's search hidden until theirs scrolls away;
+     page changes then morph one search bar into the other (view-transition-name "search"). */
+  let searchObs = null;
+  function watchPageSearch() {
+    const root = document.documentElement;
+    if (searchObs) { searchObs.disconnect(); searchObs = null; }
+    const own = viewEl.querySelector("[data-page-search]");
+    root.classList.toggle("has-page-search", !!own);
+    root.classList.remove("search-docked");
+    if (!own || !("IntersectionObserver" in window)) return;
+    const bar = document.querySelector(".topbar");
+    searchObs = new IntersectionObserver(([en]) => root.classList.toggle("search-docked", !en.isIntersecting),
+      { rootMargin: -((bar && bar.offsetHeight) || 64) + "px 0px 0px 0px" });
+    searchObs.observe(own);
   }
 
   /* The logo's shutter closes and reopens as you move between pages. */
@@ -321,6 +338,7 @@
   /* ---------- boot ---------- */
 
   FL.app = {
+    watchSearch: () => watchPageSearch(),
     refresh() {
       const { path, query } = parse();
       const { name, params } = match(path);

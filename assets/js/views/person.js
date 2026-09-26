@@ -59,6 +59,10 @@
         });
         list = Array.from(byId.values());
         paint();
+        // Titles that came only from Wikidata get their rating, genres and language filled in quietly.
+        list.filter((x) => x.film.remote && !x.film.rating).slice(0, 40).forEach((x) => {
+          FL.meta.details(x.film).then(() => { if (alive) FL.ui.refreshFilm(x.film.id); });
+        });
       }).catch(() => { if (alive) $("[data-pworks]", el).innerHTML = FL.ui.empty("Couldn’t load films.", "Check your connection and try again."); });
 
       function onClick(e) {
