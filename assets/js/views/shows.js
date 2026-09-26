@@ -140,12 +140,36 @@
         return FL.ui.segmented("season", order.map((x) => [x, x === 0 ? "Specials" : "S" + x]), season);
       }
 
+      /* Cinemeta's cast first, then the rest Wikidata lists (best known first), with the parts they play. */
+      let wdCast = null;
+      function castNames() {
+        const out = [];
+        const seen = new Set();
+        const norm = FL.util.normalize;
+        const cast = (wdCast || []).filter((x) => x.role === "Cast");
+        const played = new Map(cast.filter((x) => x.character).map((x) => [norm(x.name), x.character]));
+        const push = (n, ch) => { if (!seen.has(norm(n))) { seen.add(norm(n)); out.push([n, ch || ""]); } };
+        data.cast.slice(0, 10).forEach((n) => push(n, played.get(norm(n))));
+        cast.sort((a, b) => b.links - a.links).forEach((x) => { if (out.length < 24) push(x.name, x.character); });
+        return out;
+      }
+      function castHtml() {
+        const list = castNames();
+        return list.length ? '<h2 class="label">Cast &amp; hosts</h2><div class="people">' + list.map(([n, ch]) => { const part = ch.split(/,|\s[–—-]\s|\(/)[0].trim(); return FL.people.chip(n, part ? "as " + part : ""); }).join("") + "</div>" : "";
+      }
+      function paintCast() {
+        const box = $(".show-cast", el);
+        if (!box) return;
+        box.innerHTML = castHtml();
+        FL.people.photos(castNames().map((x) => x[0])).then(() => { if (alive) FL.people.paint(box); });
+      }
+
       function render() {
         el.innerHTML = '<article class="film show">' + header() +
           '<div class="container film-body">' +
             '<div class="film-main">' +
               (show.desc ? '<section><h2 class="label">About</h2><p class="lede">' + esc(FL.util.prose(show.desc)) + "</p></section>" : "") +
-              (data.cast.length ? '<section class="show-cast"><h2 class="label">Cast &amp; hosts</h2><div class="people">' + data.cast.slice(0, 10).map((n) => FL.people.chip(n, "")).join("") + "</div></section>" : "") +
+              '<section class="show-cast">' + castHtml() + "</section>" +
               '<section class="show-season"><div class="season-nav">' + seasonsNav() + '</div><div data-episodes>' + episodes() + "</div></section>" +
             "</div>" +
             '<aside class="film-record panel" aria-label="Your record"><h2 class="h3">Your rating</h2>' + ratingWidget(show) +
@@ -164,7 +188,11 @@
           box.appendChild(img);
         }
         FL.ui.watchPosters(el);
-        if (data.cast.length) FL.people.photos(data.cast.slice(0, 10)).then(() => { if (alive) FL.people.paint(el); });
+        paintCast();
+        if (!wdCast) {
+          wdCast = [];
+          FL.people.credits(show.imdbId || show.id).then((list) => { if (alive && list.length) { wdCast = list; paintCast(); } });
+        }
         const on = el.querySelector(".season-nav .is-on");
         if (on) on.scrollIntoView({ inline: "center", block: "nearest" });
       }

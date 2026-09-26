@@ -105,14 +105,5 @@
     return ' data-mood="' + m.id + '" style="--mood-font:\'' + m.font + '\';--mood-size:' + m.size + ";--mood-track:" + m.track + '"';
   }
 
-  /* ---------- care ---------- */
-
-  const CARE = [
-    [60, "An hour in. Sip some water.", "💧"],
-    [120, "Two hours! Stretch, blink, breathe.", "🧘"],
-    [180, "Three hours… maybe pause for real?", "🌙"],
-    [240, "Marathon mode. Your eyes deserve a break.", "👀"],
-  ];
-
-  FL.voice = { greeting, signoff, mood, moodAttrs, CARE, MOODS };
+  FL.voice = { greeting, signoff, mood, moodAttrs, MOODS };
 })(window.FL = window.FL || {});

@@ -596,14 +596,108 @@
     return SEQ_ALIAS[t] || t;
   }
 
+  /* A title that is plainly an instalment: "Baaghi 2", "Golmaal Returns", "Phir Hera Pheri", "K.G.F: Chapter 2",
+     "Kantara: Chapter 1", or a renamed one listed in SEQ_ALIAS. Numbers stop at 9: "Apollo 13" and "Passenger 57" aren't. */
+  const SEQ_MARK = /\s(?:[2-9]|ii|iii|iv|v|vi|vii|(?:part|chapter) (?:\d|one|two|three|i{1,3})|returns?|again|back|reloaded|rises|forever|resurrection|the (?:conclusion|revenge|rule|rampage|final chapter))$/;
+  const SEQ_LEAD = /^(?:phir|lage raho|the return of|return of the|return of|son of)\s/;
+  function sequelMarked(title) {
+    const head = normalize(String(title).split(/\s*[:–—]\s*|\s+-\s+/)[0]);
+    const full = normalize(title);
+    return SEQ_MARK.test(head) || SEQ_MARK.test(full) || /\s(?:part|chapter) (?:\d|one|two|three|i{1,3})\b/.test(full) || SEQ_LEAD.test(head) || !!SEQ_ALIAS[head];
+  }
+
+  /* ---------- film series from Wikidata (data/series.js) ----------
+     Wikidata's "part of the series" is the authority wherever it has the series: Rocky runs Rocky → Creed III, RoboCop
+     2014 stays a reboot, Baaghi 1990 isn't a Baaghi film. Each entry is the bundled or web film with that IMDb id (or
+     title and year); films Iris hasn't met yet are stand-ins from Wikidata's name and year, and opening one fetches it. */
+  const WD = (window.FILM_SERIES || []).map(([id, name, members]) => ({
+    id, name, members: members.map(([tt, year, title]) => ({ tt, year, title })),
+  }));
+  const standIns = new Map();
+  let wdIndex = { v: -1, byFilm: new Map(), byTt: new Map(), list: [] };
+
+  function standIn(m) {
+    if (!standIns.has(m.tt)) {
+      const f = {
+        id: m.tt, imdbId: m.tt, type: "movie", title: m.title, year: m.year || 0, endYear: 0, lang: "Global", region: "",
+        genres: [], rating: null, votes: null, date: "", wiki: m.title, poster: "", desc: "", universe: "", era: "", order: "",
+        rank: 60, pop: 10, remote: true, standIn: true,
+      };
+      index(f);
+      standIns.set(m.tt, f);
+    }
+    return standIns.get(m.tt);
+  }
+
+  const memberFilm = (m) => byImdb.get(m.tt) || m.local || standIn(m);
+
+  function wikidata() {
+    if (wdIndex.v === version) return wdIndex;
+    const byFilm = new Map();
+    const byTt = new Map();
+    const used = new Set();
+    const list = WD.map((s) => {
+      s.members.forEach((m) => {
+        m.local = byImdb.get(m.tt) || findLocal(m.tt, m.title, m.year) || null;
+        if (m.local && !m.local.imdbId && !byImdb.has(m.tt)) byImdb.set(m.tt, m.local);
+      });
+      // Readable, stable ids ("s-rocky"), the same shape as before, so saved links keep working.
+      let key = stemOf(s.name).replace(/ /g, "") || s.id.toLowerCase();
+      if (used.has(key)) key += "-" + s.id.toLowerCase();
+      used.add(key);
+      const entry = { id: "s-" + key, key: "wd-" + s.id, wid: s.id, name: s.name, source: s };
+      s.members.forEach((m) => {
+        if (!byTt.has(m.tt)) byTt.set(m.tt, []);
+        byTt.get(m.tt).push(entry);
+        if (m.local) {
+          if (!byFilm.has(m.local.id)) byFilm.set(m.local.id, []);
+          byFilm.get(m.local.id).push(entry);
+        }
+      });
+      return entry;
+    });
+    wdIndex = { v: version, byFilm, byTt, list };
+    return wdIndex;
+  }
+
+  /* The films of a Wikidata series in release order, plus newer numbered instalments Iris knows that Wikidata doesn't
+     list yet (KGF: Chapter 3). */
+  function wdFilms(entry) {
+    const films = entry.source.members.map(memberFilm);
+    const known = films.filter((f) => !f.standIn);
+    const keys = new Set(known.map(seriesKey).filter(Boolean));
+    const langs = new Set(known.map((f) => f.lang));
+    const last = Math.max(0, ...films.map((f) => f.year || 0));
+    if (!seriesIndex || seriesVersion !== version) buildSeries();
+    keys.forEach((k) => (seriesIndex.get(k) || []).forEach((f) => {
+      if (films.indexOf(f) === -1 && (f.year || 9999) > last && langs.has(f.lang) && sequelMarked(f.title) && !wikidata().byFilm.has(f.id)) films.push(f);
+    }));
+    return films.sort(byRelease);
+  }
+
+  function wikidataSeriesOf(film) {
+    if (film.type === "series") return null;
+    const w = wikidata();
+    const tt = film.imdbId || (FL.meta && FL.meta.idFor(film)) || "";
+    const list = w.byFilm.get(film.id) || (tt && w.byTt.get(tt)) || null;
+    if (!list) return null;
+    // The most specific series: the Iron Man films, not all 38 of the MCU.
+    const entry = list.slice().sort((a, b) => a.source.members.length - b.source.members.length)[0];
+    return { key: entry.key, id: entry.id, name: entry.name, films: wdFilms(entry) };
+  }
+
   let seriesIndex = null;
   let seriesVersion = 0;
+
+  // Stems that are only filler once "The Return" or "The 33" lose their sequel words.
+  const STEM_FILLER = new Set(["the", "a", "an", "and", "of", "part", "chapter", "return", "returns", "back", "again", "movie", "film"]);
 
   function seriesKey(f) {
     if (f.type === "series") return "";
     if (f.stemKey === undefined) {
-      const s = stemOf(f.title).replace(/ /g, "");
-      f.stemKey = s.length >= 3 ? s : "";
+      const stem = stemOf(f.title);
+      const s = stem.replace(/ /g, "");
+      f.stemKey = s.length >= 3 && !STEM_FILLER.has(stem) && !/^\d+$/.test(s) ? s : "";
     }
     return f.stemKey;
   }
@@ -621,25 +715,42 @@
 
   const byRelease = (a, b) => (a.year || 9999) - (b.year || 9999) || (a.date || "").localeCompare(b.date || "") || a.rank - b.rank;
 
-  /* { name, films } in release order, or null. Needs at least one title that differs from the stem —
-     films that merely share a title (two unrelated "Race"s) don't make a series. */
+  /* { key, name, films } in release order, or null. Wikidata first; otherwise films sharing a title stem, strictly:
+     a film counts only as a marked instalment ("Baaghi 2") or as the one original those follow — the latest
+     same-named film before the first sequel, within 15 years (Baaghi 2016, not the 1990 Baaghi; Golmaal 2006, not
+     1979). Films that merely share a title ("Super", "Super 8", "The Super") never make a series. */
   function series(film) {
+    const wd = wikidataSeriesOf(film);
+    if (wd) return wd.films.length >= 2 ? wd : null;
     if (!seriesIndex || seriesVersion !== version) buildSeries();
     const k = seriesKey(film);
     // Same language only ("War" 2019 isn't a sequel to the 2007 English "War"); web finds come from targeted searches.
-    const members = k ? (seriesIndex.get(k) || []).filter((f) => f.lang === film.lang || f.remote || film.remote) : null;
+    const w = wikidata();
+    const members = k ? (seriesIndex.get(k) || []).filter((f) => (f.lang === film.lang || f.remote || film.remote) && !w.byFilm.has(f.id)) : null;
     if (!members || members.length < 2) return null;
-    if (!members.some((f) => f.key.replace(/^the /, "").replace(/ /g, "") !== k)) return null;
-    // Several films with the very same title are namesakes or remakes, not instalments: keep the one that belongs —
-    // the film you're on, else the bundled one, else the best documented (Hera Pheri 2000, not the 1976 or 2020 ones).
+    // One film per title: the one you're on, else the bundled one, else the best documented.
     const standing = (f) => (f === film ? 1e9 : 0) + (f.remote ? 0 : 1e6) + (f.votes || 0) + (f.rating ? 1000 : 0) + (/metahub/.test(f.poster || "") ? 0 : 100);
+    const sequels = [];
+    const bases = [];
+    members.forEach((f) => (sequelMarked(f.title) ? sequels : bases).push(f));
+    const dated = sequels.filter((f) => f.year);
+    if (!dated.length) return null;
+    const first = Math.min(...dated.map((f) => f.year));
+    const lastSeq = Math.max(...dated.map((f) => f.year));
+    // One original — the latest same-named film up to the first sequel — plus unmarked films between sequels
+    // (Krrish 2006, between Koi... Mil Gaya and Krrish 3), one per title.
+    const before = bases.filter((f) => f.year && f.year <= first && first - f.year <= 15)
+      .sort((a, b) => b.year - a.year || standing(b) - standing(a))[0];
+    const originals = before ? [before] : [];
+    bases.filter((f) => f.year > first && f.year <= lastSeq).sort((a, b) => a.year - b.year || standing(b) - standing(a))
+      .forEach((f) => { if (!originals.some((o) => o.key === f.key)) originals.push(f); });
     const best = new Map();
-    members.forEach((f) => {
+    sequels.concat(originals).forEach((f) => {
       const cur = best.get(f.key);
       if (!cur || standing(f) > standing(cur)) best.set(f.key, f);
     });
     const list = Array.from(best.values()).sort(byRelease);
-    if (list.length < 2) return null;
+    if (list.length < 2 || list.indexOf(film) === -1 && !list.some((f) => f.key === film.key && f.year === film.year)) return null;
     const shortest = list.slice().sort((a, b) => a.title.length - b.title.length)[0];
     const head = shortest.title.split(/\s*[:–—]\s*/)[0];
     const named = /^(Harry Potter|Indiana Jones|Percy Jackson)\b/i.exec(head);
@@ -684,11 +795,12 @@
     const own = new Set(film.genres);
     const hero = !!film.universe;
     const mySeries = seriesKey(film);
+    const sameSeries = new Set(((series(film) || {}).films || []).map((f) => f.id)); // shown separately as the series
     const scored = [];
     for (let i = 0; i < films.length; i++) {
       const f = films[i];
       if (f === film || f.key === film.key || f.type !== film.type) continue;
-      if (mySeries && seriesKey(f) === mySeries) continue; // shown separately as the series
+      if (sameSeries.has(f.id) || (mySeries && seriesKey(f) === mySeries && sequelMarked(f.title))) continue;
       if (hero ? !f.universe : f.lang !== film.lang) continue;
       let overlap = 0;
       f.genres.forEach((g) => { if (own.has(g)) overlap += g === "Drama" ? 1 : 3; });
@@ -752,6 +864,19 @@
     const next = nextInSeries();
     const nextIds = new Map(next.map((x) => [x.film.id, x.reason]));
     const cy = new Date().getFullYear();
+    // Film to film: the closest matches to what you rated highest ("Because you liked Drishyam" then means it)…
+    const near = new Map(); // film id -> [[closeness, liked film]…], closest first
+    p.liked.slice(0, 10).forEach((liked) => similar(liked, 30).forEach((f, i) => {
+      if (!near.has(f.id)) near.set(f.id, []);
+      near.get(f.id).push([(30 - i) / 30, liked]);
+    }));
+    near.forEach((list) => list.sort((a, b) => b[0] - a[0]));
+    // …and the closest matches to what you rated 1–2 sink.
+    const far = new Set();
+    watched.filter((e) => e.rating && e.rating <= 2).slice(0, 6).forEach((e) => {
+      const d = byId.get(e.id);
+      if (d) similar(d, 20).forEach((f) => far.add(f.id));
+    });
     const scored = [];
     for (let i = 0; i < films.length; i++) {
       const f = films[i];
@@ -767,32 +892,62 @@
       s += (p.d[Math.floor(f.year / 10)] || 0);
       // Quality counts as much as taste. Ratings are weighted by votes like IMDb's Top 250, so a 9.1 from
       // 33 people counts as roughly a 6.5.
-      const r = f.rating && f.votes ? (f.votes * f.rating + 3000 * 6.5) / (f.votes + 3000) : f.rating;
+      // An unknown vote count counts as few: a web title rated 8.9 by who-knows-how-many isn't a sure thing.
+      const r = f.rating ? ((f.votes || 300) * f.rating + 3000 * 6.5) / ((f.votes || 300) + 3000) : f.rating;
       s += r ? (r - 6.8) * 2.2 : -1.5;
       s += f.votes ? Math.min(3, Math.max(0, Math.log10(f.votes) - 3)) : (f.pop || 0) / 30;
       if (!f.imdbId && !f.poster) s -= 1;
       if (st.listed) s -= 0.5;
       if (nextIds.has(f.id)) s += 8;
+      if (near.has(f.id)) s += near.get(f.id)[0][0] * 3 + (near.get(f.id).length - 1) * 0.4; // close to several = better
+      if (far.has(f.id)) s -= 2;
+      if (f.year >= cy - 2) s += 0.8; // new releases, a little
       if (s > 0.5) scored.push([s, f]);
     }
     scored.sort((a, b) => b[0] - a[0]);
 
+    // Variety: each further film with the same lead genre and language costs a little, so a row isn't ten Hindi
+    // thrillers in a row. One film per series.
+    const pool = scored.slice(0, 200);
+    const kinds = {};
+    const ordered = [];
+    while (pool.length && ordered.length < 90) {
+      let bi = 0;
+      let bs = -Infinity;
+      for (let i = 0; i < pool.length; i++) {
+        const f = pool[i][1];
+        const adj = pool[i][0] - 0.9 * (kinds[(f.genres[0] || "") + "|" + f.lang] || 0);
+        if (adj > bs) { bs = adj; bi = i; }
+      }
+      const [x] = pool.splice(bi, 1);
+      const kind = (x[1].genres[0] || "") + "|" + x[1].lang;
+      kinds[kind] = (kinds[kind] || 0) + 1;
+      ordered.push(x);
+    }
+
     const perSeries = {};
     const out = [];
-    for (let i = 0; i < scored.length && out.length < 60; i++) {
-      const f = scored[i][1];
+    const told = {}; // each liked film explains at most three picks, so the reasons vary
+    for (let i = 0; i < ordered.length && out.length < 60; i++) {
+      const f = ordered[i][1];
       const k = seriesKey(f) || f.id;
       if ((perSeries[k] = (perSeries[k] || 0) + 1) > 1) continue;
       let reason = nextIds.get(f.id) || "";
+      const because = (l) => { told[l.id] = (told[l.id] || 0) + 1; reason = "Because you liked " + l.title; };
+      if (!reason && near.has(f.id)) {
+        const hit = near.get(f.id).find(([, l]) => (told[l.id] || 0) < 3);
+        if (hit) because(hit[1]);
+      }
       if (!reason) {
         let best = null;
         let bestOverlap = 0;
         p.liked.forEach((l) => {
+          if ((told[l.id] || 0) >= 3) return;
           let o = l.lang === f.lang ? 1 : 0;
           l.genres.forEach((x) => { if (f.genres.indexOf(x) !== -1) o += x === "Drama" ? 0.5 : 2; });
           if (o > bestOverlap) { best = l; bestOverlap = o; }
         });
-        if (best && bestOverlap >= 2.5) reason = "Because you liked " + best.title;
+        if (best && bestOverlap >= 2.5) because(best);
       }
       if (!reason) {
         const g = f.genres.slice().sort((a, b) => (p.g[b] || 0) - (p.g[a] || 0))[0];
@@ -838,10 +993,21 @@
     if (!seriesIndex || seriesVersion !== version) buildSeries();
     const out = franchises().map((g) => Object.assign({ kind: "universe" }, g));
     const seen = new Set();
+    const ids = new Set(out.map((c) => c.id));
+    // Wikidata's series that include a film Iris knows (the obscure ones, never met, stay out).
+    wikidata().list.forEach((entry) => {
+      const list = wdFilms(entry);
+      const known = list.filter((f) => !f.standIn);
+      if (list.length < 2 || !known.length || ids.has(entry.id)) return;
+      if (known.filter((f) => f.universe).length * 2 >= known.length) return; // covered by a universe collection
+      ids.add(entry.id);
+      known.forEach((f) => { const k = seriesKey(f); if (k) seen.add(k); });
+      out.push({ id: entry.id, name: entry.name, films: list, kind: "series", source: "wikidata", audience: list.reduce((n, f) => n + (f.votes || 0), 0) });
+    });
     seriesIndex.forEach((members) => {
-      const anchor = members.find((f) => !f.remote) || members[0];
+      const anchor = members.find((f) => !f.remote && sequelMarked(f.title)) || members.find((f) => !f.remote) || members[0];
       const s = anchor && series(anchor);
-      if (!s || seen.has(s.key) || s.films.length < 3) return;
+      if (!s || seen.has(s.key) || ids.has("s-" + s.key) || s.films.length < 3 || /^wd-/.test(s.key)) return;
       seen.add(s.key);
       if (s.films.filter((f) => f.universe).length * 2 >= s.films.length) return; // covered by a universe collection
       const audience = s.films.reduce((n, f) => n + (f.votes || 0), 0);

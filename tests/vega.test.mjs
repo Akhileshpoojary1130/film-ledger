@@ -1,7 +1,7 @@
 // Unit tests for the Vega lookup's matching and clean-up (no network): node --test tests/
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseTitle, similar, queries, playerOptions, episodeOf, cleanUrl, episodeLink, GONE } from "../api/vega.js";
+import { parseTitle, similar, queries, playerOptions, episodeOf, cleanUrl, episodeLink, GONE, language, posterOf } from "../api/vega.js";
 
 test("parseTitle reads name, year and season off Vega's post titles", () => {
   assert.deepEqual(
@@ -80,4 +80,21 @@ test("GONE spots dead-video pages only", () => {
   assert.ok(GONE.test("This file was deleted by the owner"));
   assert.ok(!GONE.test("<title>Loading...</title>"));
   assert.ok(!GONE.test("<title>Dangal (2016) Hindi HD Netflix - 720P.mkv</title>"));
+});
+
+test("language reads Vega's tag after the year", () => {
+  assert.deepEqual(language("KGF Chapter 2 (2022) Hindi Dubbed"), { lang: "", dubbed: true });
+  assert.deepEqual(language("Awarapan 2 (2026) Hindi"), { lang: "Hindi" });
+  assert.deepEqual(language("Laatu (2018) Punjabi HD"), { lang: "OtherIndian", region: "Punjabi" });
+  assert.deepEqual(language("Some Film (2020)"), { lang: "" });
+});
+
+test("posterOf turns Vega's thumbnails into full-size posters", () => {
+  assert.equal(posterOf("https://vegamovito.run/wp-content/uploads/2025/09/52G8MVrrcmS7lHjDRnQbJz3VtkW-90x135.jpg"),
+    "https://image.tmdb.org/t/p/w342/52G8MVrrcmS7lHjDRnQbJz3VtkW.jpg");
+  assert.equal(posterOf("https://vegamovito.run/wp-content/uploads/2022/04/khNVygolU0TxLIDWff5tQlAhZ23-1-200x300-1-90x135.jpg"),
+    "https://image.tmdb.org/t/p/w342/khNVygolU0TxLIDWff5tQlAhZ23.jpg");
+  assert.equal(posterOf("https://vegamovito.run/wp-content/uploads/2026/05/download-5-90x135.jpg"),
+    "https://vegamovito.run/wp-content/uploads/2026/05/download-5.jpg");
+  assert.equal(posterOf(""), "");
 });

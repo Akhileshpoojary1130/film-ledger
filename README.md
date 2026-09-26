@@ -22,22 +22,31 @@ Live: https://film-ledger-mocha.vercel.app/
   language, to-watch / watched / **Must watch**.
 - **Must watch** — a tag on films rated 8+ by enough people (or 7.8+ by a huge audience).
 - **Watch later** — the bookmark on every poster; it stays visible once saved. Watched films show one tick.
-- **Collections** — 140+ in release order: the superhero universes plus film series found by title (Harry Potter,
-  Pirates of the Caribbean, Mission: Impossible, Dhoom, Golmaal, Bhool Bhulaiyaa, KGF, Pushpa, Kantara…).
+- **Collections** — 300+ in release order: the superhero universes, film series from **Wikidata** ("part of the
+  series": Rocky → Creed III, Jurassic Park → Jurassic World, the Bond films, Dhoom, Housefull, K.G.F…) and, for series
+  Wikidata doesn't have, strict title rules: a film joins only as a marked instalment (*Baaghi 2*, *Golmaal Returns*,
+  *Phir Hera Pheri*, *Kantara: Chapter 1*) or the one original they follow, so namesakes (Baaghi 1990) and look-alikes
+  (*Super 8*, *Apollo 13*) stay out. Films Iris hasn't met yet appear from Wikidata and open like any other.
 - **Shows** — Indian reality & talent (Bigg Boss, India's Got Talent, Lock Upp…), **Indian web series** (Mirzapur,
   Panchayat, The Family Man, Scam 1992, Kota Factory…), popular and reality series worldwide. Seasons and episodes
   are fetched live, so new ones appear on their own.
-- **Search** — `⌘K` / `Ctrl K`, tolerant of spellings and typos; anything not bundled is fetched from the web.
-- **Film page** — live IMDb score, the **trailer inline** (a still that plays in place), cast & crew with small photos
-  (tap one for their full filmography, from Wikidata), the series in order, *More from* the director, similar films,
-  rating, watch dates, *Where to watch*.
+- **Search** — `⌘K` / `Ctrl K`, tolerant of spellings and typos; anything not bundled is fetched from the web, and
+  **On Vega** lists Vega's own uploads Iris doesn't have yet (new and dubbed releases), ready to play.
+- **Film page** — live IMDb score, the **trailer inline** (a still that plays in place), the **full cast** with the
+  parts they play (Wikidata adds everyone after Cinemeta's leads), director, writers, music and camera, with photos
+  (tap one for their full filmography), the series in order, *More from* the director, similar films, rating, watch
+  dates, *Where to watch*. Shows get their full cast too.
+- **For you** — scored on your taste (genres, languages, decades) and quality, lifted for films closest to the ones
+  you rated highest, lowered for ones like those you rated 1–2, a little for new releases; varied so a row isn't one
+  genre, and each "Because you liked…" is honest about which film.
 - **Trailer on hover** — rest the mouse on a poster for ~3 seconds and its trailer plays, muted, inside it
   (Settings → More to turn off).
 - **Diary** — films you tick appear on the day you ticked them; films you play fill the calendar.
 - **Stats** — films, hours, genres, languages, decades, ratings vs IMDb, **faces you watch most**, directors, **time
   of day** and **day of the week** you watch, records.
-- **Care** — during long sessions a small Iris character peeks in at the top right for five seconds: water after an
-  hour, a stretch after two, and a nudge if it's very late.
+- **Break reminders** — on long sittings (anywhere in Iris, not only while watching) a little friend drops in at the
+  top right for five seconds: water at 45 minutes, a stretch at 1½ hours, rest your eyes, and a nudge if it's past
+  midnight. A cat by default, or a dog, or the Iris aperture (Settings → Home, or Off). Tap it to send it away.
 - **Movie night** — send a friend a link to your Watch later (Library → Movie night). When they open it, Iris shows
   the films you've both saved (best three first, ready to play), what they want to watch that you don't (one tap on
   the bookmark moves it to the shared list), and what you've already seen. They can send theirs back; recent movie
@@ -48,8 +57,9 @@ Live: https://film-ledger-mocha.vercel.app/
 New visitors start in Cupertino, high-contrast dark, clear glass over a slow aurora, calm motion. Settings →
 Appearance, in order:
 
-1. **Style** — Cinema, Material (Android), Cupertino (Apple), Fluent (Windows 11), One UI (Samsung) or Glyph
-   (dot-matrix, Nothing-style): type, shapes and controls.
+1. **Style** — Cinema, Material (Android), Cupertino (Apple), Fluent (Windows 11), One UI (Samsung), Glyph
+   (dot-matrix, Nothing-style) or **Pop** (neo-brutalist: ink outlines, hard shadows, flat colour, buttons that press
+   in): type, shapes and controls. The active tab's highlight glides between tabs.
 2. **Glass & background** — liquid glass (off → clear), a background (*Lights* drifting dimly behind frosted glass,
    or *Aurora*), and motion (Full / Calm).
 3. **Colour** — dark / light / auto, 44 palettes (scroll the strip), any accent colour.
@@ -121,22 +131,25 @@ index.html            shell, boot loader, early theme
 movie.html            redirect for old links
 api/vega.js           Vercel Edge function: finds a title on Vega and returns its player links
 tests/                unit tests (node --test), live server check, in-browser page sweep
+tools/build-series.mjs  builds data/series.js from Wikidata (about a minute)
 data/catalogue.js     the bundled vault (window.FILM_STATIC_CATALOGUE, schema 2)
+data/series.js        film series from Wikidata (window.FILM_SERIES) — regenerate with node tools/build-series.mjs
 assets/app.css        one token system; theme × mode blocks at the top
 assets/js/
   util.js             helpers, safe storage, fetch with timeout, limiter
   catalogue.js        normalisation, search + autocorrect, browse, series detection, recommendations
   store.js            library, episodes, prefs, recent searches, migration, backup
   theme.js            styles, palettes, glass, motion, accents, the aperture mark
-  voice.js            time-of-day lines, mood typefaces, care messages
+  voice.js            time-of-day lines, mood typefaces
   ambient.js          Lights (canvas) and Aurora backgrounds
   meta.js             IMDb resolution, Cinemeta details, poster chain
   remote.js           web titles: search, year catalogues, Wikipedia year lists, shows & episodes
-  people.js           cast & crew portraits (Wikipedia), filmographies, favourite people
+  people.js           cast & crew portraits (Wikipedia, Wikidata), full credits from Wikidata, filmographies, favourite people
   persist.js          File System Access backup file
   ui.js               icons, cards, rails, rating, reveal & tilt motion, toasts, modals
   share.js            packing, QR codes (qrcode-generator), camera scanner (BarcodeDetector / jsQR), share links
   player.js           theatre player, server choice (fixed hosts + Vega's per-title links), auto-logging
+  pet.js              break reminders: the cat / dog / Iris companion and the sitting timer
   palette.js          ⌘K palette, surprise me, settings, shortcuts
   views/              home, years (dial), browse, film, shows, person, library + collections + diary, insights (stats),
                       together (Move and Movie night)

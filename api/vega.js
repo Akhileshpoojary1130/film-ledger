@@ -5,7 +5,9 @@
 
    GET /api/vega?title=K.G.F: Chapter 2&year=2022&imdb=tt10698680
    GET /api/vega?title=Mirzapur&imdb=tt6473300&s=3&e=4
-   → { match: { id, title } | null, servers: [{ label, url }] } */
+   → { match: { id, title } | null, servers: [{ label, url }] }
+   GET /api/vega?q=awarapan   (search, for Iris's search box)
+   → { results: [{ post, title, year, lang, region, dubbed, poster }] } */
 // Edge, not Node: Vega's Cloudflare answers 403 to Vercel's Node functions (AWS addresses) but lets the Edge network in.
 export const config = { runtime: "edge" };
 
@@ -82,7 +84,7 @@ async function search(keyword) {
   if (!data || data.error) return [];
   // Object keys that look like numbers iterate in numeric order; read the ids off the text to keep relevance order.
   const ids = [...text.matchAll(/"(\d+)"\s*:\s*\{/g)].map((m) => m[1]).filter((id) => data[id]);
-  return ids.map((id) => Object.assign({ id: +id, url: String(data[id].url || "") }, parseTitle(data[id].title)));
+  return ids.map((id) => Object.assign({ id: +id, url: String(data[id].url || ""), img: String(data[id].img || "") }, parseTitle(data[id].title)));
 }
 
 /* Search matches every word anywhere in a post, and Vega writes "KGF" and "K.G.F" in different posts — so try a few spellings. */
@@ -194,6 +196,32 @@ async function lookup({ title, year, imdb, s, e }) {
   return { match: null, servers: [] };
 }
 
+/* Vega's language tag after the year: "Hindi" (a Hindi film), "Hindi Dubbed", "Punjabi HD"… */
+const INDIAN = /\b(Tamil|Telugu|Malayalam|Kannada|Marathi|Bengali|Punjabi|Gujarati)\b/;
+function language(title) {
+  const rest = (title.match(/\(\d{4}\)\s*(.*)$/) || [])[1] || "";
+  if (/dubbed/i.test(rest)) return { lang: "", dubbed: true };
+  const regional = rest.match(INDIAN);
+  if (regional) return { lang: "OtherIndian", region: regional[1] };
+  return /\bHindi\b/.test(rest) ? { lang: "Hindi" } : { lang: "" };
+}
+
+/* Vega names most uploads after their TMDB poster ("52G8MV…-90x135.jpg"): TMDB's own server has that poster at full
+   size; otherwise the upload without its thumbnail size. */
+function posterOf(img) {
+  const m = String(img).match(/\/([A-Za-z0-9]{24,32})(?:-[\dx]+)*\.(jpg|jpeg|png|webp)$/); // "…ZlsU0-1-200x300-1-90x135.jpg"
+  if (m) return "https://image.tmdb.org/t/p/w342/" + m[1] + "." + m[2];
+  return /^https:\/\//.test(img) ? img.replace(/-\d+x\d+(?=\.\w+$)/, "") : "";
+}
+
+/* Search mode, for Iris's search box: Vega's titles for a query, films only (seasons and daily episodes are reached
+   through Iris's own shows). [{ post, title, year, lang, region, dubbed, poster }] */
+async function find(query) {
+  const hits = await search(query);
+  return hits.filter((h) => !h.season && !h.daily && h.year).slice(0, 8).map((h) => Object.assign(
+    { post: h.id, title: h.name.replace(/\s+/g, " ").trim(), year: h.year, poster: posterOf(h.img) }, language(h.title)));
+}
+
 export default async function handler(req) {
   const q = new URL(req.url).searchParams;
   const int = (k, max) => { const n = parseInt(q.get(k), 10); return n > 0 && n <= max ? n : 0; };
@@ -208,6 +236,15 @@ export default async function handler(req) {
     status,
     headers: { "content-type": "application/json; charset=utf-8", "access-control-allow-origin": "*", "cache-control": cache },
   });
+  const query = String(q.get("q") || "").trim().slice(0, 80);
+  if (query) {
+    if (query.length < 3) return reply(200, { results: [] }, "public, max-age=3600, s-maxage=86400");
+    try {
+      return reply(200, { results: await find(query) }, "public, max-age=900, s-maxage=3600, stale-while-revalidate=86400");
+    } catch (err) {
+      return reply(502, { error: String((err && err.message) || err) }, "no-store");
+    }
+  }
   if (!input.title || (input.s && !input.e)) return reply(400, { error: "title (and e with s) required" }, "no-store");
   try {
     const out = await lookup(input);
@@ -221,4 +258,4 @@ export default async function handler(req) {
 }
 
 // For tests/vega.test.mjs.
-export { parseTitle, similar, queries, playerOptions, episodeOf, cleanUrl, episodeLink, GONE, RETIRED };
+export { parseTitle, similar, queries, playerOptions, episodeOf, cleanUrl, episodeLink, GONE, RETIRED, language, posterOf };

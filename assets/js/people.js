@@ -90,7 +90,7 @@
   const info = (name) => cache[name] || null;
   const initials = (name) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
   // Crew (directors, writers) carry a hint so "Siddique" the writer-director isn't confused with Siddique the actor.
-  const isCrew = (role) => /Director|Writer/.test(role || "");
+  const isCrew = (role) => /Director|Writer|Music|Cinematography/.test(role || "");
   const href = (name, role) => "#/person/" + encodeURIComponent(name) + (isCrew(role) ? "?as=crew" : "");
 
   function face(name, size) {
@@ -164,7 +164,7 @@
     if (e && e.w && Date.now() - (e.wat || 0) < 14 * 864e5) return Promise.resolve(e.w);
     return qidFor(name, crew).then((qid) => {
       if (!qid) return [];
-      const sparql = 'SELECT ?imdb ?filmLabel ?date ?role ?kind WHERE { VALUES (?prop ?role) { (wdt:P161 "Cast") (wdt:P57 "Director") (wdt:P58 "Writer") } ' +
+      const sparql = 'SELECT ?imdb ?filmLabel ?date ?role ?kind WHERE { VALUES (?prop ?role) { (wdt:P161 "Cast") (wdt:P57 "Director") (wdt:P58 "Writer") (wdt:P86 "Music") (wdt:P344 "Cinematography") } ' +
         "VALUES ?kind { wd:Q11424 wd:Q5398426 } ?film ?prop wd:" + qid + " ; wdt:P31 ?kind ; wdt:P345 ?imdb . OPTIONAL { ?film wdt:P577 ?date } " +
         'SERVICE wikibase:label { bd:serviceParam wikibase:language "en". } }';
       return fetchJSON("https://query.wikidata.org/sparql?format=json&query=" + encodeURIComponent(sparql), { timeout: 20000 }).then((d) => {
@@ -223,6 +223,59 @@
     return p;
   }
 
+  /* ---------- full credits ---------- */
+
+  const CREDITS_KEY = "film_ledger_credits_v1";
+  const creditCache = storage.get(CREDITS_KEY, {}); // tt -> { at, c: [[name, role, character, image, links]] }
+  const creditJobs = new Map();
+
+  /* A film's whole billed cast (with the characters they play) and its director, writers, composer and
+     cinematographer, from Wikidata by IMDb id. Cinemeta names only the three or four leads; this fills in the rest,
+     and each person's Wikidata portrait saves a Wikipedia lookup. [{ name, role, character, links }] */
+  function credits(tt) {
+    if (!/^tt\d+$/.test(tt || "")) return Promise.resolve([]);
+    const hit = creditCache[tt];
+    if (hit && Date.now() - hit.at < TTL) return Promise.resolve(expand(hit.c));
+    if (creditJobs.has(tt)) return creditJobs.get(tt);
+    const sparql = 'SELECT ?role ?p ?pLabel ?img ?links ?char WHERE { ?f wdt:P345 "' + tt + '" . ' +
+      '{ ?f p:P161 ?st . ?st ps:P161 ?p . BIND("Cast" AS ?role) OPTIONAL { ?st pq:P453 ?c . ?c rdfs:label ?char FILTER(lang(?char) = "en") } OPTIONAL { ?st pq:P4633 ?char } } ' +
+      'UNION { ?f wdt:P57 ?p . BIND("Director" AS ?role) } UNION { ?f wdt:P58 ?p . BIND("Writer" AS ?role) } ' +
+      'UNION { ?f wdt:P86 ?p . BIND("Music" AS ?role) } UNION { ?f wdt:P344 ?p . BIND("Cinematography" AS ?role) } ' +
+      'OPTIONAL { ?p wdt:P18 ?img } OPTIONAL { ?p wikibase:sitelinks ?links } SERVICE wikibase:label { bd:serviceParam wikibase:language "en,hi". } }';
+    const job = fetchJSON("https://query.wikidata.org/sparql?format=json&query=" + encodeURIComponent(sparql), { timeout: 15000 }).then((d) => {
+      const rows = new Map();
+      ((d && d.results && d.results.bindings) || []).forEach((b) => {
+        const name = b.pLabel && b.pLabel.value;
+        if (!name || /^Q\d+$/.test(name)) return;
+        const k = name + "|" + b.role.value;
+        const row = rows.get(k) || [name, b.role.value, "", "", 0];
+        if (b.char && !row[2]) row[2] = b.char.value;
+        if (b.img && !row[3]) row[3] = b.img.value.replace(/^http:/, "https:") + "?width=160";
+        if (b.links) row[4] = +b.links.value;
+        rows.set(k, row);
+      });
+      const c = Array.from(rows.values());
+      creditCache[tt] = { at: Date.now(), c };
+      const keys = Object.keys(creditCache);
+      if (keys.length > 300) keys.sort((a, b) => creditCache[a].at - creditCache[b].at).slice(0, keys.length - 300).forEach((x) => delete creditCache[x]);
+      storage.set(CREDITS_KEY, creditCache);
+      return expand(c);
+    }).catch(() => []).finally(() => creditJobs.delete(tt));
+    creditJobs.set(tt, job);
+    return job;
+  }
+
+  function expand(rows) {
+    let seeded = false;
+    const out = rows.map(([name, role, character, image, links]) => {
+      // A Wikidata portrait counts as found, so the Wikipedia lookup is skipped for this person.
+      if (image && !(cache[name] && cache[name].u)) { cache[name] = Object.assign({ d: "", t: "" }, cache[name], { u: image, at: Date.now() }); seeded = true; }
+      return { name, role, character, links };
+    });
+    if (seeded) save();
+    return out;
+  }
+
   /* The people behind what you watch and rate highly: directors count most, then the first-billed cast. */
   function favourites(limit) {
     const score = {};
@@ -248,5 +301,5 @@
       .map((n) => ({ name: n, role: seen[n].role, films: seen[n].films }));
   }
 
-  FL.people = { photos, info, face, chip, paint, href, filmography, favourites };
+  FL.people = { photos, info, face, chip, paint, href, filmography, favourites, credits };
 })(window.FL = window.FL || {});

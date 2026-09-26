@@ -543,23 +543,9 @@
     return dismiss;
   }
 
-  /* ---------- the little Iris character: a five-second check-in at the top right ---------- */
-
-  let nudgeEl = null;
+  /* A five-second check-in at the top right — said by the companion (pet.js). */
   function nudge(text, emoji) {
-    if (nudgeEl) nudgeEl.remove();
-    const el = document.createElement("div");
-    el.className = "nudge";
-    el.setAttribute("role", "status");
-    el.innerHTML = '<span class="nudge-face" aria-hidden="true">' + FL.theme.mark({ size: 34, open: 40, cls: "nudge-mark" }) + "<i></i><i></i></span>" +
-      '<span class="nudge-text">' + esc(text) + (emoji ? ' <span class="nudge-emoji">' + emoji + "</span>" : "") + "</span>";
-    document.body.appendChild(el);
-    nudgeEl = el;
-    requestAnimationFrame(() => el.classList.add("in"));
-    setTimeout(() => {
-      el.classList.remove("in");
-      setTimeout(() => { el.remove(); if (nudgeEl === el) nudgeEl = null; }, 450);
-    }, 5000);
+    if (FL.pet) FL.pet.show(text, emoji);
   }
 
   /* ---------- modals ---------- */

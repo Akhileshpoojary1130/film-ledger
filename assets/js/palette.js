@@ -53,6 +53,18 @@
     let frame = 0;
     let webTimer = 0;
     let lastQ = "";
+    const vegaHits = new Map(); // query -> Vega's films for it
+
+    /* A Vega result as an Iris film: the one Iris already has (same title and year), else a web title made from
+       Vega's name, year and poster — its page fills in from IMDb, and Play finds it on Vega's servers. */
+    function vegaFilm(h) {
+      const local = FL.catalogue.findLocal("", h.title, h.year);
+      if (local) return local;
+      return FL.catalogue.addRemote({
+        id: "vega-" + h.post, type: "movie", title: h.title, year: h.year, genres: [], poster: h.poster || "",
+        lang: h.lang || undefined, region: h.region || "", pop: 20,
+      });
+    }
 
     function filmItem(f, i) {
       const st = FL.store.state(f.id);
@@ -106,6 +118,13 @@
           html += cmdItem(all.cmd, items.length);
           items.push(all);
         }
+        // Vega's catalogue: new and dubbed releases Iris doesn't have yet, playable on Vega's servers.
+        const shown = new Set(items.filter((x) => x.film).map((x) => x.film.id));
+        const vega = (vegaHits.get(q) || []).map(vegaFilm).filter((f) => f && !shown.has(f.id)).slice(0, 5);
+        if (vega.length) {
+          html += '<div class="pal-group">On Vega<span class="pal-group-note">plays on Vega’s servers</span></div>';
+          vega.forEach((f) => { html += filmItem(f, items.length); items.push({ film: f }); });
+        }
         const nq = normalize(q);
         const cmds = COMMANDS.filter((c) => nq.split(" ").every((t) => normalize(c.label + " " + c.id).indexOf(t) !== -1));
         if (cmds.length) {
@@ -130,11 +149,14 @@
       webTimer = setTimeout(() => {
         busy.hidden = false;
         const fixed = FL.catalogue.searchAll(q).total ? "" : FL.catalogue.suggest(q);
-        FL.remote.search(fixed || q).then(() => {
+        const web = FL.remote.search(fixed || q);
+        const vega = FL.player.vegaSearch(q).then((hits) => { vegaHits.set(q, hits); });
+        web.then(() => {
           if (input.value.trim() !== q || !paletteOpen) return;
           busy.hidden = true;
           update();
         });
+        vega.then(() => { if (input.value.trim() === q && paletteOpen && vegaHits.get(q).length) update(); });
       }, 250);
     }
 
@@ -296,7 +318,7 @@
     const T = FL.theme;
     const mode = T.mode();
     const current = T.accent();
-    const DEF_BG = { cinema: "#0A0A0B", material: "#17151B", mac: "#1C1C1E", fluent: "#1C1C1C", oneui: "#000000", nothing: "#000000" };
+    const DEF_BG = { cinema: "#0A0A0B", material: "#17151B", mac: "#1C1C1E", fluent: "#1C1C1C", oneui: "#000000", nothing: "#000000", pop: "#1B1A22" };
     const styleDefault = (id) => ({ bg: DEF_BG[id] || "#0A0A0B", s: "#2A2A2E", text: "#F5F5F2", accent: T.THEMES[id].accent.dark });
     const themes = Object.keys(T.THEMES).map((id) => {
       const t = T.THEMES[id];
@@ -336,7 +358,9 @@
   function homeHtml() {
     const max = (FL.store.prefs().home || {}).continueMax || 3;
     return '<div class="setting-row"><span>Continue watching<small>How many unfinished titles Home shows</small></span>' +
-      FL.ui.segmented("cwmax", [["1", "1"], ["2", "2"], ["3", "3"]], String(max)) + "</div>";
+      FL.ui.segmented("cwmax", [["1", "1"], ["2", "2"], ["3", "3"]], String(max)) + "</div>" +
+      '<div class="setting-row"><span>Break reminders<small>On long sittings a little friend drops in at the top right: water, a stretch, rest your eyes</small></span>' +
+      FL.ui.segmented("pet", [["cat", "Cat"], ["dog", "Dog"], ["iris", "Iris"], ["off", "Off"]], FL.pet ? FL.pet.choice() : "cat") + "</div>";
   }
 
   function storageHtml(status, protectedStorage) {
@@ -468,6 +492,13 @@
       if (ht) { FL.store.patchPref("appearance", { hoverTrailer: ht.dataset.value === "on" }); repaintAppearance(); return; }
       const mt = e.target.closest('[data-seg="moodtype"]');
       if (mt) { FL.store.patchPref("appearance", { moodType: mt.dataset.value === "on" }); repaintAppearance(); FL.app.refresh(); return; }
+      const pt = e.target.closest('[data-seg="pet"]');
+      if (pt) {
+        FL.store.patchPref("care", { pet: pt.dataset.value });
+        $("[data-homeset]", m.el).innerHTML = homeHtml();
+        if (pt.dataset.value !== "off" && FL.pet) FL.pet.hello(pt.dataset.value);
+        return;
+      }
       const cw = e.target.closest('[data-seg="cwmax"]');
       if (cw) {
         FL.store.patchPref("home", { continueMax: +cw.dataset.value });

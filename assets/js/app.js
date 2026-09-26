@@ -111,7 +111,37 @@
       a.classList.toggle("is-on", !!on);
       if (on) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
     });
+    glide();
   }
+
+  /* Each bar's one highlight moves to the current tab (a CSS transition does the gliding); it fades out on pages
+     that aren't a tab, and lands without animating the first time. */
+  function glide() {
+    $$(".nav, .tabbar").forEach((bar) => {
+      let pill = bar.querySelector(":scope > .nav-pill");
+      if (!pill) {
+        pill = document.createElement("span");
+        pill.className = "nav-pill";
+        pill.setAttribute("aria-hidden", "true");
+        bar.prepend(pill);
+      }
+      const on = bar.querySelector("a.is-on");
+      if (!on || !on.offsetWidth) { pill.style.opacity = "0"; return; }
+      const first = !pill.dataset.placed;
+      if (first) pill.style.transition = "none";
+      pill.style.opacity = "1";
+      pill.style.width = on.offsetWidth + "px";
+      pill.style.height = on.offsetHeight + "px";
+      pill.style.transform = "translate(" + on.offsetLeft + "px," + on.offsetTop + "px)";
+      if (first) {
+        void pill.offsetWidth;
+        pill.style.transition = "";
+        pill.dataset.placed = "1";
+      }
+    });
+  }
+  window.addEventListener("resize", FL.util.debounce(glide, 150));
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(glide);
 
   /* The aperture opens and the app appears through it — the classic iris-out. */
   function reveal() {

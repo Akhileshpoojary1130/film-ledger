@@ -97,6 +97,19 @@
     return p;
   }
 
+  /* Vega's titles for a search (films only), for the search box. Cached per query for this visit. */
+  const vegaFound = new Map();
+  function vegaSearch(q) {
+    const key = String(q || "").trim().toLowerCase();
+    if (key.length < 3) return Promise.resolve([]);
+    if (!vegaFound.has(key)) {
+      vegaFound.set(key, FL.util.fetchJSON(VEGA_API + "?q=" + encodeURIComponent(key), { timeout: 10000 })
+        .then((d) => (d && Array.isArray(d.results) ? d.results : []))
+        .catch(() => { vegaFound.delete(key); return []; }));
+    }
+    return vegaFound.get(key);
+  }
+
   /* Named and remembered by host, so "MixDrop works for Hindi" carries over from one title to the next. */
   function vegaServer(link, taken) {
     let host;
@@ -343,8 +356,6 @@
     const o = opts || {};
     onClose = o.onClose || null;
     state.open = true;
-    clearInterval(careTimer);
-    careTimer = setInterval(careTick, 60e3);
     root.hidden = false;
     document.documentElement.classList.add("has-player");
     hideNotice();
@@ -610,30 +621,9 @@
     }
   }
 
-  /* ---------- a gentle nudge on long sessions ---------- */
-
-  const CARE_KEY = "film_ledger_watch_session";
-  let careTimer = 0;
-
-  /* Minutes watched this sitting (a 20-minute break starts a new one); the little Iris character checks in at
-     1, 2, 3 and 4 hours, and once if it's gone well past midnight. */
-  function careTick() {
-    if (!state.open || document.hidden) return;
-    const s = session.get(CARE_KEY, { min: 0, at: 0, shown: [] });
-    if (Date.now() - s.at > 20 * 60e3) { s.min = 0; s.shown = []; }
-    s.min += 1;
-    s.at = Date.now();
-    const due = FL.voice.CARE.find(([m]) => s.min >= m && s.shown.indexOf(m) === -1);
-    const h = new Date().getHours();
-    if (due) { s.shown.push(due[0]); FL.ui.nudge(due[1], due[2]); }
-    else if (h < 4 && s.min >= 40 && s.shown.indexOf("late") === -1) { s.shown.push("late"); FL.ui.nudge("It's getting late. This one could finish tomorrow.", "🌙"); }
-    session.set(CARE_KEY, s);
-  }
-
   function close() {
     if (!state.open) return;
     state.open = false; // before settle(): a closing player offers Undo, not "Next episode"
-    clearInterval(careTimer);
     settle();
     state.token++;
     state.film = null;
@@ -724,7 +714,7 @@
   }
 
   FL.player = {
-    SERVERS, open, close, trailer, probeAll, prefetch,
+    SERVERS, open, close, trailer, probeAll, prefetch, vegaSearch,
     isOpen: () => state.open,
     current: () => state.film,
   };
