@@ -57,7 +57,8 @@ export function pick(edges, { title, year, imdb, type }) {
 }
 
 const reply = (status, body, cache) => new Response(JSON.stringify(body), {
-  status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": cache },
+  // Local copies of Iris ask the deployed function, so it answers other origins too (it holds nothing private).
+  status, headers: { "content-type": "application/json; charset=utf-8", "access-control-allow-origin": "*", "cache-control": cache },
 });
 
 export default async function handler(req) {
