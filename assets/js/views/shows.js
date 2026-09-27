@@ -115,12 +115,45 @@
 
       const bdrop = () => (data && (data.backdrop || FL.meta.backdrop(show))) || "";
 
+      /* Vega's view of each season (episodes it already has, bonus episodes, download pages), fetched once per season. */
+      const vegaSeasons = {};
+      function loadVegaSeason(s) {
+        if (!show || s < 1 || vegaSeasons[s] !== undefined) return;
+        vegaSeasons[s] = null;
+        FL.player.season(show, s).then((info) => {
+          vegaSeasons[s] = info || false;
+          if (alive && info && season === s) refreshEpisodes();
+        });
+      }
+      /* Download pages by episode ("EP-3" → 3, "Bonus Episode EP-1" → 101) and the season's packs. */
+      function downloadsOf(info) {
+        const by = {};
+        const packs = [];
+        ((info && info.downloads) || []).forEach((d) => {
+          const m = d.label.match(/\bEP[\s.-]*0*(\d{1,4})\b/i);
+          if (m) { const e = (/bonus/i.test(d.label) ? 100 : 0) + +m[1]; if (!by[e]) by[e] = d; } else packs.push(d);
+        });
+        return { by, packs };
+      }
+
       function episodes() {
-        const list = data.episodes.filter((v) => v.s === season);
+        const info = vegaSeasons[season] || null;
+        let list = data.episodes.filter((v) => v.s === season);
+        if (info) {
+          // Episodes Vega already has play even before Cinemeta lists them as aired; its bonus footage joins at the end.
+          list = list.map((v) => (!v.aired && info.episodes.indexOf(v.e) !== -1 ? Object.assign({}, v, { aired: true, early: true }) : v));
+          info.episodes.forEach((n) => { if (!list.some((v) => v.e === n)) list.push({ s: season, e: n, title: "", date: "", aired: true, early: true }); });
+          info.bonus.forEach((n) => list.push({ s: season, e: 100 + n, title: "Bonus episode " + n, date: "", aired: true, bonus: true }));
+          list.sort((a, b) => a.e - b.e);
+        }
+        const dl = downloadsOf(info);
         const today = new Date().toISOString().slice(0, 10);
         const allWatched = list.filter((v) => v.aired).every((v) => FL.store.episodeWatched(show.id, v.s, v.e));
-        return '<div class="season-head"><h2 class="h2">' + seasonLabel(season) + ' <span class="muted">' + plural(list.length, "episode") + "</span></h2>" +
-          (list.some((v) => v.aired) ? '<button type="button" class="btn btn-sm btn-ghost" data-sa="season">' + icon("check") + (allWatched ? "Unmark season" : "Mark season watched") + "</button>" : "") + "</div>" +
+        const pack = dl.packs.find((d) => /all episodes|complete|season/i.test(d.label)) || dl.packs[0];
+        return '<div class="season-head"><h2 class="h2">' + seasonLabel(season) + ' <span class="muted">' + plural(list.filter((v) => !v.bonus).length, "episode") + "</span></h2>" +
+          '<div class="season-actions">' +
+          (pack ? '<a class="btn btn-sm btn-ghost" href="' + esc(pack.url) + '" target="_blank" rel="noopener noreferrer nofollow" title="' + esc(pack.label) + ' · opens the download page">' + icon("download") + "Season</a>" : "") +
+          (list.some((v) => v.aired) ? '<button type="button" class="btn btn-sm btn-ghost" data-sa="season">' + icon("check") + (allWatched ? "Unmark season" : "Mark season watched") + "</button>" : "") + "</div></div>" +
           '<ol class="episodes"' + (bdrop() ? ' style="--bd:url(\'' + esc(bdrop()) + '\')"' : "") + ">" + list.map((v) => {
             const w = FL.store.episodeWatched(show.id, v.s, v.e);
             const title = v.title && !/^episode \d+$/i.test(v.title) && v.title !== "TBD" ? v.title : "Episode " + v.e;
@@ -129,10 +162,12 @@
                 '<span class="ep-fallback" aria-hidden="true"><b>' + (v.s ? "S" + v.s + " · " : "") + "E" + v.e + "</b></span>" +
                 (v.thumb ? '<img src="' + esc(v.thumb) + '" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.remove()">' : "") +
                 (v.aired ? '<span class="ep-play">' + icon("play") + "</span>" : "") + "</a>" +
-              '<div class="ep-main"><div class="ep-title"><span class="ep-num">E' + v.e + "</span>" + esc(title) + "</div>" +
-                '<div class="ep-date">' + (v.date ? (v.date > today ? "Airs " : "") + fmtDate(v.date) : "Date to be announced") + "</div>" +
+              '<div class="ep-main"><div class="ep-title"><span class="ep-num">' + (v.bonus ? "Bonus" : "E" + v.e) + "</span>" + esc(v.bonus ? "Extra footage" : title) + "</div>" +
+                '<div class="ep-date">' + (v.early ? "Out now on Vega" : v.bonus ? "On Vega" : v.date ? (v.date > today ? "Airs " : "") + fmtDate(v.date) : "Date to be announced") + "</div>" +
                 (v.overview ? '<p class="ep-overview">' + esc(FL.util.prose(v.overview)) + "</p>" : "") + "</div>" +
-              (v.aired ? '<button type="button" class="qa' + (w ? " on" : "") + '" data-sa="ep" aria-pressed="' + w + '" aria-label="' + (w ? "Watched" : "Mark watched") + '">' + icon("check") + "</button>" : "") +
+              '<div class="ep-actions">' +
+              (dl.by[v.e] ? '<a class="qa ep-dl" href="' + esc(dl.by[v.e].url) + '" target="_blank" rel="noopener noreferrer nofollow" aria-label="Download ' + (v.bonus ? "bonus episode " + (v.e - 100) : "episode " + v.e) + '" title="Download · opens the download page">' + icon("download") + "</a>" : "") +
+              (v.aired ? '<button type="button" class="qa' + (w ? " on" : "") + '" data-sa="ep" aria-pressed="' + w + '" aria-label="' + (w ? "Watched" : "Mark watched") + '">' + icon("check") + "</button>" : "") + "</div>" +
               "</li>";
           }).join("") + "</ol>";
       }
@@ -199,11 +234,13 @@
         }
         const on = el.querySelector(".season-nav .is-on");
         if (on) on.scrollIntoView({ inline: "center", block: "nearest" });
+        loadVegaSeason(season);
       }
 
       function refreshEpisodes() {
         const box = $("[data-episodes]", el);
         if (box) box.innerHTML = episodes();
+        loadVegaSeason(season);
       }
 
       function load() {

@@ -209,8 +209,10 @@ async function lookup({ title, year, imdb, s, e }) {
       // "Super Player" and "Ultra Stream" carry the IMDb id: fetched to check the match, and for shows Ultra Stream's
       // show-wide player is pointed at the episode.
       const checks = options.filter((o) => /super|ultra/i.test(o.label));
-      // "Bonus Episode-1" is extra footage, not episode 1.
-      const wanted = tv ? options.filter((o) => episodeOf(o.label) === e && !/bonus/i.test(o.label)) : options.filter((o) => !episodeOf(o.label));
+      // "Bonus Episode-1" is extra footage, not episode 1; Iris asks for bonus n as episode 100 + n.
+      const wanted = tv
+        ? options.filter((o) => (e > 100 ? /bonus/i.test(o.label) && episodeOf(o.label) === e - 100 : episodeOf(o.label) === e && !/bonus/i.test(o.label)))
+        : options.filter((o) => !episodeOf(o.label));
       if (!wanted.length && !(tv && checks.length)) continue;
       const list = [...new Set(wanted.concat(checks))];
       const urls = await Promise.all(list.map((o) => embed(c.id, o)));
@@ -328,6 +330,35 @@ async function hotLookup({ title, year, s, e }) {
   return list;
 }
 
+/* A season's post as a list: which episodes and bonus episodes it has players for, and every download page. Shows
+   use it to add what Vega has before Cinemeta lists it (a new episode, bonus footage) and to offer per-episode
+   downloads. */
+async function seasonInfo({ title, s }) {
+  const t0 = Date.now();
+  const seen = new Set();
+  for (const q of queries(title, s)) {
+    if (Date.now() - t0 > BUDGET) break;
+    const found = await search(q);
+    const candidates = found
+      .filter((r) => !seen.has(r.id) && r.url.startsWith(SITE + "/") && !r.daily)
+      .map((r) => Object.assign(r, { score: similar(r.name, title) }))
+      .filter((r) => r.score >= 0.75 && r.season === s)
+      .sort((a, b) => b.score - a.score);
+    for (const c of candidates) {
+      if (Date.now() - t0 > BUDGET) break;
+      seen.add(c.id);
+      const html = await get(c.url);
+      const options = playerOptions(html);
+      const nums = (bonus) => [...new Set(options.filter((o) => /bonus/i.test(o.label) === bonus).map((o) => episodeOf(o.label)).filter(Boolean))].sort((a, b) => a - b);
+      const episodes = nums(false);
+      const bonus = nums(true);
+      if (!episodes.length && !bonus.length) continue;
+      return { match: { id: c.id, title: c.title }, episodes, bonus, downloads: downloadLinks(html, 0) };
+    }
+  }
+  return { match: null, episodes: [], bonus: [], downloads: [] };
+}
+
 /* Vega's language tag after the year: "Hindi" (a Hindi film), "Hindi Dubbed", "Punjabi HD"… */
 const INDIAN = /\b(Tamil|Telugu|Malayalam|Kannada|Marathi|Bengali|Punjabi|Gujarati)\b/;
 function language(title) {
@@ -374,6 +405,14 @@ export default async function handler(req) {
     if (query.length < 3) return reply(200, { results: [] }, "public, max-age=3600, s-maxage=86400");
     try {
       return reply(200, { results: await find(query) }, "public, max-age=900, s-maxage=3600, stale-while-revalidate=86400");
+    } catch (err) {
+      return reply(502, { error: String((err && err.message) || err) }, "no-store");
+    }
+  }
+  if (input.title && input.s && q.get("season")) {
+    try {
+      const out = await seasonInfo(input);
+      return reply(200, out, out.match ? "public, max-age=1800, s-maxage=10800, stale-while-revalidate=86400" : "public, max-age=600, s-maxage=3600");
     } catch (err) {
       return reply(502, { error: String((err && err.message) || err) }, "no-store");
     }

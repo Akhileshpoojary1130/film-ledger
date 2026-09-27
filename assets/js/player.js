@@ -100,6 +100,19 @@
     return p;
   }
   const vegaLinks = (film, ep) => vegaInfo(film, ep).then((d) => d.list);
+  /* A season as Vega has it: episode numbers, bonus episodes and every download page (one lookup per season). */
+  const seasonCache = new Map();
+  function season(show, s) {
+    const key = show.id + "|" + s;
+    if (!seasonCache.has(key)) {
+      const q = new URLSearchParams({ title: show.title, s, season: 1 });
+      seasonCache.set(key, FL.util.fetchJSON(VEGA_API + "?" + q, { timeout: 15000 })
+        .then((d) => ({ episodes: (d && d.episodes) || [], bonus: (d && d.bonus) || [], downloads: ((d && d.downloads) || []).filter((x) => x && /^https:\/\//.test(x.url)) }))
+        .catch(() => { seasonCache.delete(key); return null; }));
+    }
+    return seasonCache.get(key);
+  }
+
   /* Download pages for a title, from the same lookup (Vega's own download buttons). */
   const downloads = (film, ep) => vegaInfo(film, ep || null).then((d) => d.dl || []);
 
@@ -262,7 +275,7 @@
 
   function icon(name) { return FL.ui.icon(name); }
   const params = () => Object.assign({}, state.ids, state.ep ? { tv: true, s: state.ep.s, e: state.ep.e } : {});
-  const epLabel = (ep) => "S" + ep.s + " · E" + ep.e;
+  const epLabel = (ep) => "S" + ep.s + (ep.e > 100 ? " · Bonus " + (ep.e - 100) : " · E" + ep.e); // Vega's bonus n is episode 100 + n
 
   function build() {
     root = document.createElement("div");
@@ -842,7 +855,7 @@
   }
 
   FL.player = {
-    SERVERS, open, close, trailer, probeAll, prefetch, vegaSearch, downloads,
+    SERVERS, open, close, trailer, probeAll, prefetch, vegaSearch, downloads, season,
     isOpen: () => state.open,
     current: () => state.film,
   };

@@ -1624,6 +1624,11 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 .dl-link:hover, .dl-link:focus-visible { background: var(--s2); }
 .dl-note { margin: 12px 12px 0; font-size: 12.5px; line-height: 1.45; color: var(--text-3); }
 
+/* Episodes: download and watched side by side; the season's pack in the header. */
+.season-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.ep-actions { display: flex; align-items: center; gap: 6px; }
+.ep-dl { color: var(--text-2); }
+
 /* Up Next: the next episode, counting down in the corner. */
 .player-upnext {
   position: absolute; right: 16px; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); z-index: 5; display: flex; align-items: center; gap: 12px;
