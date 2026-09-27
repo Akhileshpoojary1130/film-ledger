@@ -251,6 +251,7 @@
 
     function setBackdrop() {
       const bg = FL.meta.backdrop(film);
+      FL.ambient.art(bg || FL.meta.posterCandidates(film, "small")[0]);
       const box = $(".film-backdrop", el);
       if (!bg || !box || box.firstChild) return;
       const img = new Image();

@@ -18,8 +18,8 @@
     { id: "stats", label: "Open stats", icon: "chart", keys: "g s", run: () => go("#/stats") },
     { id: "collections", label: "Collections: series & universes", icon: "collections", run: () => go("#/collections") },
     { id: "match", label: "Movie night: compare Watch later with a friend", icon: "users", run: () => go("#/match") },
-    { id: "move", label: "Sync your devices (phone ↔ laptop)", icon: "sync", run: () => go("#/move") },
-    { id: "pick", label: "Surprise me: pick a film", icon: "shuffle", keys: "r", run: () => pick() },
+    { id: "move", label: "Relay: your library on every device (phone ↔ laptop)", icon: "devices", run: () => go("#/move") },
+    { id: "pick", label: "Reel Spin: let Iris pick a film", icon: "shuffle", keys: "r", run: () => pick() },
     { id: "appearance", label: "Theme & colours", icon: "palette", run: () => settings("appearance") },
     { id: "settings", label: "Settings, storage & backup", icon: "sliders", run: () => settings() },
     { id: "export", label: "Export backup (.json)", icon: "download", run: () => exportJSON() },
@@ -244,7 +244,7 @@
     const m = modal('<div class="pick"><div class="pick-controls">' +
       FL.ui.segmented("psource", [["watchlist", "Watch later"], ["foryou", "For you"], ["acclaimed", "Acclaimed"]], pickState.source) +
       FL.ui.segmented("plang", [["", "Any"], ["Hindi", "Hindi"], ["English", "English"], ["OtherIndian", "Regional"], ["Superhero", "Marvel & DC"]], pickState.lang) +
-      '</div><div class="pick-stage"><div class="pick-ring-wrap"><div class="pick-ring"></div></div><div class="pick-body" aria-live="polite"></div></div></div>', { cls: "modal-pick", label: "Surprise me" });
+      '</div><div class="pick-stage"><div class="pick-ring-wrap"><div class="pick-ring"></div></div><div class="pick-body" aria-live="polite"></div></div></div>', { cls: "modal-pick", label: "Reel Spin" });
     const ring = $(".pick-ring", m.el);
     const body = $(".pick-body", m.el);
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -342,17 +342,18 @@
       T.ACCENTS.map(([hex, name]) => '<button type="button" class="swatch' + (a.accent === hex ? " is-on" : "") + '" data-accent="' + hex + '" style="--sw:' + hex + '" title="' + name + '" aria-label="' + name + '"></button>').join("") +
       '<label class="swatch swatch-custom" title="Custom colour" style="--sw:' + current + '"><input type="color" value="' + current + '" data-accent-custom aria-label="Custom accent colour"></label>';
     const picker = FL.store.prefs().years.picker || "dial";
-    return '<h4 class="set-sub"><span class="set-num">1</span>Style</h4><div class="theme-grid">' + themes + "</div>" +
-      '<h4 class="set-sub"><span class="set-num">2</span>Glass &amp; background</h4>' +
-      '<div class="setting-row"><span>Liquid glass<small>Frosted, see-through bars, panels and sheets</small></span>' + FL.ui.segmented("glass", T.GLASS, T.glass()) + "</div>" +
-      '<div class="setting-row"><span>Background<small>Lights glow softly behind frosted glass; Aurora drifts slow colour</small></span>' + FL.ui.segmented("ambient", T.AMBIENT, T.ambient()) + "</div>" +
-      '<div class="setting-row"><span>Motion<small>Calm turns off tilt, drift and page effects</small></span>' + FL.ui.segmented("motion", [["full", "Full"], ["calm", "Calm"]], a.motion === "calm" ? "calm" : "full") + "</div>" +
-      '<h4 class="set-sub"><span class="set-num">3</span>Colour</h4>' +
+    // Most changed first: light or dark and the colour, then the style, then the finer glass and motion.
+    return '<h4 class="set-sub"><span class="set-num">1</span>Colour</h4>' +
       '<div class="setting-row"><span>Mode</span>' + FL.ui.segmented("mode", [["dark", "Dark"], ["light", "Light"], ["system", "Auto"]], a.mode) + "</div>" +
+      '<div class="setting-row"><span>Accent</span><div class="swatches">' + swatches + "</div></div>" +
       '<div class="pal-rail"><button type="button" class="icon-btn icon-btn-sm pal-arrow" data-palscroll="-1" aria-label="Previous palettes">' + icon("chevron-left") + "</button>" +
         '<div class="palette-row" data-palrow>' + palettes + "</div>" +
         '<button type="button" class="icon-btn icon-btn-sm pal-arrow" data-palscroll="1" aria-label="More palettes">' + icon("chevron-right") + "</button></div>" +
-      '<div class="setting-row"><span>Accent</span><div class="swatches">' + swatches + "</div></div>" +
+      '<h4 class="set-sub"><span class="set-num">2</span>Style</h4><div class="theme-grid">' + themes + "</div>" +
+      '<h4 class="set-sub"><span class="set-num">3</span>Glass &amp; motion</h4>' +
+      '<div class="setting-row"><span>Liquid glass<small>Frosted, see-through bars, panels and sheets</small></span>' + FL.ui.segmented("glass", T.GLASS, T.glass()) + "</div>" +
+      '<div class="setting-row"><span>Background<small>Lights glow softly behind frosted glass; Aurora drifts slow colour</small></span>' + FL.ui.segmented("ambient", T.AMBIENT, T.ambient()) + "</div>" +
+      '<div class="setting-row"><span>Motion<small>Calm keeps things still: no tilt, drift or page effects</small></span>' + FL.ui.segmented("motion", [["full", "Full"], ["calm", "Calm"]], a.motion === "calm" ? "calm" : "full") + "</div>" +
       '<h4 class="set-sub">More</h4>' +
       '<div class="setting-row"><span>Year picker<small>How you choose a year on the Years page</small></span>' +
         FL.ui.segmented("picker", [["dial", "Dial"], ["wheel", "Wheel"], ["ruler", "Ruler"], ["chips", "Chips"]], picker) + "</div>" +
@@ -361,17 +362,17 @@
         FL.ui.segmented("searchspot", [["center", "Top centre"], ["float", "Under settings"]], a.searchSpot === "float" ? "float" : "center") + "</div>" : "") +
       (mouse() ? '<div class="setting-row"><span>Trailer on hover<small>Rest the mouse on a poster for 3 seconds to preview it</small></span>' +
         FL.ui.segmented("hovertrailer", [["on", "On"], ["off", "Off"]], a.hoverTrailer === false ? "off" : "on") + "</div>" : "") +
-      '<div class="setting-row"><span>Mood headline<small>Home’s headline follows what you’ve been watching: its words and its typeface</small></span>' +
+      '<div class="setting-row"><span>Moodline<small>Home’s headline follows what you’ve been watching: its words and its typeface</small></span>' +
         FL.ui.segmented("moodtype", [["on", "On"], ["off", "Off"]], a.moodType === false ? "off" : "on") + "</div>";
   }
 
   function homeHtml() {
     const max = (FL.store.prefs().home || {}).continueMax || 3;
-    return '<div class="setting-row"><span>Continue watching<small>How many unfinished titles Home shows</small></span>' +
+    return '<div class="setting-row"><span>Up Next<small>How many unfinished titles Home shows</small></span>' +
       FL.ui.segmented("cwmax", [["1", "1"], ["2", "2"], ["3", "3"]], String(max)) + "</div>" +
-      '<div class="setting-row"><span>Numbers on Home<small>Films watched, this year, hours and Watch later, under the headline</small></span>' +
+      '<div class="setting-row"><span>Glance<small>Your numbers under Home’s headline: films watched, this year, hours, Watch later</small></span>' +
       FL.ui.segmented("glance", [["on", "Show"], ["off", "Hide"]], (FL.store.prefs().home || {}).glance ? "on" : "off") + "</div>" +
-      (FL.pet ? '<div class="setting-row setting-stack"><span>Break reminders<small>On long sittings a little friend drops in at the top right: water, a stretch, rest your eyes</small></span>' +
+      (FL.pet ? '<div class="setting-row setting-stack"><span>Pause Pals<small>On long sittings a little friend drops in at the top right: water, a stretch, rest your eyes</small></span>' +
         '<div class="pet-picker" role="radiogroup" aria-label="Break reminder companion">' + FL.pet.PETS.map(([k, label]) => {
           const on = FL.pet.choice() === k;
           return '<button type="button" role="radio" aria-checked="' + on + '" class="pet-pick' + (on ? " is-on" : "") + '" data-pet="' + k + '">' +
@@ -402,7 +403,7 @@
   /* Sync first: it's what keeps everything else in step across devices. */
   function syncRow() {
     const on = FL.sync && FL.sync.on;
-    return '<div class="setting-row"><span>Sync' + (on ? ' <span class="set-on">On</span>' : "") + "<small>" + (on
+    return '<div class="setting-row"><span>Relay' + (on ? ' <span class="set-on">On</span>' : "") + "<small>" + (on
       ? "Watched, Watch later, favourites, shows, where you stopped and these settings follow you between devices"
       : "Keep your library and settings the same on your phone and laptop") + "</small></span>" +
       '<a class="btn btn-sm' + (on ? "" : " btn-primary") + '" href="#/move">' + icon("devices") + (on ? "Manage" : "Set up") + "</a></div>";
@@ -410,11 +411,15 @@
 
   /* Player: the pop-up shield, then which servers answer from this network. */
   function playerHtml() {
-    const shield = (FL.store.prefs().player || {}).shield !== false;
-    return '<div class="setting-row"><span>Block pop-ups and redirects<small>Vega Super and 2Embed play shielded: no ad tabs. Other servers refuse to play that way, so Iris asks before any of them takes you to another site. Turn off if a server stops playing.</small></span>' +
+    const pp = FL.store.prefs().player || {};
+    const shield = pp.shield !== false;
+    return '<div class="setting-row"><span>Autoplay next episode<small>At the credits, the next episode starts after a 10-second countdown</small></span>' +
+      FL.ui.segmented("autonext", [["on", "On"], ["off", "Off"]], pp.autoNext === false ? "off" : "on") + "</div>" +
+      '<div class="setting-row"><span>Clear Play<small>No pop-up tabs or redirects from players. Vega Super plays fully shielded; other servers refuse to play that way, so Iris asks before any of them takes you to another site. Turn off if a server stops playing.</small></span>' +
       FL.ui.segmented("shield", [["on", "On"], ["off", "Off"]], shield ? "on" : "off") + "</div>" +
-      '<p class="sub set-sub-note">Servers from your network right now. “Unreachable” usually means your internet provider blocks it; the player skips those.</p>' +
-      '<ul class="server-list">' + serverRows() + '</ul><button type="button" class="btn btn-sm btn-ghost" data-set="recheck">Re-check</button>';
+      '<details class="set-details"><summary>Server status</summary>' +
+        '<p class="sub set-sub-note">From your network right now. “Unreachable” usually means your internet provider blocks it; the player skips those.</p>' +
+        '<ul class="server-list">' + serverRows() + '</ul><button type="button" class="btn btn-sm btn-ghost" data-set="recheck">Re-check</button></details>';
   }
 
   const phone = () => window.matchMedia("(max-width: 760px)").matches;
@@ -429,13 +434,13 @@
     const m = modal(
       '<div class="modal-pad settings">' +
         '<h2 class="h2">Settings</h2>' +
-        '<section data-sec="you"><h3 class="label">You</h3>' +
+        '<section data-sec="relay"><h3 class="label">Relay</h3>' + syncRow() + "</section>" +
+        '<section data-sec="player"><h3 class="label">Player</h3><div data-playerset>' + playerHtml() + "</div></section>" +
+        '<section data-sec="appearance"><h3 class="label">Appearance</h3><div data-appearance>' + appearanceHtml() + "</div></section>" +
+        '<section data-sec="home"><h3 class="label">Home</h3>' +
           '<div class="setting-row setting-stack"><label for="set-name">Your name<small>Used in Home’s greeting</small></label>' +
           '<input class="input" id="set-name" maxlength="40" placeholder="Optional" value="' + esc(prefs.name || "") + '"></div>' +
-          syncRow() + "</section>" +
-        '<section data-sec="appearance"><h3 class="label">Appearance</h3><div data-appearance>' + appearanceHtml() + "</div></section>" +
-        '<section data-sec="home"><h3 class="label">Home</h3><div data-homeset>' + homeHtml() + "</div></section>" +
-        '<section data-sec="player"><h3 class="label">Player</h3><div data-playerset>' + playerHtml() + "</div></section>" +
+          '<div data-homeset>' + homeHtml() + "</div></section>" +
         '<section data-sec="storage"><h3 class="label">Backup</h3><div data-storage>' + storageHtml(FL.persist.status(), false) + "</div></section>" +
         '<section><h3 class="label">Maintenance</h3><div class="btn-row">' +
           '<button type="button" class="btn btn-ghost" data-set="clear-cache">Clear artwork & details cache</button>' +
@@ -525,6 +530,13 @@
       }
       const pk = e.target.closest('[data-seg="picker"]');
       if (pk) { FL.store.patchPref("years", { picker: pk.dataset.value }); repaintAppearance(); FL.app.refresh(); return; }
+      const an = e.target.closest('[data-seg="autonext"]');
+      if (an) {
+        FL.store.patchPref("player", { autoNext: an.dataset.value === "on" });
+        $("[data-playerset]", m.el).innerHTML = playerHtml();
+        paintServers(lastServerResults);
+        return;
+      }
       const sh = e.target.closest('[data-seg="shield"]');
       if (sh) {
         FL.store.patchPref("player", { shield: sh.dataset.value === "on" });
@@ -602,7 +614,7 @@
   function shortcuts() {
     const mod = isMac() ? "⌘" : "Ctrl";
     const groups = [
-      ["Anywhere", [[[mod, "K"], "Search films, shows & commands"], [["/"], "Search"], [["R"], "Surprise me"], [["?"], "This list"], [["Esc"], "Close"]]],
+      ["Anywhere", [[[mod, "K"], "Search films, shows & commands"], [["/"], "Search"], [["R"], "Reel Spin"], [["?"], "This list"], [["Esc"], "Close"]]],
       ["Go to", [[["G", "H"], "Home"], [["G", "Y"], "Years"], [["G", "B"], "Browse"], [["G", "T"], "Shows"], [["G", "W"], "Watch later"], [["G", "D"], "Diary"], [["G", "S"], "Stats"]]],
       ["On a film page", [[["P"], "Play"], [["T"], "Trailer"], [["W"], "Watch later"], [["M"], "Mark watched"], [["F"], "Favourite"]]],
       ["Player", [[["N"], "Next server"], [["1"], "–", ["9"], "Pick a server"], [["F"], "Fullscreen"], [["Esc"], "Close player"]]],

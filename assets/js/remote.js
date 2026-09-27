@@ -130,8 +130,9 @@
     });
     // Library entries whose web data was trimmed: rebuild from the entry's own snapshot.
     FL.store.entries().forEach((e) => {
-      if (FL.catalogue.get(e.id) || !/^tt\d+$/.test(e.id)) return;
-      FL.catalogue.addRemote({ imdbId: e.id, type: e.type || "movie", title: e.title, year: e.year, genres: e.genres || [] });
+      if (FL.catalogue.get(e.id) || !/^(tt|vg)\d+$/.test(e.id)) return;
+      FL.catalogue.addRemote(Object.assign({ type: e.type || "movie", title: e.title, year: e.year, genres: e.genres || [] },
+        /^tt/.test(e.id) ? { imdbId: e.id } : { id: e.id, imdbId: e.imdbId || "" }));
     });
     if (dropped) persist();
   }
@@ -296,8 +297,8 @@
   /* Popular Indian reality & talent formats, found by name so new seasons and spin-offs stay current. */
   const REALITY = ["bigg boss", "india's got talent", "lock upp", "khatron ke khiladi", "indian idol", "shark tank india",
     "the great indian kapil show", "the kapil sharma show", "kaun banega crorepati", "mtv roadies", "mtv splitsvilla",
-    "dance india dance", "super dancer", "laughter chefs", "jhalak dikhhla jaa", "the traitors india"];
-  const SEED_KEY = "film_ledger_showseed_v1";
+    "dance india dance", "super dancer", "laughter chefs", "jhalak dikhhla jaa", "the traitors india", "india's got latent"];
+  const SEED_KEY = "film_ledger_showseed_v2"; // v2: India's Got Latent joined
 
   /* Indian web series worth following — found by name, so new seasons appear on their own. */
   const INDIAN_SERIES = ["mirzapur", "panchayat", "the family man", "sacred games", "scam 1992", "kota factory", "aspirants", "paatal lok",
@@ -375,7 +376,75 @@
     if (f && f.remote) touch(f);
   });
 
-  restore();
+  /* ---------- Vega's catalogue (data/vega.js, built by tools/build-vega.mjs) ----------
+     Loaded once Iris is up (it's a few hundred KB): films and web series the bundle lacks join the catalogue with
+     Vega's name, year, language, IMDb rating and genres; bundled films Vega has in Hindi get a "Hindi dubbed" mark. */
+  const VEGA_LANG = { h: "Hindi", e: "English", r: "OtherIndian", g: "Global" };
+  const posterFrom = (p) => (!p ? "" : /^https:\/\//.test(p) ? p : "https://image.tmdb.org/t/p/w342/" + p + ".jpg");
+  let vegaLoad = null;
+  function loadVega() {
+    if (vegaLoad) return vegaLoad;
+    vegaLoad = new Promise((resolve) => {
+      if (window.VEGA_CATALOGUE) { resolve(window.VEGA_CATALOGUE); return; }
+      const s = document.createElement("script");
+      s.src = "data/vega.js";
+      s.async = true;
+      s.onload = () => resolve(window.VEGA_CATALOGUE || null);
+      s.onerror = () => resolve(null);
+      document.head.appendChild(s);
+    }).then((d) => (d ? ingestVega(d) : 0));
+    return vegaLoad;
+  }
+  /* In small batches between frames, so a phone never stutters while thousands of titles join. */
+  function ingestVega(d) {
+    const jobs = [];
+    (d.dubs || []).forEach(([name, year]) => jobs.push(() => { const f = FL.catalogue.findLocal("", name, year); if (f) f.dub = true; }));
+    (d.films || []).forEach(([post, name, year, lc, region, r10, runtime, gi, poster, pop]) => jobs.push(() => {
+      const dub = lc.charAt(1) === "d";
+      const have = FL.catalogue.findLocal("", name, year);
+      if (have) { if (dub) have.dub = true; have.vega = have.vega || post; return; }
+      const f = FL.catalogue.addRemote({
+        id: "vg" + post, type: "movie", title: name, year, lang: VEGA_LANG[lc.charAt(0)] || "Global", region: region || "",
+        genres: (gi || []).map((i) => d.genres[i]).filter(Boolean), rating: r10 ? r10 / 10 : null, poster: posterFrom(poster), pop: 8 + (pop || 0),
+      });
+      f.dub = dub;
+      f.vega = post;
+      if (runtime && !f.runtime) f.runtime = runtime;
+    }));
+    (d.shows || []).forEach(([tt, name, year, lc, region, r10, gi, poster, season, post]) => jobs.push(() => {
+      const f = FL.catalogue.get(tt) || FL.catalogue.addRemote({
+        imdbId: tt, type: "series", title: name, year, lang: VEGA_LANG[lc.charAt(0)] || "Global", region: region || "",
+        genres: (gi || []).map((i) => d.genres[i]).filter(Boolean), rating: r10 ? r10 / 10 : null, poster: posterFrom(poster),
+      });
+      if (lc.charAt(1) === "d") f.dub = true;
+      f.vega = post;
+      f.vegaSeason = Math.max(f.vegaSeason || 0, season || 0);
+    }));
+    return new Promise((resolve) => {
+      let i = 0;
+      const step = () => {
+        const end = Math.min(jobs.length, i + 400);
+        for (; i < end; i++) { try { jobs[i](); } catch (e) { /* one bad row */ } }
+        if (i < jobs.length) FL.util.idle(step); else { FL.catalogue.touch(); resolve(jobs.length); }
+      };
+      step();
+    });
+  }
+  /* Vega's newest web series (the catalogue's shows from Vega, most recent upload first). */
+  function vegaShows(limit) {
+    return loadVega().then(() => FL.catalogue.all().filter((f) => f.type === "series" && f.vega).sort((a, b) => b.vega - a.vega).slice(0, limit || 30));
+  }
+  /* Newest Hindi dubbed films. */
+  function vegaDubbed(limit) {
+    // Recent releases only: Vega re-uploads old titles too, and "just in" should mean new films.
+    const since = new Date().getFullYear() - 3;
+    return loadVega().then(() => FL.catalogue.all().filter((f) => f.type !== "series" && f.dub && f.vega && f.year >= since && !/behind the scenes|making of/i.test(f.title))
+      .sort((a, b) => b.vega - a.vega).slice(0, limit || 30));
+  }
 
-  FL.remote = { search, cached, touch, ingest, yearPage, wikiYear, show, realityShows, indianSeries, newEpisodes, showCatalog, byId, WIKI_LISTS };
+  restore();
+  // After the first screen is up.
+  setTimeout(() => FL.util.idle(() => loadVega()), 1500);
+
+  FL.remote = { search, cached, touch, ingest, yearPage, wikiYear, show, realityShows, indianSeries, newEpisodes, showCatalog, byId, WIKI_LISTS, loadVega, vegaShows, vegaDubbed };
 })(window.FL = window.FL || {});

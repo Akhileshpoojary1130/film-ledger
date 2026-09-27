@@ -146,7 +146,7 @@
     Object.keys(doc.films).forEach((id) => {
       if (FL.catalogue.get(id)) return;
       const e = doc.films[id];
-      if (!e.title || !/^(tt\d+|wk\d{4}_)/.test(id)) return;
+      if (!e.title || !/^(tt\d+|wk\d{4}_|vg\d+)/.test(id)) return;
       FL.catalogue.addRemote({
         id, imdbId: e.imdbId || (/^tt/.test(id) ? id : ""), type: e.type, title: String(e.title), year: +e.year || 0,
         genres: Array.isArray(e.genres) ? e.genres : [], lang: e.lang,

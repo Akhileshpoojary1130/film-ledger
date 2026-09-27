@@ -11,12 +11,20 @@ Live: https://film-ledger-mocha.vercel.app/
 - **Home** — one big search bar that docks into the top bar's search as you scroll (on a phone the top bar's search is
   always there, in the middle of the bar or as a round button under Settings — Settings → More — and the tab bar's big
   middle button is **Browse**). The
-  headline follows the time of day (early bird, lunch — "Had lunch yet?", dinner, late night), changes every six hours
-  with different wording each day, and takes a typeface from what you've been watching (eerie for horror, bold for
-  action, sunny for comedy). Then *Continue watching* (1–3, in Settings; the × on a card forgets where you stopped, with Undo), **three picks** — one from your taste, one
-  you saved, one must-watch — each saying why, **Up next in your series** (KGF 1 → KGF 2, the MCU in order), **For
+  headline (**Moodline**) follows the time of day (early bird, lunch — "Had lunch yet?", dinner, late night), changes
+  every six hours with different wording each day, and follows what you've been watching: a horror streak gets a
+  spooky line in an eerie typeface, comedies a cheerful one. Then **Up Next** (1–3, in Settings; the × on a card
+  forgets where you stopped, with Undo), **Tonight's Trio** — three wide artwork cards, one from your taste, one you
+  saved, one must-watch, each saying why — **Up next in your series** (KGF 1 → KGF 2, the MCU in order), **For
   you**, *More from* the directors you like, **New episodes** in shows you follow, a daily **Throwback** year, and
   Indian and world discovery rows.
+- **Vega's catalogue** — about 20,000 titles in all: Vega's Hindi dubbed films (Browse → *Hindi dubbed*, and
+  *Hindi dubbed, just in* on Home), its web series (Shows → *New web series*), Bollywood, Hollywood, South and Punjabi
+  uploads, each with Vega's name, year, language, IMDb rating and genres.
+- **Look** — the Iris mark is an aperture that is also an eye: six blades in shades of your accent swirl around a
+  pupil with a catchlight; it blinks as you change pages and turns while loading. Backgrounds include **Artwork**: the
+  title you're looking at, blurred into a wash of its colours (like Apple TV). Settings run most-used first: Relay,
+  Player, Appearance (colour first), Home, Backup.
 - **Years** — 1970 (left) to next year (right). Pick the year with a **Dial** (default), **Wheel** (like the iPhone
   camera's mode strip), **Ruler** or **Chips** (Settings → More). Each year merges the bundled vault (from 1990), the
   web's catalogue and Wikipedia's film lists (Hindi, 8 regional languages, American and British) for older years.
@@ -87,7 +95,7 @@ In this browser (`localStorage`). Clearing site data erases it, so Settings → 
 
 - **Keep a copy on this computer** (Chrome / Edge desktop) — every change is written to a JSON file you pick.
   It survives clearing browser data; put it in iCloud Drive / Google Drive / Dropbox to carry it to other computers.
-- **Sync** (Settings → Storage → Sync, or `#/move`) — turn it on on one device, scan its code (or open its link) on
+- **Relay** (Settings → Relay, or `#/move`) — sync: turn it on on one device, scan its code (or open its link) on
   the others, and they stay the same: watched, Watch later, favourites, ratings, shows and episodes, where you stopped
   (start on the laptop, carry on on the phone at the same minute and server) and your settings. Devices pull when Iris
   opens, when you come back to it and every minute while it's on screen, and push a moment after any change. Per
@@ -142,10 +150,12 @@ Hindi-dubbed titles.
   film page get a *Download* list, labelled by quality, codec and size ("720p x265 HEVC · 780MB"); an episode gets that
   episode's pages and whole-season packs. Each opens in a new tab; the host's own steps, including its "are you
   human" check, happen there. Iris doesn't go around that check.
-- **Shield** (Settings → Player) — Vega's Super Player and 2Embed play in a sandboxed frame, so they can't open ad
-  tabs. Most other hosts refuse to play sandboxed, so for them Iris asks "Leave site?" if the player tries to send the
-  page elsewhere. MixDrop (adult ads) is tried last; for Indian series and shows 2Embed and Videasy lead, since
-  VidLink often has the wrong show.
+- **Clear Play** (Settings → Player) — Vega's Super Player plays in a sandboxed frame, so it can't open ad tabs.
+  The other hosts refuse to play sandboxed (2Embed says "Sandbox not allowed"), so for them Iris asks "Leave site?"
+  if the player tries to send the page elsewhere. MixDrop (adult ads) is tried last; for Indian series and shows
+  2Embed and Videasy lead, since VidLink often has the wrong show.
+- **Up Next** in the player — at an episode's credits the next one is announced with a 10-second countdown (Play now
+  / Cancel); Settings → Player → Autoplay next episode turns it off.
 
 ## Found on search
 
@@ -174,6 +184,10 @@ api/sync.js           Vercel Edge function: keeps each synced library (ciphertex
 api/where.js          Vercel Edge function: streaming services for a title in India (JustWatch)
 tests/                unit tests (node --test), live server check, in-browser page sweep
 tools/build-series.mjs  builds data/series.js from Wikidata (about a minute)
+tools/build-vega.mjs  builds data/vega.js: Vega's catalogue (Hindi dubbed, web series, Bollywood, Hollywood, South,
+                      Punjabi) trimmed to what the bundle lacks, gently, one page at a time (about ten minutes)
+data/vega.js          ~3,600 films and ~680 web series from Vega, and "Hindi dubbed" marks for 1,700 bundled films;
+                      loaded after the first screen, so start-up isn't slower
 data/catalogue.js     the bundled vault (window.FILM_STATIC_CATALOGUE, schema 2)
 data/series.js        film series from Wikidata (window.FILM_SERIES) — regenerate with node tools/build-series.mjs
 assets/app.css        one token system; theme × mode blocks at the top

@@ -21,8 +21,8 @@
       },
     },
     {
-      // Plays in a sandboxed frame, so it can't open ad tabs (see the shield in load()).
-      id: "2embed", name: "2Embed", origin: "https://www.2embed.cc", sandbox: true,
+      // Refuses to play in a sandboxed frame ("Sandbox not allowed" once you press play), so it runs unshielded.
+      id: "2embed", name: "2Embed", origin: "https://www.2embed.cc",
       url: ({ imdb, tmdb, tv, s, e }) => {
         const id = imdb || tmdb;
         if (!id) return null;
@@ -304,6 +304,8 @@
       else if (act === "restart") { state.start = 0; load(state.server, true); }
       else if (act === "dismiss") hideNotice();
       else if (act === "download") toggleDownloads();
+      else if (act === "upnext-go") { cancelUpNext(); nextEpisode(); }
+      else if (act === "upnext-cancel") cancelUpNext();
     });
     // The download list closes when you pick a page or click anywhere else in the player.
     root.addEventListener("click", (e) => {
@@ -412,6 +414,7 @@
 
   /* Resolve ids, probe servers, then load the best candidate. */
   function start(film, ep) {
+    cancelUpNext();
     state.autoTried = {}; // each title or episode gets its own automatic server hop
     state.tried = new Set(); // servers loaded for this title or episode, so "Next" moves on to fresh ones
     settle();
@@ -532,7 +535,7 @@
     // Browser-default referrer: several hosts refuse to play when the embedding page is anonymous.
     iframe.referrerPolicy = "strict-origin-when-cross-origin";
     iframe.title = film.title + (state.ep ? " " + epLabel(state.ep) : "") + " · " + nameOf(server);
-    // The shield. Hosts that play in a sandboxed frame (Vega's Super Player, 2Embed) get one: they can play but can't
+    // The shield. Hosts that play in a sandboxed frame (Vega's Super Player) get one: they can play but can't
     // open ad tabs or send this page elsewhere. Most hosts refuse to play sandboxed ("Please disable sandbox"), so they
     // run as they are, and any attempt to navigate Iris away gets the browser's "Leave site?" question instead.
     const shield = (FL.store.prefs().player || {}).shield !== false;
@@ -573,7 +576,7 @@
       // Clicking into the frame (to press play) moves focus to the iframe — take that as "it's working".
       if (!state.open || state.confirmed || state.server !== server || document.activeElement === iframe) return;
       notice('<span>Not playing? Try the next server, or see where it streams officially.</span><button type="button" class="btn btn-sm" data-pl="next">Next server <kbd>N</kbd></button>' +
-        '<a class="btn btn-sm btn-ghost" target="_blank" rel="noopener noreferrer" href="' + FL.ui.whereToWatch(film) + '">Where to watch ↗</a>' +
+        '<a class="btn btn-sm btn-ghost" target="_blank" rel="noopener noreferrer" href="' + FL.ui.whereToWatch(film) + '">How to Watch ↗</a>' +
         '<button type="button" class="icon-btn icon-btn-sm" data-pl="dismiss" aria-label="Dismiss">' + icon("x") + "</button>", true);
       const n = root.querySelector(".player-notice");
       n.dataset.kind = "hint";
@@ -618,6 +621,37 @@
     const list = state.show.episodes.filter((x) => x.s > 0 && x.aired);
     const i = list.findIndex((x) => x.s === state.ep.s && x.e === state.ep.e);
     return i !== -1 ? list[i + 1] || null : null;
+  }
+
+  /* Up Next: at the credits (the player says it's 92% through), the next episode is announced and starts after a
+     10-second countdown — Play now to skip the wait, Cancel to stay. Settings → Player turns it off. */
+  const UP_NEXT_SECONDS = 10;
+  function upNext(n) {
+    cancelUpNext();
+    const info = state.show && state.show.episodes.find((x) => x.s === n.s && x.e === n.e);
+    const title = info && info.title && !/^episode \d+$/i.test(info.title) ? info.title : "";
+    const box = document.createElement("div");
+    box.className = "player-upnext";
+    box.setAttribute("role", "status");
+    box.innerHTML = (info && info.thumb ? '<img src="' + esc(info.thumb) + '" alt="" referrerpolicy="no-referrer">' : "") +
+      '<div class="upnext-text"><small>Up next</small><strong>' + esc(epLabel(n) + (title ? " · " + title : "")) + "</strong>" +
+        '<span data-upcount>Plays in ' + UP_NEXT_SECONDS + " s</span></div>" +
+      '<div class="upnext-actions"><button type="button" class="btn btn-primary btn-sm" data-pl="upnext-go">' + icon("play") + "Play now</button>" +
+        '<button type="button" class="btn btn-ghost btn-sm" data-pl="upnext-cancel">Cancel</button></div>' +
+      '<i class="upnext-bar" style="animation-duration:' + UP_NEXT_SECONDS + 's"></i>';
+    root.appendChild(box);
+    let left = UP_NEXT_SECONDS;
+    state.upNext = setInterval(() => {
+      left--;
+      const c = box.querySelector("[data-upcount]");
+      if (c) c.textContent = "Plays in " + left + " s";
+      if (left <= 0) { cancelUpNext(); nextEpisode(); }
+    }, 1000);
+  }
+  function cancelUpNext() {
+    clearInterval(state.upNext);
+    state.upNext = 0;
+    if (root) root.querySelectorAll(".player-upnext").forEach((x) => x.remove());
   }
 
   function nextEpisode() {
@@ -677,7 +711,9 @@
       FL.store.toggleEpisode(film, ep.s, ep.e, true);
       FL.store.clearProgress(film.id);
       const n = nextEp();
-      FL.ui.toast("Marked " + epLabel(ep) + " watched", n && state.open
+      const auto = n && state.open && (FL.store.prefs().player || {}).autoNext !== false;
+      if (auto) upNext(n);
+      FL.ui.toast("Marked " + epLabel(ep) + " watched", n && state.open && !auto
         ? { action: "Next episode", onAction: nextEpisode }
         : { action: "Undo", onAction: () => FL.store.toggleEpisode(film, ep.s, ep.e, false) });
     } else {
@@ -710,6 +746,7 @@
 
   function close() {
     if (!state.open) return;
+    cancelUpNext();
     state.open = false; // before settle(): a closing player offers Undo, not "Next episode"
     settle();
     state.token++;

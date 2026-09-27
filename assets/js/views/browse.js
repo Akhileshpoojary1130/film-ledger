@@ -8,7 +8,7 @@
   const PAGE = 60;
   const restore = {}; // hash -> { y, count } so Back lands where you left off
 
-  const CATEGORIES = [["all", "All"]].concat(FL.catalogue.LANGS.map((l) => [l.id, l.label]), [["Global", "World"], ["Shows", "Shows"]]);
+  const CATEGORIES = [["all", "All"]].concat(FL.catalogue.LANGS.map((l) => [l.id, l.label]), [["Dubbed", "Hindi dubbed"], ["Global", "World"], ["Shows", "Shows"]]);
   const SORT_LABELS = { relevance: "Best match", popular: "Most popular", rating: "IMDb rating", newest: "Newest", oldest: "Oldest", title: "Title A–Z" };
 
   function readState(query) {
@@ -71,7 +71,7 @@
     const sorts = (s.q ? ["relevance"] : []).concat(["popular", "rating", "newest", "oldest", "title"]).map((k) => [k, SORT_LABELS[k]]);
     return '<div class="filters">' +
       '<div class="search-field" data-page-search><span class="search-field-icon">' + icon("search") + '</span>' +
-        '<input type="search" data-f="q" value="' + esc(s.q) + '" placeholder="Search 15,000+ titles, genres, years…" aria-label="Search films" autocomplete="off" spellcheck="false">' +
+        '<input type="search" data-f="q" value="' + esc(s.q) + '" placeholder="Search ' + (Math.floor(FL.catalogue.all().length / 1000) * 1000).toLocaleString() + '+ titles, genres, years…" aria-label="Search films" autocomplete="off" spellcheck="false">' +
         '<kbd class="hide-sm">/</kbd></div>' + recentChips(s) +
       '<div class="filter-row filter-main">' + segmented("lang", CATEGORIES, s.lang) +
         '<button type="button" class="icon-btn filters-toggle" data-ftoggle aria-expanded="false" aria-label="More filters">' + icon("sliders") +
@@ -337,6 +337,13 @@
       el.addEventListener("click", onClick);
 
       run(back ? Math.max(PAGE, back.count) : 0);
+      // Vega's catalogue joins a moment after start: when it lands, the list redraws in place.
+      FL.remote.loadVega().then((n) => {
+        if (!alive || !n) return;
+        const y = window.scrollY;
+        run(shown);
+        window.scrollTo(0, y);
+      });
       if (back) window.scrollTo(0, back.y); // synchronous, so page transitions morph to the right place
       else if (s.q && query.has("focus")) $('[data-f="q"]', el).focus();
       if (s.q) searchWeb();

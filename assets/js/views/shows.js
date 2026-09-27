@@ -40,11 +40,13 @@
         slot("reality", "Indian reality &amp; talent") +
         slot("indian", "Indian web series") +
         slot("top", "Popular series right now") +
+        slot("vegaseries", "New web series", "Just added on Vega, in Hindi") +
         slot("realityworld", "Reality TV worldwide") +
         "</div>";
       fill(el, "reality", FL.remote.realityShows(), true);
       fill(el, "indian", FL.remote.indianSeries(), true);
       fill(el, "top", FL.remote.showCatalog(""));
+      fill(el, "vegaseries", FL.remote.vegaShows(30));
       fill(el, "realityworld", FL.remote.showCatalog("Reality-TV"));
       return {};
     },
@@ -179,6 +181,7 @@
           "</div></article>";
         FL.ui.fillWhere($(".show-where", el), show);
         const bg = data.backdrop || FL.meta.backdrop(show);
+        FL.ambient.art(bg || FL.meta.posterCandidates(show, "small")[0]);
         if (bg) {
           const box = $(".film-backdrop", el);
           const img = new Image();

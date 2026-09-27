@@ -8,7 +8,7 @@
   const filmsOf = (entries) => entries.map((e) => FL.catalogue.get(e.id)).filter(Boolean);
 
   function hero(name, hasLibrary) {
-    const count = FL.catalogue.films.filter((f) => !f.remote).length;
+    const count = FL.catalogue.all().length;
     const mod = FL.palette.isMac() ? "⌘K" : "Ctrl K";
     const g = FL.voice.greeting(name);
     const text = g.line[0] + " " + g.line[1];
@@ -54,9 +54,9 @@
         '<span class="resume-play">' + icon("play") + "</span>" +
         '<div class="card-progress"><i style="width:' + ((p.t / p.d) * 100).toFixed(1) + '%"></i></div></div>' +
         '<div class="resume-body"><strong>' + esc(film.title) + "</strong><span>" + esc(left) + "</span></div></a>" +
-        '<button type="button" class="resume-x" data-home="forget" aria-label="Remove ' + esc(film.title) + ' from Continue watching" title="Remove from Continue watching">' + icon("x") + "</button></article>";
+        '<button type="button" class="resume-x" data-home="forget" aria-label="Remove ' + esc(film.title) + ' from Up Next" title="Remove from Up Next">' + icon("x") + "</button></article>";
     }).join("");
-    return '<section class="rail"><header class="section-head"><div><h2 class="h2">Continue watching</h2></div></header><div class="rail-track rail-wide">' + cards + "</div></section>";
+    return '<section class="rail"><header class="section-head"><div><h2 class="h2">Up Next</h2></div></header><div class="rail-track rail-wide">' + cards + "</div></section>";
   }
 
   /* ---------- tonight: three picks from three angles ---------- */
@@ -95,27 +95,34 @@
     return picks.filter(Boolean);
   }
 
+  /* Tonight's three, as wide artwork cards (Apple TV style): the film's backdrop, or its poster blurred when there's
+     none, with why it's here, the title and Play. Three across on a wide screen; a swipeable row on a phone. */
   function tonight() {
     const picks = tonightPicks();
     if (!picks.length) return "";
     const h = new Date().getHours();
     const label = h >= 5 && h < 12 ? "For later today" : h >= 12 && h < 17 ? "This afternoon" : "Tonight";
-    return '<article class="tonight">' +
-      '<header class="tonight-head"><div><p class="eyebrow">' + label + "</p><h2 class=\"h2\">Three picks for you</h2></div>" +
+    return '<section class="tonight-row" aria-label="' + label + ': three picks">' +
+      '<header class="section-head tonight-head"><div><p class="eyebrow">Three picks, three ways</p><h2 class="h2">' + (label === "Tonight" ? "Tonight’s Trio" : "Today’s Trio") + "</h2></div>" +
       '<button type="button" class="btn btn-ghost btn-sm tonight-more" data-home="another" aria-label="Another three" title="Another three">' + icon("shuffle") + '<span class="hide-sm">Another three</span></button></header>' +
-      '<ol class="tonight-list">' + picks.map(({ film, reason }) => {
+      '<ol class="tn-list">' + picks.map(({ film, reason }) => {
         const m = FL.meta.cached(film);
         const facts = [FL.catalogue.yearLabel(film), FL.catalogue.filmLang(film), m && m.runtime ? FL.util.fmtRuntime(m.runtime) : film.genres[0]]
           .filter((x) => x && x !== "World").map(esc).join(" · ");
         const href = "#/film/" + encodeURIComponent(film.id);
-        return '<li class="pick-card" data-tonight="' + esc(film.id) + '">' +
-          '<a class="pick-art tilt" href="' + href + '" tabindex="-1">' + art(film) + "</a>" +
-          '<div class="pick-text"><a class="pick-title" href="' + href + '">' + esc(film.title) + "</a>" +
-            '<span class="pick-facts">' + facts + "</span>" +
-            '<span class="pick-why">' + esc(reason) + "</span></div>" +
-          '<a class="icon-btn pick-play" href="#/watch/' + encodeURIComponent(film.id) + '" aria-label="Play ' + esc(film.title) + '" title="Play">' + icon("play") + "</a>" +
+        const bg = FL.meta.backdrop(film);
+        return '<li class="tn-card' + (bg ? "" : " is-posteronly") + '" data-tonight="' + esc(film.id) + '">' +
+          '<a class="tn-link" href="' + href + '" aria-label="' + esc(film.title) + '">' +
+            '<span class="tn-media">' +
+              (bg ? '<img class="tn-bg" src="' + esc(bg) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest(\'.tn-card\').classList.add(\'is-posteronly\');this.remove()">' : "") +
+              '<span class="tn-poster">' + art(film) + "</span>" +
+            "</span>" +
+            '<span class="tn-body"><span class="tn-why">' + esc(reason) + '</span><strong class="tn-title">' + esc(film.title) + "</strong>" +
+              '<span class="tn-facts">' + facts + "</span></span>" +
+          "</a>" +
+          '<a class="tn-play" href="#/watch/' + encodeURIComponent(film.id) + '" aria-label="Play ' + esc(film.title) + '">' + icon("play") + "<span>Play</span></a>" +
           "</li>";
-      }).join("") + "</ol></article>";
+      }).join("") + "</ol></section>";
   }
 
   /* What you watched (or ticked) lately, as posters, newest first. */
@@ -254,9 +261,10 @@
     const hasLibrary = FL.store.entries().length > 0;
     const name = FL.store.prefs().name;
     if (!hasLibrary) {
-      el.innerHTML = '<div class="container page">' + hero(name, false) + discovery() + "</div>";
+      el.innerHTML = '<div class="container page">' + hero(name, false) + '<section class="rail" data-rail-id="dubbed"></section>' + discovery() + "</div>";
       fillReality(el);
       fillThrowback(el);
+      fillDubbed(el);
       return;
     }
     const favs = filmsOf(FL.store.favorites());
@@ -276,12 +284,28 @@
       yourShows() +
       rail("Watch later", listed.slice(0, 24), { more: "#/library/watchlist", sub: listed.length ? FL.util.plural(listed.length, "title") : "", empty: FL.ui.empty("Your next favourite hasn’t been saved yet.", "Tap the bookmark on any poster.") }) +
       (favs.length ? rail("Films that stayed with you", favs.slice(0, 24), { more: "#/library/favorites" }) : "") +
+      '<section class="rail" data-rail-id="dubbed"></section>' +
       discovery() +
       "</div>";
     fillReality(el);
     fillThrowback(el);
     fillPeople(el);
     fillNewEpisodes(el);
+    fillDubbed(el);
+    // The Artwork background takes its colours from tonight's first pick.
+    const first = tonightPicks()[0];
+    if (first) FL.ambient.art(FL.meta.backdrop(first.film) || FL.meta.posterCandidates(first.film, "small")[0]);
+  }
+
+  /* Vega's newest Hindi dubbed films, once its catalogue has loaded. */
+  function fillDubbed(el) {
+    FL.remote.vegaDubbed(24).then((films) => {
+      const slot = el.querySelector('[data-rail-id="dubbed"]');
+      if (!slot) return;
+      if (!films.length) { slot.remove(); return; }
+      slot.outerHTML = rail("Hindi dubbed, just in", films, { id: "dubbed", more: "#/browse?lang=Dubbed&sort=newest", sub: "New on Vega: Hollywood and South films in Hindi" });
+      FL.ui.watchPosters(el.querySelector('[data-rail-id="dubbed"]') || el);
+    });
   }
 
   FL.views = FL.views || {};
@@ -298,7 +322,7 @@
         if (forget) { forgetResume(forget.closest("[data-resume]")); return; }
         if (!e.target.closest('[data-home="another"]')) return;
         pickOffset++;
-        const cardEl = el.querySelector(".tonight");
+        const cardEl = el.querySelector(".tonight-row");
         const tmp = document.createElement("div");
         tmp.innerHTML = tonight();
         if (cardEl && tmp.firstChild) {
@@ -326,7 +350,7 @@
         FL.store.clearProgress(id);
         card.classList.add("is-leaving");
         setTimeout(redrawContinue, FL.theme.calm() ? 0 : 240);
-        FL.ui.toast("Removed " + (film ? film.title : "it") + " from Continue watching", { action: "Undo", onAction: () => { FL.store.restoreProgress(id, saved); redrawContinue(); } });
+        FL.ui.toast("Removed " + (film ? film.title : "it") + " from Up Next", { action: "Undo", onAction: () => { FL.store.restoreProgress(id, saved); redrawContinue(); } });
       }
       /* Runtimes for the picks, so "2h 10m" shows and short-film preferences have something to go on. */
       function loadTonight() {
@@ -334,7 +358,7 @@
           const film = FL.catalogue.get(t.dataset.tonight);
           if (!film || FL.meta.cached(film)) return;
           FL.meta.details(film).then((m) => {
-            const facts = el.querySelector('[data-tonight="' + CSS.escape(film.id) + '"] .pick-facts');
+            const facts = el.querySelector('[data-tonight="' + CSS.escape(film.id) + '"] .tn-facts');
             if (m && m.runtime && facts && facts.textContent.indexOf("m") === -1) facts.textContent += " · " + FL.util.fmtRuntime(m.runtime);
           });
         });

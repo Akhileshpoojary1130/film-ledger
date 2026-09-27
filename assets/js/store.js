@@ -440,7 +440,7 @@
         const id = FL.catalogue.canonical(String(src.id || key));
         let film = FL.catalogue.get(id);
         // Titles that came from the web are rebuilt from the backup's own snapshot.
-        if (!film && /^(tt\d+|wk\d{4}_)/.test(id) && src.title) {
+        if (!film && /^(tt\d+|wk\d{4}_|vg\d+)/.test(id) && src.title) {
           film = FL.catalogue.addRemote({
             id, imdbId: /^tt/.test(id) ? id : src.imdbId || "", type: src.type, title: String(src.title),
             year: +src.year || 0, genres: Array.isArray(src.genres) ? src.genres : [], lang: src.lang,

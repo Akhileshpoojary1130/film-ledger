@@ -14,7 +14,7 @@
   const PARTS_KEY = "film_ledger_move_parts";
 
   FL.views.move = {
-    title: "Sync your devices",
+    title: "Relay",
     mount(el, params, query, joinCode) {
       let alive = true;
       let cycle = 0;
@@ -32,7 +32,7 @@
 
       el.innerHTML = '<div class="container page move-page">' +
         '<header class="page-head"><div><p class="eyebrow">Phone ↔ laptop</p>' +
-          '<h1 class="display-sm">Sync your <em>devices.</em></h1>' +
+          '<h1 class="display-sm">Relay. <em>One library, every device.</em></h1>' +
           '<p class="sub">Watched, Watch later, favourites, ratings, shows, where you stopped and your settings: the same on every device you link.</p></div></header>' +
         '<section class="panel move-card sync-card" data-sync aria-live="polite"></section>' +
         '<div class="move-grid">' +
@@ -259,22 +259,22 @@
         }
         if (!st.on) {
           if (ready === false) {
-            syncCard.innerHTML = head("devices", "Sync isn’t switched on for this site yet", SETUP);
+            syncCard.innerHTML = head("devices", "Relay isn’t switched on for this site yet", SETUP);
             return;
           }
-          syncCard.innerHTML = head("devices", "Keep this device in sync",
+          syncCard.innerHTML = head("devices", "Relay: keep this device in step",
             "Turn it on here, then scan the code with your other device. It’s encrypted before it leaves the device; only devices with your code can read it.") +
             '<div class="btn-row"><button type="button" class="btn btn-primary" data-move="sync-on"' + (ready ? "" : " disabled") + ">" +
-              (ready == null ? FL.ui.loader(16) : icon("sync")) + "Turn on sync</button>" +
+              (ready == null ? FL.ui.loader(16) : icon("sync")) + "Turn on Relay</button>" +
             '<button type="button" class="btn btn-ghost" data-move="scan">' + icon("camera") + "I have a code</button></div>";
           return;
         }
         const line = st.phase === "syncing" ? "Syncing…"
           : st.phase === "error" ? (st.code === "not-configured" ? SETUP : "Couldn’t sync: " + esc(st.error) + ". It tries again on its own.")
           : st.at ? "Synced " + ago(st.at) + ". Changes reach your other devices within a minute." : "Linked.";
-        syncCard.innerHTML = head("devices", "Sync is on", line) +
+        syncCard.innerHTML = head("devices", "Relay is on", line) +
           (showQr ? '<div class="qr-stage is-static" data-syncqr>' + qrCache + "</div>" +
-            '<p class="qr-foot"><span>Scan it with the other device’s camera, or open Iris there → Settings → Sync → <strong>I have a code</strong>. ' +
+            '<p class="qr-foot"><span>Scan it with the other device’s camera, or open Iris there → Settings → Relay → <strong>I have a code</strong>. ' +
             "Anyone with this code can see and change your library, so keep it to your own devices.</span></p>" : "") +
           '<div class="btn-row">' +
             (showQr ? '<button type="button" class="btn btn-primary" data-move="sync-copy">' + icon("link") + "Copy link</button>" +
@@ -302,7 +302,7 @@
           FL.sync.create().then((st) => {
             showQr = !!st.on && st.phase !== "error";
             paintSync();
-            if (st.phase !== "error") toast("Sync is on. Scan the code with your other device.");
+            if (st.phase !== "error") toast("Relay is on. Scan the code with your other device.");
           });
           paintSync();
         } else if (act === "sync-join") {
@@ -397,7 +397,7 @@
   };
 
   FL.views.sync = {
-    title: "Sync your devices",
+    title: "Relay",
     mount: (el, params, query) => FL.views.move.mount(el, [], query, params[0]),
   };
 
@@ -405,7 +405,7 @@
 
   const vw = (f) => { const v = f.votes || 0; const r = f.rating || 0; return r ? (v * r + 3000 * 6.5) / (v + 3000) : 0; };
   const cleanName = (s) => String(s || "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, 40);
-  const ID_RE = /^(tt\d{5,10}|wk\d{4}_[\w-]{1,100})$/;
+  const ID_RE = /^(tt\d{5,10}|wk\d{4}_[\w-]{1,100}|vg\d{1,9})$/;
 
   /* A friend's refs → films. Known titles resolve at once; web titles not seen on this device are fetched after. */
   function resolveRefs(refs) {

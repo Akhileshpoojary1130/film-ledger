@@ -522,6 +522,7 @@
     else tests.push(isFilm);
     if (opts.lang === "Shows" || opts.lang === "all") { /* no language test */ }
     else if (opts.lang === "Superhero") tests.push((f) => !!f.universe);
+    else if (opts.lang === "Dubbed") tests.push((f) => !!f.dub); // Hindi dubbed (Vega)
     else if (opts.lang) tests.push((f) => f.lang === opts.lang);
     const yt = yearTest(opts.year);
     if (yt) tests.push(yt);
@@ -558,7 +559,7 @@
     if (genreCache[k]) return genreCache[k];
     const counts = {};
     films.forEach((f) => {
-      if (lang === "Superhero" ? !f.universe : lang && lang !== "all" && f.lang !== lang) return;
+      if (lang === "Superhero" ? !f.universe : lang === "Dubbed" ? !f.dub : lang && lang !== "all" && f.lang !== lang) return;
       f.genres.forEach((g) => { counts[g] = (counts[g] || 0) + 1; });
     });
     genreCache[k] = Object.keys(counts).filter((g) => counts[g] >= 8).sort((a, b) => counts[b] - counts[a]);
@@ -1207,6 +1208,9 @@
       version++;
     },
     version: () => version,
+    all: () => films,
+    /* A batch of web titles joined (Vega's catalogue): cached lists start over. */
+    touch() { version++; Object.keys(genreCache).forEach((k) => delete genreCache[k]); },
     get yearRange() { return yearRange; },
   };
 })(window.FL = window.FL || {});

@@ -50,7 +50,7 @@
           '<button type="button" class="search-trigger" data-open="palette" aria-label="Search (' + mod + ')">' + icon("search") + "<span>Search</span><kbd>" + mod + "</kbd></button>" +
           // Phones: the tab bar has no room for Collections, so it gets a button up here (hidden on wider screens).
           '<a class="icon-btn topbar-coll" href="#/collections" data-nav="collections" aria-label="Collections" title="Collections">' + icon("collections") + "</a>" +
-          '<button type="button" class="icon-btn" data-open="pick" aria-label="Surprise me" title="Surprise me (R)">' + icon("shuffle") + "</button>" +
+          '<button type="button" class="icon-btn" data-open="pick" aria-label="Reel Spin: let Iris pick" title="Reel Spin (R)">' + icon("shuffle") + "</button>" +
           '<button type="button" class="icon-btn" data-open="settings" aria-label="Settings" title="Settings, theme & storage">' + icon("sliders") + "</button>" +
           // Phones can have search as a round button just under Settings instead (Settings → Appearance → Search button).
           '<button type="button" class="search-float" data-open="palette" aria-label="Search" title="Search">' + icon("search") + "</button>" +

@@ -129,7 +129,7 @@ function downloadLinks(html, episode) {
     if (!url || url.startsWith(SITE) || SOCIAL.test(url)) continue;
     let label = decode(m[2]).replace(/\bdownload(?: now)?\b/ig, "").replace(/[[\]|:]/g, " ").replace(/\s+/g, " ").trim().slice(0, 40);
     if (/^watch\b|watch online/i.test(label)) continue; // a player link dressed as a button
-    if (/^multiples?$/i.test(label)) label = "All episodes";
+    if (/^multiples?(?: packs?)?$/i.test(label)) label = "All episodes";
     if (!byUrl.has(url)) byUrl.set(url, []);
     const labels = byUrl.get(url);
     if (labels.indexOf(label) === -1) labels.push(label);
@@ -137,7 +137,7 @@ function downloadLinks(html, episode) {
   let list = [...byUrl].map(([url, labels]) => ({ label: labels.filter(Boolean).join(" · ") || "Download", url }));
   if (episode) {
     const numbered = list.filter((d) => EP_NO.test(d.label));
-    if (numbered.length) list = list.filter((d) => (EP_NO.test(d.label) ? +d.label.match(EP_NO)[1] === episode : !/\bbonus\b/i.test(d.label)));
+    if (numbered.length) list = list.filter((d) => !/\bbonus\b/i.test(d.label) && (!EP_NO.test(d.label) || +d.label.match(EP_NO)[1] === episode));
   }
   const seen = {};
   return list.slice(0, 12).map((d) => {
@@ -209,7 +209,8 @@ async function lookup({ title, year, imdb, s, e }) {
       // "Super Player" and "Ultra Stream" carry the IMDb id: fetched to check the match, and for shows Ultra Stream's
       // show-wide player is pointed at the episode.
       const checks = options.filter((o) => /super|ultra/i.test(o.label));
-      const wanted = tv ? options.filter((o) => episodeOf(o.label) === e) : options.filter((o) => !episodeOf(o.label));
+      // "Bonus Episode-1" is extra footage, not episode 1.
+      const wanted = tv ? options.filter((o) => episodeOf(o.label) === e && !/bonus/i.test(o.label)) : options.filter((o) => !episodeOf(o.label));
       if (!wanted.length && !(tv && checks.length)) continue;
       const list = [...new Set(wanted.concat(checks))];
       const urls = await Promise.all(list.map((o) => embed(c.id, o)));
@@ -341,7 +342,8 @@ function language(title) {
    size; otherwise the upload without its thumbnail size. */
 function posterOf(img) {
   const m = String(img).match(/\/([A-Za-z0-9]{24,32})(?:-[\dx]+)*\.(jpg|jpeg|png|webp)$/); // "…ZlsU0-1-200x300-1-90x135.jpg"
-  if (m) return "https://image.tmdb.org/t/p/w342/" + m[1] + "." + m[2];
+  // TMDB's file names mix capitals and digits; an all-lowercase word ("kalyanamkamaniyamjeevitam") is Vega's own upload.
+  if (m && /[A-Z0-9]/.test(m[1])) return "https://image.tmdb.org/t/p/w342/" + m[1] + "." + m[2];
   return /^https:\/\//.test(img) ? img.replace(/-\d+x\d+(?=\.\w+$)/, "") : "";
 }
 

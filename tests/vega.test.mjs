@@ -96,6 +96,8 @@ test("posterOf turns Vega's thumbnails into full-size posters", () => {
     "https://image.tmdb.org/t/p/w342/khNVygolU0TxLIDWff5tQlAhZ23.jpg");
   assert.equal(posterOf("https://vegamovito.run/wp-content/uploads/2026/05/download-5-90x135.jpg"),
     "https://vegamovito.run/wp-content/uploads/2026/05/download-5.jpg");
+  assert.equal(posterOf("https://vegamovito.run/wp-content/uploads/2026/09/kalyanamkamaniyamjeevitam-185x278.jpg"),
+    "https://vegamovito.run/wp-content/uploads/2026/09/kalyanamkamaniyamjeevitam.jpg", "a plain word isn't a TMDB id");
   assert.equal(posterOf(""), "");
 });
 
@@ -118,6 +120,7 @@ test("downloadLinks reads a post's download buttons, grouped by page", () => {
   const season = a("EP-1", "e1") + a("EP-2", "e2") + a("EP-10", "e10") + a("Bonus Episode", "b") + a("Download Complete Season [1080p]", "zip");
   assert.deepEqual(downloadLinks(season, 2).map((d) => d.label), ["EP-2", "Complete Season 1080p"]);
   assert.deepEqual(downloadLinks(season, 0).length, 5);
+  assert.deepEqual(downloadLinks(a("Multiples Packs", "m") + a("EP-1", "e1") + a("Bonus Episode EP-1", "b1"), 1).map((d) => d.label), ["All episodes", "EP-1"]);
   assert.deepEqual(downloadLinks('<a href="javascript:alert(1)"><button class="download-button">Download</button></a>'), []);
 });
 

@@ -80,7 +80,7 @@
   ];
 
   const GLASS = [["off", "Off"], ["subtle", "Subtle"], ["balanced", "Balanced"], ["clear", "Clear"]];
-  const AMBIENT = [["off", "Still"], ["lights", "Lights"], ["aurora", "Aurora"]];
+  const AMBIENT = [["off", "Still"], ["art", "Artwork"], ["lights", "Lights"], ["aurora", "Aurora"]];
 
   const root = document.documentElement;
   const media = window.matchMedia("(prefers-color-scheme: light)");
@@ -216,79 +216,66 @@
 
   /* ---------- the aperture mark ---------- */
 
-  let markId = 0;
-
-  /* Six blades pivoting on the rim; `open` is the blade angle (0° = wide open, ~80° = shut). */
-  /* The aperture, from exact geometry: a hexagonal opening whose six sides run straight on to the rim (the seams
-     between blades). Drawn rather than stacked from overlapping blades, so all six seams are identical at any size.
-     `open` 0 (nearly shut) – 1 (wide): the opening shrinks and turns as it closes, like real blades. */
-  function aperture(open, w) {
-    const r = 4 + open * 13;
-    const phase = (1 - open) * 40;
-    const R = 46.5;
-    const V = [];
-    for (let i = 0; i < 6; i++) {
-      const a = ((phase + 60 * i - 90) * Math.PI) / 180;
-      V.push([r * Math.cos(a), r * Math.sin(a)]);
-    }
-    const n = (x) => x.toFixed(2);
-    const poly = (pts) => "M" + pts.map((p) => n(p[0]) + " " + n(p[1])).join("L") + "Z";
-    let d = poly(V);
-    for (let i = 0; i < 6; i++) {
-      const a = V[i];
-      const b = V[(i + 1) % 6];
-      let dx = b[0] - a[0];
-      let dy = b[1] - a[1];
-      const len = Math.hypot(dx, dy);
-      dx /= len; dy /= len;
-      const bd = b[0] * dx + b[1] * dy;
-      const t = -bd + Math.sqrt(bd * bd - (b[0] * b[0] + b[1] * b[1] - R * R)) + 2;
-      // The seam's inner side is the hexagon's side carried straight on, and its width lies away from the centre:
-      // the opening's corner flows into the seam without a notch.
-      let nx = -dy;
-      let ny = dx;
-      if (nx * (a[0] + b[0]) + ny * (a[1] + b[1]) < 0) { nx = -nx; ny = -ny; }
-      const s0 = [b[0] - dx * 0.4, b[1] - dy * 0.4];
-      const e = [b[0] + dx * t, b[1] + dy * t];
-      d += poly([s0, e, [e[0] + nx * w, e[1] + ny * w], [s0[0] + nx * w, s0[1] + ny * w]]);
-    }
-    return d;
-  }
-
   const SPLINE = 'calcMode="spline" keyTimes="0;.5;1" keySplines=".65 0 .35 1;.65 0 .35 1"';
 
-  /* opts: size, open (0–1), animate (a slow open-and-shut loop, for loaders), blink (can close and reopen on cue:
-     markBlink), fill / ring colours for contexts without the stylesheet (the favicon). */
-  function mark(opts) {
-    const o = Object.assign({ size: 28, open: 0.9, animate: false, blink: false, fill: "", ring: "" }, opts);
-    const id = "irismask" + ++markId;
-    // Seams stay about one screen pixel wide at any size.
-    const w = Math.max(3.4, (100 / o.size) * 1.05);
-    const d = aperture(o.open, w);
-    const shut = aperture(0.08, w);
-    const anim = o.animate
-      ? '<animate attributeName="d" values="' + d + ";" + shut + ";" + d + '" ' + SPLINE + ' dur="2s" repeatCount="indefinite"/>'
-      : o.blink ? '<animate class="mark-blink" attributeName="d" values="' + d + ";" + shut + ";" + d + '" ' + SPLINE + ' dur=".7s" begin="indefinite"/>' : "";
-    // The opening and seams are cut out of the disc with a mask, so whatever is behind (glass, aurora, a light page)
-    // shows through them alike.
-    return '<svg class="mark' + (o.cls ? " " + o.cls : "") + '" viewBox="-50 -50 100 100" width="' + o.size + '" height="' + o.size + '" aria-hidden="true" focusable="false">' +
-      '<defs><mask id="' + id + '" maskUnits="userSpaceOnUse" x="-50" y="-50" width="100" height="100"><circle r="46" fill="#fff"/>' +
-        '<path d="' + d + '" fill="#000">' + anim + "</path></mask></defs>" +
-      '<circle class="mark-fill" r="46" mask="url(#' + id + ')"' + (o.fill ? ' fill="' + o.fill + '"' : "") + "/>" +
-      '<circle class="mark-ring" r="46"' + (o.ring ? ' stroke="' + o.ring + '"' : "") + "/></svg>";
+  /* The Iris mark: an aperture that is also an eye. Six curved blades swirl in from the rim, each a different shade of
+     the accent (lit from the top left, so it has depth without a gradient), around a dark pupil with a catchlight.
+     `open` (0–1) sets the pupil; `blink` makes it narrow and the blades turn as you change pages; `animate` keeps them
+     turning slowly (the loaders). Colours come from the stylesheet, or from `fill` where there is none (the favicon). */
+  const polar = (r, deg) => { const a = ((deg - 90) * Math.PI) / 180; return [r * Math.cos(a), r * Math.sin(a)]; };
+  const f2 = (x) => x.toFixed(2);
+  const pt = (p) => f2(p[0]) + " " + f2(p[1]);
+  const SHADES = [0, 18, 34, -14, -30, -12]; // + lighter, − darker, per blade
+  function blade(i, r, gap) {
+    const R = 46;
+    const a = i * 60 + gap / 2;
+    const b = (i + 1) * 60 - gap / 2;
+    const swirl = 64;
+    const A = polar(R, a);
+    const B = polar(R, b);
+    const C = polar(r, b + swirl);
+    const D = polar(r, a + swirl);
+    const cB = polar(R * 0.5, b + swirl * 0.22);
+    const cA = polar(R * 0.5, a + swirl * 0.22);
+    return "M" + pt(A) + "A" + R + " " + R + " 0 0 1 " + pt(B) + "Q" + pt(cB) + " " + pt(C) +
+      "A" + f2(r) + " " + f2(r) + " 0 0 0 " + pt(D) + "Q" + pt(cA) + " " + pt(A) + "Z";
+  }
+  function mixHex(hex, amt) {
+    const n = parseInt(String(hex).replace("#", "").slice(0, 6), 16);
+    const to = amt > 0 ? 255 : 0;
+    const t = Math.abs(amt) / 100;
+    const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => Math.round(v + (to - v) * t));
+    return "#" + c.map((v) => v.toString(16).padStart(2, "0")).join("");
   }
 
-  /* Close and reopen a mark made with { blink: true } (the logo, as you change pages). */
+  function mark(opts) {
+    const o = Object.assign({ size: 28, open: 0.9, animate: false, blink: false, fill: "" }, opts);
+    const r = 7 + 7 * o.open;
+    const gap = Math.max(2.4, (100 / o.size) * 2.2); // seams stay about a screen pixel wide at any size
+    const blades = [0, 1, 2, 3, 4, 5].map((i) => '<path class="mark-b' + i + '" d="' + blade(i, r, gap) + '"' +
+      (o.fill ? ' fill="' + mixHex(o.fill, SHADES[i]) + '"' : "") + "/>").join("");
+    const turn = o.animate
+      ? '<animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="3.2s" repeatCount="indefinite"/>'
+      : o.blink ? '<animateTransform class="mark-blink" attributeName="transform" type="rotate" values="0;46;0" ' + SPLINE + ' dur=".7s" begin="indefinite"/>' : "";
+    const pupil = o.animate
+      ? '<animate attributeName="r" values="' + f2(r) + ";" + f2(r * 0.55) + ";" + f2(r) + '" ' + SPLINE + ' dur="1.6s" repeatCount="indefinite"/>'
+      : o.blink ? '<animate class="mark-blink" attributeName="r" values="' + f2(r) + ";" + f2(r * 0.3) + ";" + f2(r) + '" ' + SPLINE + ' dur=".7s" begin="indefinite"/>' : "";
+    return '<svg class="mark' + (o.cls ? " " + o.cls : "") + '" viewBox="-50 -50 100 100" width="' + o.size + '" height="' + o.size + '" aria-hidden="true" focusable="false">' +
+      '<g class="mark-blades">' + blades + turn + "</g>" +
+      '<circle class="mark-pupil" r="' + f2(r) + '"' + (o.fill ? ' fill="#0B0B0E"' : "") + ' stroke-width="' + f2(Math.max(1.2, 100 / o.size * 0.6)) + '">' + pupil + "</circle>" +
+      (o.size >= 20 ? '<circle class="mark-glint" cx="' + f2(-r * 0.34) + '" cy="' + f2(-r * 0.38) + '" r="' + f2(Math.max(1.6, r * 0.2)) + '"' + (o.fill ? ' fill="#fff"' : "") + "/>" : "") +
+      "</svg>";
+  }
+
+  /* Blink a mark made with { blink: true } (the logo, as you change pages). */
   function markBlink(svg) {
-    const a = svg && svg.querySelector("animate.mark-blink");
-    if (a && a.beginElement) a.beginElement();
+    if (svg) svg.querySelectorAll("animate.mark-blink, animateTransform.mark-blink").forEach((a) => { if (a.beginElement) a.beginElement(); });
   }
 
   function favicon() {
     const a = accent();
     const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="-50 -50 100 100"><rect x="-50" y="-50" width="100" height="100" rx="22" fill="#0A0A0B"/>' +
-      mark({ size: 64, open: 0.95, fill: a, ring: a }).replace(/^<svg[^>]*>/, "<g transform=\"scale(.78)\">").replace(/<\/svg>$/, "</g>")
-        .replace(/class="mark-ring"/, 'fill="none" stroke-width="5"') + "</svg>";
+      mark({ size: 64, open: 0.95, fill: a }).replace(/^<svg[^>]*>/, "<g transform=\"scale(.8)\">").replace(/<\/svg>$/, "</g>") + "</svg>";
     let link = document.querySelector('link[rel="icon"]');
     if (!link) { link = document.createElement("link"); link.rel = "icon"; document.head.appendChild(link); }
     link.href = "data:image/svg+xml," + encodeURIComponent(svg);

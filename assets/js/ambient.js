@@ -3,7 +3,9 @@
    defined glow; as it drifts away it dims and scatters wider. Lamps move slowly in 3D and bounce softly off
    each other and the edges. Drawn on a tiny canvas and scaled up, so the blur is free and the cost is negligible.
    "Aurora": slow CSS light ribbons (no script per frame). Both pause when the tab is hidden and stay still
-   when motion is set to calm. */
+   when motion is set to calm.
+   "Artwork": the title you're looking at, blurred into a soft wash of its colours behind the page (like Apple TV).
+   Pages hand it their artwork with FL.ambient.art(url); it crossfades from one to the next. */
 (function (FL) {
   "use strict";
 
@@ -128,7 +130,9 @@
   function start(next) {
     mount();
     host.dataset.kind = next;
-    host.innerHTML = next === "lights" ? "<canvas></canvas>" : next === "aurora" ? '<div class="aurora"><i></i><i></i><i></i></div>' : "";
+    host.innerHTML = next === "lights" ? "<canvas></canvas>" : next === "aurora" ? '<div class="aurora"><i></i><i></i><i></i></div>'
+      : next === "art" ? '<div class="ambient-art"></div>' : "";
+    if (next === "art" && artUrl) showArt(artUrl, true);
     stopLoop();
     canvas = null;
     if (next === "lights") {
@@ -175,6 +179,30 @@
     else if (!still && !raf) { last = performance.now(); raf = requestAnimationFrame(frame); }
   });
 
-  FL.ambient = { sync };
+  /* Artwork: two layers crossfade, so a new title's colours arrive smoothly. */
+  let artUrl = "";
+  function showArt(url, instant) {
+    const box = host && host.querySelector(".ambient-art");
+    if (!box) return;
+    const img = new Image();
+    img.referrerPolicy = "no-referrer";
+    img.alt = "";
+    img.onload = () => {
+      if (url !== artUrl || !box.isConnected) return;
+      box.appendChild(img);
+      requestAnimationFrame(() => {
+        img.classList.add("is-on");
+        [...box.children].slice(0, -1).forEach((old) => { old.classList.remove("is-on"); setTimeout(() => old.remove(), instant ? 0 : 1300); });
+      });
+    };
+    img.src = url;
+  }
+  function art(url) {
+    if (!url || url === artUrl) return;
+    artUrl = url;
+    if (kind === "art") showArt(url);
+  }
+
+  FL.ambient = { sync, art };
   sync();
 })(window.FL = window.FL || {});

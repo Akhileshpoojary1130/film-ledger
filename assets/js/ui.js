@@ -435,7 +435,7 @@
   function whereHtml(film, d) {
     const offers = (d && d.offers) || [];
     const more = d && d.match ? d.match.url : whereToWatch(film);
-    return '<h2 class="label">Where to watch</h2>' +
+    return '<h2 class="label">How to Watch</h2>' +
       (offers.length
         ? '<div class="where">' + offers.slice(0, 8).map((o) =>
           '<a class="where-item" href="' + esc(o.url) + '" target="_blank" rel="noopener noreferrer">' +
