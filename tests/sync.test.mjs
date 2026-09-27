@@ -6,23 +6,22 @@ import handler, { creds } from "../api/sync.js";
 const ID = "a".repeat(64);
 const URL_BASE = "https://iris.test/api/sync";
 
-/* Just enough of Upstash: EVAL of the two scripts in api/sync.js, on a hash with rev and data. */
-function fakeRedis() {
-  const db = new Map();
+/* Just enough of Upstash: GET, HMGET, and the write script (two string keys; a legacy hash dropped on write). */
+function fakeRedis(seed) {
+  const db = new Map(Object.entries(seed || {}));
   const calls = [];
   globalThis.fetch = async (url, init) => {
     const cmd = JSON.parse(init.body);
     calls.push(cmd);
     assert.equal(init.headers.Authorization, "Bearer tok");
-    const [, script, , key, ...args] = cmd;
-    const row = db.get(key);
-    let result;
-    if (/'data', ARGV\[2\]/.test(script)) {
-      const cur = row ? row.rev : 0;
-      if (cur !== +args[0]) result = [0, cur];
-      else { db.set(key, { rev: cur + 1, data: args[1] }); result = [1, cur + 1]; }
-    } else {
-      result = !row ? [0, ""] : String(row.rev) === args[0] ? [row.rev, ""] : [row.rev, row.data];
+    let result = null;
+    if (cmd[0] === "GET") result = db.has(cmd[1]) ? db.get(cmd[1]) : null;
+    else if (cmd[0] === "HMGET") { const h = db.get(cmd[1]) || {}; result = cmd.slice(2).map((f) => (f in h ? h[f] : null)); }
+    else if (cmd[0] === "EVAL") {
+      const [, , , revKey, dataKey, legacy, rev, data] = cmd;
+      const cur = +(db.get(revKey) || (db.get(legacy) || {}).rev || 0);
+      if (cur !== +rev) result = [0, cur];
+      else { db.set(revKey, String(cur + 1)); db.set(dataKey, data); db.delete(legacy); result = [1, cur + 1]; }
     }
     return new Response(JSON.stringify({ result }), { status: 200 });
   };
@@ -57,7 +56,9 @@ test("reads, writes and refuses a write from a stale revision", async () => {
   assert.deepEqual((await get("id=" + ID)).body, { rev: 0 }, "a new code has nothing yet");
   assert.deepEqual((await post("id=" + ID, { rev: 0, data: "z1.AAAA" })).body, { rev: 1 });
   assert.deepEqual((await get("id=" + ID)).body, { rev: 1, data: "z1.AAAA" });
+  const before = calls.length;
   assert.deepEqual((await get("id=" + ID + "&since=1")).body, { rev: 1, same: true }, "no data when nothing changed");
+  assert.equal(calls.length - before, 1, "an unchanged poll costs one command");
 
   // Two devices both merged from revision 1: the first write wins, the second is told to pull again.
   assert.deepEqual((await post("id=" + ID, { rev: 1, data: "z1.BBBB" })).body, { rev: 2 });
@@ -67,5 +68,14 @@ test("reads, writes and refuses a write from a stale revision", async () => {
   assert.deepEqual((await get("id=" + ID + "&since=1")).body, { rev: 2, data: "z1.BBBB" });
 
   assert.equal((await post("id=" + ID, { rev: 2, data: "not base64!" })).status, 400);
-  assert.ok(calls.every((c) => c[0] === "EVAL" && c[3] === "iris:sync:" + ID));
+});
+
+test("a library saved in the old one-hash layout is read, then moved on its next write", async () => {
+  const OLD = "b".repeat(64);
+  const { db } = fakeRedis({ ["iris:sync:" + OLD]: { rev: "4", data: "z1.OLD" } });
+  assert.deepEqual((await get("id=" + OLD)).body, { rev: 4, data: "z1.OLD" });
+  assert.deepEqual((await get("id=" + OLD + "&since=4")).body, { rev: 4, same: true });
+  assert.deepEqual((await post("id=" + OLD, { rev: 4, data: "z1.NEW" })).body, { rev: 5 });
+  assert.equal(db.has("iris:sync:" + OLD), false, "the old hash is gone");
+  assert.deepEqual((await get("id=" + OLD)).body, { rev: 5, data: "z1.NEW" });
 });

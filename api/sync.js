@@ -1,7 +1,10 @@
-/* Iris — sync store: one encrypted library per sync code, kept in this project's Upstash Redis (Vercel → Storage).
-   Browsers encrypt before sending (AES-GCM, with a key only the sync code gives), so this only keeps opaque text
-   plus a revision number: a write names the revision it started from, and loses if another device got there first
-   (it pulls, merges and tries again). Untouched libraries expire after 400 days.
+/* Iris — sync store (Relay): one encrypted library per sync code, kept in this project's Upstash Redis (Vercel →
+   Storage). Browsers encrypt before sending (AES-GCM, with a key only the sync code gives), so this only keeps opaque
+   text plus a revision number: a write names the revision it started from, and loses if another device got there
+   first (it pulls, merges and tries again). Untouched libraries expire after 400 days.
+
+   Built to be cheap on a free plan: "anything new?" is one GET of a small revision key; the library itself is read
+   only when it changed, and written with one script.
 
    GET  ?status=1               → { ready }                       is a store connected?
    GET  ?id=<64 hex>&since=<rev> → { rev, data } | { rev, same } | { rev: 0 }
@@ -14,18 +17,13 @@ const DATA = /^[a-z0-9]{1,4}\.[A-Za-z0-9_-]+$/;
 const MAX = 2000000; // characters of ciphertext — far above a big library (~60 KB for 1,000 titles)
 const TTL = String(400 * 86400);
 
-// Read the revision; hand back the data only when it has moved on from the caller's.
-const READ = `local r = redis.call('HGET', KEYS[1], 'rev')
-if not r then return {0, ''} end
-redis.call('EXPIRE', KEYS[1], ARGV[2])
-if r == ARGV[1] then return {tonumber(r), ''} end
-return {tonumber(r), redis.call('HGET', KEYS[1], 'data')}`;
-
-// Compare-and-set: write only if the stored revision is the one the caller merged from.
-const WRITE = `local r = tonumber(redis.call('HGET', KEYS[1], 'rev') or '0')
+// Compare-and-set on the revision key; the library and its revision are written together. (KEYS[3] is the older
+// single-hash layout, read once and dropped on the first write.)
+const WRITE = `local r = tonumber(redis.call('GET', KEYS[1]) or redis.call('HGET', KEYS[3], 'rev') or '0')
 if r ~= tonumber(ARGV[1]) then return {0, r} end
-redis.call('HSET', KEYS[1], 'rev', r + 1, 'data', ARGV[2])
-redis.call('EXPIRE', KEYS[1], ARGV[3])
+redis.call('SET', KEYS[1], r + 1, 'EX', ARGV[3])
+redis.call('SET', KEYS[2], ARGV[2], 'EX', ARGV[3])
+redis.call('DEL', KEYS[3])
 return {1, r + 1}`;
 
 /* Vercel's Upstash integration adds KV_REST_API_URL / KV_REST_API_TOKEN (or UPSTASH_REDIS_REST_*, or the same
@@ -66,10 +64,17 @@ export default async function handler(req) {
   const key = "iris:sync:" + id;
   try {
     if (req.method === "GET") {
-      const since = /^\d{1,12}$/.test(url.searchParams.get("since") || "") ? url.searchParams.get("since") : "";
-      const [rev, data] = await redis(c, ["EVAL", READ, "1", key, since, TTL]);
-      if (!rev) return json({ rev: 0 });
-      return json(data ? { rev, data } : { rev, same: true });
+      const since = url.searchParams.get("since") || "";
+      let rev = +(await redis(c, ["GET", key + ":rev"])) || 0;
+      if (!rev) {
+        // A library saved before the two-key layout.
+        const [old, oldData] = (await redis(c, ["HMGET", key, "rev", "data"])) || [];
+        rev = +old || 0;
+        if (!rev) return json({ rev: 0 });
+        return json(since === String(rev) ? { rev, same: true } : { rev, data: oldData });
+      }
+      if (since === String(rev)) return json({ rev, same: true });
+      return json({ rev, data: await redis(c, ["GET", key + ":data"]) });
     }
     if (req.method === "POST") {
       const body = await req.text();
@@ -77,7 +82,7 @@ export default async function handler(req) {
       let p = null;
       try { p = JSON.parse(body); } catch (err) { /* handled below */ }
       if (!p || typeof p.data !== "string" || !DATA.test(p.data) || !(+p.rev >= 0)) return json({ error: "bad-body" }, 400);
-      const [ok, rev] = await redis(c, ["EVAL", WRITE, "1", key, String(Math.floor(+p.rev)), p.data, TTL]);
+      const [ok, rev] = await redis(c, ["EVAL", WRITE, "3", key + ":rev", key + ":data", key, String(Math.floor(+p.rev)), p.data, TTL]);
       return ok ? json({ rev }) : json({ error: "conflict", rev }, 409);
     }
     return json({ error: "method" }, 405);

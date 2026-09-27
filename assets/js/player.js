@@ -749,6 +749,7 @@
     cancelUpNext();
     state.open = false; // before settle(): a closing player offers Undo, not "Next episode"
     settle();
+    if (FL.sync) setTimeout(() => FL.sync.flush(), 300); // Relay: where you stopped, to your other devices now
     state.token++;
     state.film = null;
     state.server = null;

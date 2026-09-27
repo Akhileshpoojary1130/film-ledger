@@ -178,6 +178,7 @@
       for (let tries = 0; ; tries++) {
         if (tries > 4) throw fail("busy", "Another device kept saving at the same moment; trying again shortly");
         const got = await call(API + "?id=" + keys.id + (conf.rev ? "&since=" + conf.rev : ""));
+        lastPull = Date.now();
         if (!conf) return;
         const remote = got.data ? normalize(await unseal(got.data).catch(() => { throw fail("key", "This sync code doesn't open the library on the server"); })) : null;
         if (!conf) return;
@@ -216,6 +217,36 @@
     }
   }
 
+  /* A change made here: send it straight on the revision we last saw (one write). Only if another device wrote in
+     between (409) does it fall back to pull, merge and write. Nothing changed since the last sync: nothing sent. */
+  async function push() {
+    if (!conf) return;
+    if (!conf.rev || !keys) return run();
+    if (busy) { again = true; return; }
+    busy = true;
+    try {
+      const local = FL.store.syncDoc();
+      const h = hashOf(local);
+      if (h === conf.hash) return;
+      setState({ phase: "syncing", error: "", code: "" });
+      const data = await seal(local);
+      const put = await call(API + "?id=" + keys.id, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ rev: conf.rev, data }),
+        keepalive: data.length < 60000,
+      });
+      if (!conf) return;
+      if (put.conflict) { busy = false; return run(); }
+      Object.assign(conf, { rev: put.rev, hash: h, at: Date.now() });
+      save();
+      setState({ phase: "idle", at: conf.at, error: "", code: "" });
+    } catch (err) {
+      setState({ phase: "error", error: err.message || String(err), code: err.code || "" });
+    } finally {
+      busy = false;
+      if (again) { again = false; schedulePush(1500); }
+    }
+  }
+
   /* Settings that came in: repaint the look and chrome when the look changed. */
   function afterApply(changed) {
     if (!changed || !changed.length) return;
@@ -228,6 +259,20 @@
     clearTimeout(timer);
     timer = setTimeout(() => { timer = 0; run(); }, ms);
   }
+  /* Pushes wait a moment so a burst of changes goes as one; the position in a playing film waits longer (the
+     player saves it every 15 seconds), and anything pending goes at once when you leave. */
+  let pushTimer = 0;
+  let pushAt = 0;
+  function schedulePush(ms) {
+    if (!conf) return;
+    const at = Date.now() + ms;
+    if (pushTimer && pushAt <= at) return; // an earlier send is already due
+    clearTimeout(pushTimer);
+    pushAt = at;
+    pushTimer = setTimeout(() => { pushTimer = 0; push(); }, ms);
+  }
+  function flushPush() { if (pushTimer) { clearTimeout(pushTimer); pushTimer = 0; push(); } }
+  let lastPull = 0;
 
   /* ---------- linking ---------- */
 
@@ -263,20 +308,24 @@
       setState({ phase: "off", at: 0, error: "" });
     },
     now: () => run(),
+    flush: () => flushPush(), // the player, on closing: where you stopped goes now, not in 90 s
     merge, normalize, stable, // for tests
   };
 
   /* ---------- when to sync ---------- */
 
-  FL.store.on((d) => { if (d.kind !== "sync") schedule(d.kind === "progress" ? 10000 : 1200); });
-  FL.store.onPrefs(() => schedule(1500));
+  // Light on a free Redis plan: a change is one write; checking for other devices' changes is one small read, on
+  // opening, on coming back to Iris (at most every 45 s) and every 5 minutes while it's on screen.
+  FL.store.on((d) => { if (d.kind !== "sync") schedulePush(d.kind === "progress" ? 90000 : 3000); });
+  FL.store.onPrefs(() => schedulePush(3000));
   document.addEventListener("visibilitychange", () => {
     if (!conf) return;
-    if (document.visibilityState === "visible") schedule(200);
-    else if (timer) { clearTimeout(timer); timer = 0; run(); } // leaving with changes not yet sent: send them now
+    if (document.visibilityState === "visible") { if (Date.now() - lastPull > 45000) schedule(300); }
+    else flushPush(); // leaving with changes not yet sent: send them now
   });
+  window.addEventListener("pagehide", flushPush);
   window.addEventListener("online", () => schedule(500));
-  setInterval(() => { if (conf && document.visibilityState === "visible" && !busy) run(); }, 60000);
+  setInterval(() => { if (conf && document.visibilityState === "visible" && !busy) run(); }, 5 * 60000);
   if (conf) setTimeout(run, 600);
 
   FL.sync = api;
