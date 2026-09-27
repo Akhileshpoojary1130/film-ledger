@@ -11,6 +11,7 @@
 
   const SCALE = 7; // canvas px per CSS px (1 / SCALE resolution)
   const COUNT = 6;
+  const NEAR = 0.55; // lamps keep this far back from the glass: wide, faint glows, never a defined ball
   let host = null;
   let canvas = null;
   let ctx = null;
@@ -49,7 +50,7 @@
     lamps = [];
     for (let i = 0; i < COUNT; i++) {
       lamps.push({
-        x: 0.15 + Math.random() * 0.7, y: 0.15 + Math.random() * 0.7, z: Math.random(),
+        x: 0.15 + Math.random() * 0.7, y: 0.15 + Math.random() * 0.7, z: NEAR + Math.random() * (1 - NEAR),
         vx: (Math.random() - 0.5) * 0.03, vy: (Math.random() - 0.5) * 0.024, vz: (Math.random() - 0.5) * 0.02,
         r: 0.16 + Math.random() * 0.1, c: i % palette.length,
       });
@@ -67,7 +68,7 @@
       p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
       if (p.x < 0.02 || p.x > 0.98) { p.vx = -p.vx; p.x = Math.min(0.98, Math.max(0.02, p.x)); }
       if (p.y < 0.02 || p.y > 0.98) { p.vy = -p.vy; p.y = Math.min(0.98, Math.max(0.02, p.y)); }
-      if (p.z < 0 || p.z > 1) { p.vz = -p.vz; p.z = Math.min(1, Math.max(0, p.z)); }
+      if (p.z < NEAR || p.z > 1) { p.vz = -p.vz; p.z = Math.min(1, Math.max(NEAR, p.z)); }
     });
     // Soft elastic collisions between equal lamps: swap the velocity along the line between them.
     for (let i = 0; i < lamps.length; i++) {
@@ -95,8 +96,8 @@
     lamps.slice().sort((a, b) => b.z - a.z).forEach((p) => {
       // Near the glass: smaller, brighter, a firmer core. Far: wider, dimmer, fully scattered.
       const spread = p.r * (0.75 + p.z * 1.5) * unit;
-      const glow = (light ? 0.2 : 0.22) * (1 - p.z * 0.72);
-      const core = 0.34 * (1 - p.z);
+      const glow = (light ? 0.12 : 0.13) * (1 - p.z * 0.5);
+      const core = 0.2 * (1 - p.z);
       const [hue, sat] = palette[p.c];
       const col = (a) => "hsla(" + hue.toFixed(0) + ", " + (sat * 100).toFixed(0) + "%, " + (light ? 62 : 48) + "%, " + a.toFixed(3) + ")";
       const g = ctx.createRadialGradient(p.x * w, p.y * h, 0, p.x * w, p.y * h, spread);

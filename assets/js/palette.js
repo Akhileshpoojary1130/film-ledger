@@ -322,6 +322,17 @@
     return "--pv-bg:" + pv.bg + ";--pv-s:" + pv.s + ";--pv-text:" + pv.text + ";--pv-accent:" + pv.accent;
   }
 
+  /* The look's style (Cinema, Material, Cupertino…): its own section, first. */
+  function styleHtml() {
+    const a = FL.store.prefs().appearance;
+    const T = FL.theme;
+    return '<div class="theme-grid">' + Object.keys(T.THEMES).map((id) => {
+      const t = T.THEMES[id];
+      return '<button type="button" class="theme-card theme-' + id + (a.theme === id ? " is-on" : "") + '" data-theme-pick="' + id + '" aria-pressed="' + (a.theme === id) + '">' +
+        '<span class="theme-preview" aria-hidden="true"><i></i><i></i><i></i></span><strong>' + t.label + "</strong><small>" + t.note + "</small></button>";
+    }).join("") + "</div>";
+  }
+
   function appearanceHtml() {
     const a = FL.store.prefs().appearance;
     const T = FL.theme;
@@ -329,11 +340,6 @@
     const current = T.accent();
     const DEF_BG = { cinema: "#0A0A0B", material: "#17151B", mac: "#1C1C1E", fluent: "#1C1C1C", oneui: "#000000", nothing: "#000000", pop: "#1B1A22", neon: "#07060F", retro: "#1A1320" };
     const styleDefault = (id) => ({ bg: DEF_BG[id] || "#0A0A0B", s: "#2A2A2E", text: "#F5F5F2", accent: T.THEMES[id].accent.dark });
-    const themes = Object.keys(T.THEMES).map((id) => {
-      const t = T.THEMES[id];
-      return '<button type="button" class="theme-card theme-' + id + (a.theme === id ? " is-on" : "") + '" data-theme-pick="' + id + '" aria-pressed="' + (a.theme === id) + '">' +
-        '<span class="theme-preview" aria-hidden="true"><i></i><i></i><i></i></span><strong>' + t.label + "</strong><small>" + t.note + "</small></button>";
-    }).join("");
     const palettes = T.PALETTES.map((p) => {
       const pv = T.preview(p, mode) || styleDefault(T.id());
       const on = (a.palette || "default") === p.id;
@@ -343,15 +349,14 @@
     const swatches = '<button type="button" class="swatch swatch-auto' + (!a.accent ? " is-on" : "") + '" data-accent="" title="Palette default" aria-label="Palette default">' + icon("spark") + "</button>" +
       T.ACCENTS.map(([hex, name]) => '<button type="button" class="swatch' + (a.accent === hex ? " is-on" : "") + '" data-accent="' + hex + '" style="--sw:' + hex + '" title="' + name + '" aria-label="' + name + '"></button>').join("") +
       '<label class="swatch swatch-custom" title="Custom colour" style="--sw:' + current + '"><input type="color" value="' + current + '" data-accent-custom aria-label="Custom accent colour"></label>';
-    // Colour first (what people change most), then the style, then glass and motion.
+    // Colour (mode, accent, palette), then glass and motion. The style has its own section above.
     return '<div class="set-group">' +
         '<div class="setting-row"><span>Mode</span>' + FL.ui.segmented("mode", [["dark", "Dark"], ["light", "Light"], ["system", "Auto"]], a.mode) + "</div>" +
-        '<div class="setting-row"><span>Accent</span><div class="swatches">' + swatches + "</div></div>" +
+        '<div class="setting-row setting-stack"><span>Accent</span><div class="swatches swatches-line">' + swatches + "</div></div>" +
         '<div class="setting-row setting-stack"><span>Palette</span><div class="pal-rail"><button type="button" class="icon-btn icon-btn-sm pal-arrow" data-palscroll="-1" aria-label="Previous palettes">' + icon("chevron-left") + "</button>" +
           '<div class="palette-row" data-palrow>' + palettes + "</div>" +
           '<button type="button" class="icon-btn icon-btn-sm pal-arrow" data-palscroll="1" aria-label="More palettes">' + icon("chevron-right") + "</button></div></div>" +
       "</div>" +
-      '<h4 class="set-sub">Style</h4><div class="theme-grid">' + themes + "</div>" +
       '<div class="set-group">' +
         '<div class="setting-row"><span>Liquid glass</span>' + FL.ui.segmented("glass", T.GLASS, T.glass()) + "</div>" +
         '<div class="setting-row"><span>Background</span>' + FL.ui.segmented("ambient", T.AMBIENT, T.ambient()) + "</div>" +
@@ -441,12 +446,14 @@
         // You first: your name (Home greets you with it).
         '<div class="set-me"><span class="set-avatar" aria-hidden="true">' + esc((prefs.name || "").trim().charAt(0).toUpperCase() || "☺") + "</span>" +
           '<input class="input" id="set-name" maxlength="40" placeholder="Your name" aria-label="Your name" autocomplete="nickname" value="' + esc(prefs.name || "") + '"></div>' +
+        '<section data-sec="relay"><h3 class="label">Relay</h3><div class="set-group">' + syncRow() + "</div></section>" +
         (FL.sakura ? '<section data-sec="app" class="apps"><h3 class="label">App</h3>' + FL.sakura.appTiles() + "</section>" : "") +
+        '<section data-sec="style"><h3 class="label">Style</h3><div data-style>' + styleHtml() + "</div></section>" +
         '<section data-sec="appearance"><h3 class="label">Appearance</h3><div data-appearance>' + appearanceHtml() + "</div></section>" +
         '<section data-sec="home"><h3 class="label">Home &amp; pages</h3><div class="set-group" data-homeset>' + homeHtml() + "</div></section>" +
         '<section data-sec="player"><h3 class="label">Player</h3><div class="set-group" data-playerset>' + playerHtml() + "</div></section>" +
         (FL.pet ? '<section data-sec="pals"><h3 class="label">Pause Pals</h3><div data-petset>' + petHtml() + "</div></section>" : "") +
-        '<section data-sec="relay"><h3 class="label">Sync &amp; backup</h3><div class="set-group">' + syncRow() + '</div><div data-storage>' + storageHtml(FL.persist.status(), false) + "</div></section>" +
+        '<section data-sec="storage"><h3 class="label">Backup</h3><div data-storage>' + storageHtml(FL.persist.status(), false) + "</div></section>" +
         '<section data-sec="maintenance"><h3 class="label">Maintenance</h3><div class="btn-row">' +
           '<button type="button" class="btn btn-ghost" data-set="clear-cache">Clear artwork cache</button>' +
           '<button type="button" class="btn btn-danger-ghost" data-set="reset">Erase library…</button></div></section>' +
@@ -495,6 +502,8 @@
     const repaintHome = () => { const box = $("[data-homeset]", m.el); if (box) box.innerHTML = homeHtml(); };
 
     function repaintAppearance() {
+      const st = $("[data-style]", m.el);
+      if (st) st.innerHTML = styleHtml();
       const box = $("[data-appearance]", m.el);
       if (!box) return;
       const row = $("[data-palrow]", box);

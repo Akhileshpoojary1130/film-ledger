@@ -38,10 +38,12 @@
       (s.missingRuntime && FL.stats.backfillPending() ? '<p class="footnote">Fetching runtimes for ' + s.missingRuntime + " films…</p>" : "");
   }
 
+  /* Up Next: where you stopped (films and episodes), then the shows you follow — one row at the top of Home. */
   function continueRail() {
     const max = Math.min(3, Math.max(1, +(FL.store.prefs().home || {}).continueMax || 3));
     const list = FL.store.continueWatching().slice(0, max);
-    if (!list.length) return "";
+    const shows = filmsOf(FL.store.shows()).filter((f) => !list.some((e) => e.id === f.id)).slice(0, 12);
+    if (!list.length && !shows.length) return "";
     const cards = list.map((e) => {
       const film = FL.catalogue.get(e.id);
       if (!film) return "";
@@ -55,8 +57,23 @@
         '<div class="card-progress"><i style="width:' + ((p.t / p.d) * 100).toFixed(1) + '%"></i></div></div>' +
         '<div class="resume-body"><strong>' + esc(film.title) + "</strong><span>" + esc(left) + "</span></div></a>" +
         '<button type="button" class="resume-x" data-home="forget" aria-label="Remove ' + esc(film.title) + ' from Up Next" title="Remove from Up Next">' + icon("x") + "</button></article>";
-    }).join("");
-    return '<section class="rail"><header class="section-head"><div><h2 class="h2">Up Next</h2></div></header><div class="rail-track rail-wide">' + cards + "</div></section>";
+    }).join("") + shows.map(showCard).join("");
+    return '<section class="rail"><header class="section-head"><div><h2 class="h2">Up Next</h2></div>' +
+      (shows.length ? '<div class="section-tools"><a class="link-more" href="#/library/shows">Shows' + icon("arrow-right") + "</a></div>" : "") +
+      '</header><div class="rail-track rail-wide">' + cards + "</div></section>";
+  }
+
+  /* A show you follow: the last episode you ticked (or that you're following it), and its page one tap away. */
+  function showCard(film) {
+    const e = FL.store.peek(film.id);
+    const eps = Object.keys((e && e.episodes) || {}).map((k) => k.split(":").map(Number)).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const last = eps[eps.length - 1];
+    const bg = FL.meta.backdrop(film);
+    return '<article class="resume-card tilt" data-show="' + esc(film.id) + '"><a class="resume-link" href="#/show/' + encodeURIComponent(film.id) + '">' +
+      '<div class="resume-art">' + (bg ? '<img src="' + esc(bg) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : art(film)) +
+      '<span class="resume-play">' + icon("play") + "</span></div>" +
+      '<div class="resume-body"><strong>' + esc(film.title) + "</strong><span>" + (last ? "S" + last[0] + " · E" + last[1] + " ✓" : "Following") + "</span></div></a>" +
+      '<button type="button" class="resume-x" data-home="dropshow" aria-label="Remove ' + esc(film.title) + ' from Up Next" title="Remove from Up Next">' + icon("x") + "</button></article>";
   }
 
   /* ---------- tonight: three picks from three angles ---------- */
@@ -147,11 +164,6 @@
       });
       FL.ui.watchPosters(el.querySelector('[data-rail-id="newep"]') || el);
     });
-  }
-
-  function yourShows() {
-    const shows = filmsOf(FL.store.shows());
-    return shows.length ? rail("Your shows", shows.slice(0, 20), { more: "#/library/shows", dismiss: "shows" }) : "";
   }
 
   function discovery() {
@@ -256,7 +268,6 @@
       fillDubbed(el);
       return;
     }
-    const favs = filmsOf(FL.store.favorites());
     const listed = filmsOf(FL.store.watchlist());
     const next = FL.catalogue.nextInSeries().slice(0, 16);
     const nextIds = new Set(next.map((x) => x.film.id));
@@ -269,9 +280,7 @@
       reasonRail("For you", forYou) +
       peopleSlots() +
       (FL.store.shows().length ? '<section class="rail" data-rail-id="newep"></section>' : "") +
-      yourShows() +
       rail("Watch later", listed.slice(0, 24), { more: "#/library/watchlist", empty: FL.ui.empty("Your next favourite hasn’t been saved yet.", "Tap the bookmark on any poster.") }) +
-      (favs.length ? rail("Films that stayed with you", favs.slice(0, 24), { more: "#/library/favorites" }) : "") +
       '<section class="rail" data-rail-id="dubbed"></section>' +
       discovery() +
       "</div>";
@@ -308,6 +317,14 @@
         }
         const forget = e.target.closest('[data-home="forget"]');
         if (forget) { forgetResume(forget.closest("[data-resume]")); return; }
+        const drop = e.target.closest('[data-home="dropshow"]');
+        if (drop) {
+          const show = FL.catalogue.get(drop.closest("[data-show]").dataset.show);
+          if (!show) return;
+          FL.store.dropShow(show);
+          FL.ui.toast("Removed " + show.title + " from Up Next", { action: "Undo", onAction: () => FL.store.undropShow(show) });
+          return;
+        }
         if (!e.target.closest('[data-home="another"]')) return;
         pickOffset++;
         const cardEl = el.querySelector(".tonight-row");
