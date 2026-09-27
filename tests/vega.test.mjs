@@ -110,5 +110,13 @@ test("downloadLinks reads a post's download buttons, grouped by page", () => {
     { label: "720p", url: "https://other.example/file/9" },
   ]);
   assert.deepEqual(downloadLinks("<p>no downloads</p>"), []);
+  // Vega's usual layout: one page per button, two with the same words, then other languages.
+  const a = (text, id) => '<a href="https://new3.extralink.ink/s/' + id + '/"><button class="download-button">' + text + "</button></a>";
+  assert.deepEqual(downloadLinks(a("Download 1080p HD", "a1") + a("Download 1080p HD", "a2") + a("Download 480p SD", "a3") +
+    a("Download Malayalam", "a4") + a("WATCH ONLINE", "a5")).map((d) => d.label), ["1080p HD", "1080p HD · 2", "480p SD", "Malayalam"]);
+  // A season post's per-episode buttons narrow to the episode asked for; season packs stay, bonus episodes don't.
+  const season = a("EP-1", "e1") + a("EP-2", "e2") + a("EP-10", "e10") + a("Bonus Episode", "b") + a("Download Complete Season [1080p]", "zip");
+  assert.deepEqual(downloadLinks(season, 2).map((d) => d.label), ["EP-2", "Complete Season 1080p"]);
+  assert.deepEqual(downloadLinks(season, 0).length, 5);
   assert.deepEqual(downloadLinks('<a href="javascript:alert(1)"><button class="download-button">Download</button></a>'), []);
 });

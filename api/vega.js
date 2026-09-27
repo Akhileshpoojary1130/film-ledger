@@ -112,26 +112,37 @@ function playerOptions(html) {
   return out;
 }
 
-/* The post's own download buttons ("Download Now [1080p]"), which open the host's download page — the rest of the way
-   (including its "are you human" check) happens in the viewer's browser. Grouped by page, since several qualities
-   often share one. [{ label: "1080p · 720p", url }] */
+/* The post's own download buttons ("Download 1080p HD", "Download Malayalam", "EP-3"), which open the host's download
+   page — the rest of the way (including its "are you human" check) happens in the viewer's browser. Labels are the
+   button's words; one page behind several buttons is listed once ("1080p · 720p"), and two pages with the same words
+   are told apart ("1080p HD", "1080p HD · 2"). For an episode, a season post's per-episode buttons narrow to that
+   episode. [{ label, url }] */
 const SOCIAL = /^https:\/\/(?:[\w-]+\.)*(?:t\.me|telegram\.\w+|facebook\.com|twitter\.com|x\.com|whatsapp\.com|instagram\.com)\//;
-function downloadLinks(html) {
+const EP_NO = /\b(?:ep(?:isode)?|e)[\s.-]*0*(\d{1,4})\b/i;
+function downloadLinks(html, episode) {
   const byUrl = new Map();
   const re = /<a\b[^>]*?href=["']\s*([^"']+?)\s*["'][^>]*>([\s\S]*?)<\/a>/g;
   let m;
   while ((m = re.exec(String(html || "")))) {
-    if (!/download-button|\bdownload\b/i.test(m[2])) continue;
+    if (!/download-button|\bdownload\b|\bEP[\s.-]*\d/i.test(m[2])) continue;
     const url = cleanUrl(m[1]);
     if (!url || url.startsWith(SITE) || SOCIAL.test(url)) continue;
-    const text = decode(m[2]);
-    const q = (text.match(/\b(2160p|4k|1080p|720p|480p|360p)\b/i) || [])[1];
-    const label = q ? q.toLowerCase() : text.replace(/download(?: now)?/ig, "").replace(/[[\]|:]/g, " ").replace(/\s+/g, " ").trim().slice(0, 40);
+    const label = decode(m[2]).replace(/\bdownload(?: now)?\b/ig, "").replace(/[[\]|:]/g, " ").replace(/\s+/g, " ").trim().slice(0, 40);
+    if (/^watch\b|watch online/i.test(label)) continue; // a player link dressed as a button
     if (!byUrl.has(url)) byUrl.set(url, []);
     const labels = byUrl.get(url);
-    if (label && labels.indexOf(label) === -1) labels.push(label);
+    if (labels.indexOf(label) === -1) labels.push(label);
   }
-  return [...byUrl].slice(0, 8).map(([url, labels]) => ({ label: labels.join(" · ") || "Download", url }));
+  let list = [...byUrl].map(([url, labels]) => ({ label: labels.filter(Boolean).join(" · ") || "Download", url }));
+  if (episode) {
+    const numbered = list.filter((d) => EP_NO.test(d.label));
+    if (numbered.length) list = list.filter((d) => (EP_NO.test(d.label) ? +d.label.match(EP_NO)[1] === episode : !/\bbonus\b/i.test(d.label)));
+  }
+  const seen = {};
+  return list.slice(0, 12).map((d) => {
+    seen[d.label] = (seen[d.label] || 0) + 1;
+    return seen[d.label] > 1 ? { label: d.label + " · " + seen[d.label], url: d.url } : d;
+  });
 }
 
 /* Vega's links come with stray spaces, "//host" and "host//embed//tt…"; anything but a clean https link is dropped. */
@@ -159,15 +170,16 @@ function embed(post, opt) {
    videos to V3 (a VidSrc-style player that takes an IMDb id). Upgraded posts get new links, so V2 ones are skipped. */
 const RETIRED = /^https:\/\/(?:[\w-]+\.)*molop\.art\//;
 
-/* Drops a link only when its page plainly says the video is gone (a dead MixDrop link: "We can't find the video").
-   Players that fetch the video by script, hosts that refuse us, timeouts: all kept. */
+/* Drops a link only when its page plainly says the video is gone (a dead MixDrop link: "We can't find the video") or
+   the host is down for everyone. Players that fetch the video by script, hosts that refuse us, timeouts: all kept. */
 const GONE = /can.?t find the video|video (?:is )?not found|file (?:was )?(?:deleted|removed|not found)|video (?:has been )?(?:deleted|removed)/i;
 function gone(url) {
   if (url.includes("#")) return Promise.resolve(false);
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 3000);
   return fetch(url, { signal: ctrl.signal, headers: { "user-agent": UA, referer: SITE + "/" } })
-    .then((res) => (res.status === 404 || res.status === 410 ? true : res.text().then((t) => GONE.test(t.slice(0, 100000)))))
+    // 404/410, or Cloudflare saying the host behind it is down or gone (521–523, 530).
+    .then((res) => (/^(404|410|52[123]|530)$/.test(String(res.status)) ? true : res.text().then((t) => GONE.test(t.slice(0, 100000)))))
     .catch(() => false)
     .finally(() => clearTimeout(timer));
 }
@@ -213,7 +225,7 @@ async function lookup({ title, year, imdb, s, e }) {
       });
       const dead = await Promise.all(servers.map((x) => gone(x.url)));
       const live = servers.filter((x, i) => !dead[i]);
-      if (live.length) return { match: { id: c.id, title: c.title }, servers: live, downloads: downloadLinks(html) };
+      if (live.length) return { match: { id: c.id, title: c.title }, servers: live, downloads: downloadLinks(html, tv ? e : 0) };
     }
   }
   return { match: null, servers: [], downloads: [] };

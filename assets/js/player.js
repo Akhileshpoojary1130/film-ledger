@@ -56,8 +56,8 @@
 
   /* Vega (vegamovito.run) lists each title on hosts of its own — links per title, not an id pattern — so Iris's
      function (api/vega.js) looks them up when the player opens and they join the list for that title or episode.
-     Local copies of Iris use the deployed function. */
-  const VEGA_API = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) ? "https://film-ledger-mocha.vercel.app/api/vega" : "/api/vega";
+     Local copies of Iris (localhost, *.localhost) use the deployed function: Vega's Cloudflare turns away the rest. */
+  const VEGA_API = /(^|\.)localhost$|^127\.0\.0\.1$|^\[::1\]$/.test(location.hostname) ? "https://film-ledger-mocha.vercel.app/api/vega" : "/api/vega";
   const VEGA_KEY = "film_ledger_vega";
   const VEGA_TTL = 6 * 3600e3;
   const HOST_NAMES = { multicloudlinks: "MultiCloud", mxdrop: "MixDrop", rpmvip: "RPM", strp2p: "StreamP2P", upns: "UPNS", vsembed: "VSEmbed", bysesukior: "Byse" };
