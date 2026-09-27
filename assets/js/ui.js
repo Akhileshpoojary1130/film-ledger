@@ -57,7 +57,7 @@
     camera: '<path d="M4 8.5a1.5 1.5 0 0 1 1.5-1.5h2.2L9.3 5h5.4l1.6 2h2.2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="12.8" r="3.3"/>',
     link: '<path d="M10.5 13.5a3.8 3.8 0 0 0 5.4 0l3-3a3.8 3.8 0 0 0-5.4-5.4l-1 1"/><path d="M13.5 10.5a3.8 3.8 0 0 0-5.4 0l-3 3a3.8 3.8 0 0 0 5.4 5.4l1-1"/>',
     devices: '<rect x="3" y="5" width="13" height="10" rx="1.5"/><path d="M1.5 18.5h11"/><rect x="16" y="9" width="5.5" height="10.5" rx="1.3"/>',
-    sync: '<path d="M19 8.5a7.5 7.5 0 0 0-13.6-2.3M5 15.5a7.5 7.5 0 0 0 13.6 2.3"/><path d="M19.2 3.8v4.7h-4.7M4.8 20.2v-4.7h4.7"/>',
+    sync: '<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.8 4v4.3h-4.3"/>',
   };
 
   const MSR = {
@@ -68,7 +68,7 @@
     download: "download", upload: "upload", film: "movie", tv: "live_tv", rewatch: "replay", trash: "delete", keyboard: "keyboard",
     trailer: "smart_display", grid: "grid_view", list: "view_list", clock: "schedule", history: "history", spark: "auto_awesome",
     palette: "palette", folder: "folder_open", years: "bar_chart", qr: "qr_code_2", share: "ios_share", users: "group",
-    camera: "photo_camera", link: "link", devices: "devices", sync: "sync",
+    camera: "photo_camera", link: "link", devices: "devices", sync: "refresh",
   };
 
   function icon(name, cls) {
@@ -405,7 +405,8 @@
 
   /* Top-right actions: Watch later (stays visible once saved) and Mark watched (gone once watched — the badge says it). */
   function quick(film, st, dismiss) {
-    const drop = dismiss ? '<button type="button" class="qa qa-drop" data-qa="drop" aria-label="Remove ' + esc(film.title) + ' from Your shows" title="Remove from Your shows">' + icon("x") + "</button>" : "";
+    const where = dismiss === "newep" ? "New episodes" : "Your shows";
+    const drop = dismiss ? '<button type="button" class="qa qa-drop" data-qa="drop" aria-label="Remove ' + esc(film.title) + " from " + where + '" title="Remove from ' + where + '">' + icon("x") + "</button>" : "";
     const later = '<button type="button" class="qa qa-later' + (st.listed ? " on" : "") + '" data-qa="list" aria-pressed="' + st.listed + '" aria-label="' +
       (st.listed ? "Remove from Watch later" : "Watch later") + '" title="' + (st.listed ? "Saved for later" : "Watch later") + '">' + icon("bookmark") + "</button>";
     const seen = film.type === "series" || st.watched ? "" :
@@ -416,17 +417,55 @@
   /* Official streaming options (JustWatch, India) — for titles the free hosts don't carry. */
   const whereToWatch = (film) => "https://www.justwatch.com/in/search?q=" + encodeURIComponent(film.title);
 
+  /* Where to watch in India, shown on the page (api/where.js asks JustWatch): each service, what it costs, a link.
+     Local copies ask the deployed function. */
+  const WHERE_API = /(^|\.)localhost$|^127\.0\.0\.1$|^\[::1\]$/.test(location.hostname) ? "https://film-ledger-mocha.vercel.app/api/where" : "/api/where";
+  const whereCache = new Map();
+  function where(film) {
+    if (whereCache.has(film.id)) return whereCache.get(film.id);
+    const tt = (FL.meta.idFor(film) || "").match(/^tt\d+$/) ? FL.meta.idFor(film) : "";
+    const q = new URLSearchParams({ title: film.title, type: film.type === "series" ? "series" : "movie" });
+    if (film.year) q.set("year", film.year);
+    if (tt) q.set("imdb", tt);
+    const p = FL.util.fetchJSON(WHERE_API + "?" + q, { timeout: 12000 }).catch(() => { whereCache.delete(film.id); return null; });
+    whereCache.set(film.id, p);
+    return p;
+  }
+  const KIND = { stream: "Stream", free: "Free", ads: "Free with ads", rent: "Rent", buy: "Buy" };
+  function whereHtml(film, d) {
+    const offers = (d && d.offers) || [];
+    const more = d && d.match ? d.match.url : whereToWatch(film);
+    return '<h2 class="label">Where to watch</h2>' +
+      (offers.length
+        ? '<div class="where">' + offers.slice(0, 8).map((o) =>
+          '<a class="where-item" href="' + esc(o.url) + '" target="_blank" rel="noopener noreferrer">' +
+            (o.icon ? '<img src="' + esc(o.icon) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '<i class="where-dot"></i>') +
+            "<span><b>" + esc(o.service) + "</b><small>" + KIND[o.kind] + (o.price ? " · " + esc(o.price.replace(/\.00$/, "")) : "") + "</small></span></a>").join("") + "</div>"
+        : '<p class="sub where-none">Not on a streaming service in India right now.</p>') +
+      '<p class="where-note">In India · <a class="link" href="' + esc(more) + '" target="_blank" rel="noopener noreferrer">More on JustWatch ↗</a></p>';
+  }
+  /* Fills a (hidden) section once the answer is in; stays hidden if JustWatch can't be reached. */
+  function fillWhere(box, film) {
+    if (!box) return;
+    where(film).then((d) => {
+      if (!box.isConnected || !d) return;
+      box.innerHTML = whereHtml(film, d);
+      box.hidden = false;
+    });
+  }
+
   const hrefFor = (film) => "#/" + (film.type === "series" ? "show" : "film") + "/" + encodeURIComponent(film.id);
 
-  /* opts.dismiss: a rail you can take titles off (Your shows) — an × above the bookmark. */
+  /* opts.dismiss: a rail you can take titles off — an × above the bookmark. "shows" takes a show off Your shows;
+     "newep" hides it from New episodes until the next one airs. */
   function card(film, opts) {
     const o = opts || {};
     const st = FL.store.state(film.id);
     const href = hrefFor(film);
-    return '<article class="card' + (st.watched ? " is-watched" : "") + '" data-id="' + esc(film.id) + '" data-variant="card"' + (o.dismiss ? ' data-dismiss="1"' : "") + ">" +
+    return '<article class="card' + (st.watched ? " is-watched" : "") + '" data-id="' + esc(film.id) + '" data-variant="card"' + (o.dismiss ? ' data-dismiss="' + esc(o.dismiss === true ? "shows" : o.dismiss) + '"' : "") + ">" +
       '<a class="card-link" href="' + href + '" aria-label="' + esc(film.title) + ", " + esc(FL.catalogue.yearLabel(film)) + '">' +
         art(film, o) + badges(film, st) + progressBar(film) +
-      "</a>" + quick(film, st, o.dismiss) +
+      "</a>" + quick(film, st, o.dismiss && (o.dismiss === true ? "shows" : o.dismiss)) +
       '<div class="card-body"><a class="card-title" href="' + href + '" tabindex="-1">' + esc(film.title) + "</a>" +
       '<div class="card-meta"><span>' + metaLine(film) + "</span>" + scoreBit(film, st) + "</div>" +
       (o.caption ? '<div class="card-caption">' + o.caption + "</div>" : "") +
@@ -463,7 +502,7 @@
     $$('[data-id="' + CSS.escape(id) + '"][data-variant]').forEach((el) => {
       const rank = el.querySelector(".row-rank");
       const caption = el.querySelector(".card-caption, .row-caption");
-      const opts = { rank: rank ? +rank.textContent : 0, caption: caption ? caption.innerHTML : "", dismiss: !!el.dataset.dismiss };
+      const opts = { rank: rank ? +rank.textContent : 0, caption: caption ? caption.innerHTML : "", dismiss: el.dataset.dismiss || "" };
       const tmp = document.createElement("div");
       tmp.innerHTML = el.dataset.variant === "row" ? row(film, opts) : card(film, opts);
       const fresh = tmp.firstChild;
@@ -489,13 +528,19 @@
       toast(listed ? "Saved to Watch later" : "Removed from Watch later", { action: "Undo", onAction: () => FL.store.toggleList(film) });
     } else if (act === "drop") {
       // Off the rail at once; the show and its episodes stay in the library.
-      FL.store.dropShow(film); // (re-renders its cards, so find them afterwards)
-      $$('[data-dismiss][data-id="' + CSS.escape(film.id) + '"]').forEach((c) => {
+      const kind = (btn.closest("[data-dismiss]") || {}).dataset.dismiss || "shows";
+      const before = (FL.store.peek(film.id) || {}).newSnooze || "";
+      if (kind === "newep") FL.store.snoozeNew(film, new Date().toISOString().slice(0, 10));
+      else FL.store.dropShow(film); // (both re-render its cards, so find them afterwards)
+      $$('[data-dismiss="' + kind + '"][data-id="' + CSS.escape(film.id) + '"]').forEach((c) => {
         const track = c.parentNode;
         c.remove();
         if (track && !track.children.length) { const r = track.closest(".rail"); if (r) r.remove(); }
       });
-      toast("Removed " + film.title + " from Your shows", { action: "Undo", onAction: () => { FL.store.undropShow(film); if (FL.app) FL.app.refresh(); } });
+      toast(kind === "newep" ? "Hidden until a new episode of " + film.title + " airs" : "Removed " + film.title + " from Your shows", {
+        action: "Undo",
+        onAction: () => { if (kind === "newep") FL.store.snoozeNew(film, before); else FL.store.undropShow(film); if (FL.app) FL.app.refresh(); },
+      });
     } else if (act === "seen") {
       const st = FL.store.state(film.id);
       if (st.watched && st.count) {
@@ -654,7 +699,7 @@
   }
 
   FL.ui = {
-    icon, loader, stars, ratingWidget, art, placeholder, card, row, rail, refreshFilm, watchPosters, reveal, hrefFor, whereToWatch,
+    icon, loader, stars, ratingWidget, art, placeholder, card, row, rail, refreshFilm, watchPosters, reveal, hrefFor, whereToWatch, fillWhere,
     toast, nudge, modal, confirm, isModalOpen, closeModals, empty, segmented, metaLine, mustWatch,
   };
 })(window.FL = window.FL || {});

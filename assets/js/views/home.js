@@ -145,7 +145,7 @@
       if (!list.length) { slot.remove(); return; }
       const byId = new Map(list.map((x) => [x.film.id, x]));
       slot.outerHTML = rail("New episodes", list.map((x) => x.film), {
-        id: "newep", sub: "In the shows you're watching",
+        id: "newep", sub: "In the shows you're watching", dismiss: "newep",
         caption: (f) => { const x = byId.get(f.id); return esc("S" + x.next.s + " · E" + x.next.e + (x.count > 1 ? " · " + x.count + " new" : " is new")); },
       });
       FL.ui.watchPosters(el.querySelector('[data-rail-id="newep"]') || el);
@@ -154,7 +154,7 @@
 
   function yourShows() {
     const shows = filmsOf(FL.store.shows());
-    return shows.length ? rail("Your shows", shows.slice(0, 20), { more: "#/library/shows" }) : "";
+    return shows.length ? rail("Your shows", shows.slice(0, 20), { more: "#/library/shows", dismiss: "shows" }) : "";
   }
 
   function discovery() {

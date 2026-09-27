@@ -36,7 +36,7 @@
       el.innerHTML = '<div class="container page">' +
         '<header class="page-head"><div><p class="eyebrow">Shows</p><h1 class="display">Reality, talent <em>&amp; series.</em></h1>' +
         '<p class="sub page-sub">New episodes appear as they air; your place is kept.</p></div></header>' +
-        (mine.length ? rail("Your shows", mine, { dismiss: true }) : "") +
+        (mine.length ? rail("Your shows", mine, { dismiss: "shows" }) : "") +
         slot("reality", "Indian reality &amp; talent") +
         slot("indian", "Indian web series") +
         slot("top", "Popular series right now") +
@@ -155,7 +155,7 @@
       }
       function castHtml() {
         const list = castNames();
-        return list.length ? '<h2 class="label">Cast &amp; hosts</h2><div class="people">' + list.map(([n, ch]) => { const part = ch.split(/,|\s[–—-]\s|\(/)[0].trim(); return FL.people.chip(n, part ? "as " + part : ""); }).join("") + "</div>" : "";
+        return FL.people.block("Cast &amp; hosts", list.map(([n, ch]) => { const part = ch.split(/,|\s[–—-]\s|\(/)[0].trim(); return FL.people.chip(n, part ? "as " + part : ""); }));
       }
       function paintCast() {
         const box = $(".show-cast", el);
@@ -169,14 +169,15 @@
           '<div class="container film-body">' +
             '<div class="film-main">' +
               (show.desc ? '<section><h2 class="label">About</h2><p class="lede">' + esc(FL.util.prose(show.desc)) + "</p></section>" : "") +
+              '<section class="show-where" hidden></section>' +
               '<section class="show-cast">' + castHtml() + "</section>" +
               '<section class="show-season"><div class="season-nav">' + seasonsNav() + '</div><div data-episodes>' + episodes() + "</div></section>" +
             "</div>" +
             '<aside class="film-record panel" aria-label="Your record"><h2 class="h3">Your rating</h2>' + ratingWidget(show) +
-              '<p class="ext-links"><a class="link" target="_blank" rel="noopener noreferrer" href="https://www.imdb.com/title/' + esc(show.imdbId || show.id) + '/">IMDb ↗</a>' +
-                '<a class="link" target="_blank" rel="noopener noreferrer" href="' + FL.ui.whereToWatch(show) + '">Where to watch ↗</a></p>' +
+              '<p class="ext-links"><a class="link" target="_blank" rel="noopener noreferrer" href="https://www.imdb.com/title/' + esc(show.imdbId || show.id) + '/">IMDb ↗</a></p>' +
             "</aside>" +
           "</div></article>";
+        FL.ui.fillWhere($(".show-where", el), show);
         const bg = data.backdrop || FL.meta.backdrop(show);
         if (bg) {
           const box = $(".film-backdrop", el);

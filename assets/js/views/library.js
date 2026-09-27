@@ -71,13 +71,12 @@
 
   const COLL_FILTERS = [["all", "All"], ["started", "In progress"], ["Hindi", "Hindi"], ["English", "English"], ["OtherIndian", "Regional"], ["universe", "Universes"]];
 
-  /* Library's sections, with Collections at the end (on phones the tab bar has no room for it, so this is its door). */
+  /* Library's sections. (Collections is its own page: the top bar and nav reach it.) */
   function libraryTabs(active) {
     const counts = { watchlist: FL.store.watchlist().length, watched: FL.store.watched().length, favorites: FL.store.favorites().length, shows: FL.store.shows().length };
     return '<nav class="tabs" aria-label="Library sections">' + TABS.map(([t, label]) =>
       '<a class="tab' + (t === active ? " is-on" : "") + '" href="#/library/' + t + '"' + (t === active ? ' aria-current="page"' : "") + ">" + label + "<span>" + counts[t] + "</span></a>").join("") +
-      '<a class="tab tab-coll' + (active === "collections" ? " is-on" : "") + '" href="#/collections"' + (active === "collections" ? ' aria-current="page"' : "") + ">Collections<span>" +
-      FL.catalogue.collections().length + "</span></a></nav>";
+      "</nav>";
   }
 
   /* On a phone the tab row is wider than the screen: bring the current tab into view. */
@@ -111,7 +110,6 @@
       function render() {
         const items = list();
         el.innerHTML = '<div class="container page">' +
-          '<div class="lib-tabs-top">' + libraryTabs("collections") + "</div>" +
           '<header class="page-head"><div><p class="eyebrow">Collections</p><h1 class="display">Series &amp; <em>universes.</em></h1>' +
           '<p class="sub">' + FL.catalogue.collections().length + " collections, each in release order. Tick your way through.</p></div></header>" +
           '<div class="filter-row coll-filters">' + segmented("cfilter", COLL_FILTERS, filter) + "</div>" +

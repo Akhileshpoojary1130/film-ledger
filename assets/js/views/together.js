@@ -250,7 +250,7 @@
         const st = FL.sync.state();
         if (joining) {
           const other = st.on && FL.sync.link().slice(-43) !== joining;
-          syncCard.innerHTML = head("sync", other ? "Switch to that library?" : "Link this device?",
+          syncCard.innerHTML = head("devices", other ? "Switch to that library?" : "Link this device?",
             other ? "This device is linked to a different library. Switching adds what’s here to the new one; the old one stays on your other devices."
               : "What’s on this device is added to your synced library, and from then on both stay the same.") +
             '<div class="btn-row"><button type="button" class="btn btn-primary" data-move="sync-join">' + icon("sync") + (other ? "Switch" : "Link this device") + "</button>" +
@@ -259,10 +259,10 @@
         }
         if (!st.on) {
           if (ready === false) {
-            syncCard.innerHTML = head("sync", "Sync isn’t switched on for this site yet", SETUP);
+            syncCard.innerHTML = head("devices", "Sync isn’t switched on for this site yet", SETUP);
             return;
           }
-          syncCard.innerHTML = head("sync", "Keep this device in sync",
+          syncCard.innerHTML = head("devices", "Keep this device in sync",
             "Turn it on here, then scan the code with your other device. It’s encrypted before it leaves the device; only devices with your code can read it.") +
             '<div class="btn-row"><button type="button" class="btn btn-primary" data-move="sync-on"' + (ready ? "" : " disabled") + ">" +
               (ready == null ? FL.ui.loader(16) : icon("sync")) + "Turn on sync</button>" +
@@ -272,7 +272,7 @@
         const line = st.phase === "syncing" ? "Syncing…"
           : st.phase === "error" ? (st.code === "not-configured" ? SETUP : "Couldn’t sync: " + esc(st.error) + ". It tries again on its own.")
           : st.at ? "Synced " + ago(st.at) + ". Changes reach your other devices within a minute." : "Linked.";
-        syncCard.innerHTML = head("sync", "Sync is on", line) +
+        syncCard.innerHTML = head("devices", "Sync is on", line) +
           (showQr ? '<div class="qr-stage is-static" data-syncqr>' + qrCache + "</div>" +
             '<p class="qr-foot"><span>Scan it with the other device’s camera, or open Iris there → Settings → Sync → <strong>I have a code</strong>. ' +
             "Anyone with this code can see and change your library, so keep it to your own devices.</span></p>" : "") +

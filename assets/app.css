@@ -1110,6 +1110,7 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
   border-radius: var(--r-lg); background: var(--s1); border: 1px solid var(--line-2); color: var(--text-3); font-size: 15px;
   box-shadow: var(--shadow); transition: border-color 0.2s, color 0.2s, transform 0.2s var(--ease), box-shadow 0.2s;
 }
+.home-hero .hero-search { width: 100%; } /* the same width as everything below it */
 [data-theme="material"] .hero-search { border-radius: 999px; background: var(--s3); border-color: transparent; box-shadow: none; padding-left: 22px; }
 .hero-search span { flex: 1; min-width: 0; overflow: hidden; text-align: left; white-space: nowrap; text-overflow: ellipsis; }
 .hero-search:hover { border-color: var(--accent-line); color: var(--text-2); transform: translateY(-1px); }
@@ -1593,6 +1594,19 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 .imdb-score + .show-seen::before { content: " · "; }
 @media (max-width: 640px) { .film-scores .show-seen { display: block; margin-top: 2px; } .imdb-score + .show-seen::before { content: none; } }
 
+/* Where to watch: services as small tiles with their logo and what it costs. */
+.where { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.where-item { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 8px 12px 8px 8px; border-radius: var(--r-lg); background: var(--s1); border: 1px solid var(--line); transition: border-color 0.15s, background 0.15s; }
+.where-item:hover { border-color: var(--line-2); background: var(--s2); }
+.where-item img, .where-dot { flex: none; width: 36px; height: 36px; border-radius: 9px; background: var(--s3); }
+.where-item span { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.where-item b { overflow: hidden; font-size: 13.5px; font-weight: 500; white-space: nowrap; text-overflow: ellipsis; }
+.where-item small { font-size: 12px; color: var(--text-3); }
+.where-note { margin: 10px 0 0; font-size: 12px; color: var(--text-3); }
+.where-note .link { font-size: 12px; }
+.where-none { margin: 0; }
+@media (max-width: 640px) { .where { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
 /* Film page Download with several pages: the list in a sheet. */
 .modal-dl { max-width: 420px; }
 .dl-sheet .h3 { margin: 2px 40px 14px 0; }
@@ -1774,6 +1788,9 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 /* ---------- people ---------- */
 
 .people { display: flex; flex-wrap: wrap; gap: 8px; }
+.people.is-collapsed > .person:nth-child(n+13) { display: none; }
+.people-more { margin-top: 10px; }
+.people-more:not(.is-many) { display: none; }
 .person {
   display: inline-flex; align-items: center; gap: 10px; max-width: 100%; padding: 4px 14px 4px 4px;
   border-radius: 999px; background: var(--s1); border: 1px solid var(--line); transition: border-color 0.15s, background 0.15s;
@@ -1806,7 +1823,10 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 
 .set-sub { margin: 18px 0 10px; font-size: 13px; font-weight: 600; color: var(--text); }
 .set-sub .muted { font-weight: 400; margin-left: 4px; }
-.setting-row > span small { display: block; font-size: 11.5px; color: var(--text-3); }
+.setting-row > span small, .setting-row > label small { display: block; font-size: 11.5px; color: var(--text-3); }
+.setting-row > label { font-size: 13.5px; color: var(--text-2); }
+.set-on { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; background: color-mix(in oklab, var(--accent) 22%, transparent); color: var(--accent); font-size: 11px; font-weight: 600; vertical-align: 1px; }
+.set-sub-note { margin: 16px 0 8px; font-size: 12.5px; }
 .preset-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(118px, 1fr); gap: 10px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
 .preset-row::-webkit-scrollbar { display: none; }
 .preset { display: flex; flex-direction: column; gap: 6px; text-align: left; font-size: 12.5px; font-weight: 500; color: var(--text-2); }
@@ -2081,9 +2101,15 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
   .filter-more { animation: enter 0.3s var(--ease-out) both; }
   .year-summary { margin: -4px 0 16px; gap: 8px 14px; }
   .year-count strong { font-size: 17px; }
-  .people { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: calc(-1 * var(--gutter)); padding: 2px var(--gutter); }
-  .people::-webkit-scrollbar { display: none; }
-  .person { flex: none; }
+  /* Phones: cast as a vertical list, four to start. */
+  .people { flex-direction: column; flex-wrap: nowrap; gap: 2px; }
+  .person { width: 100%; gap: 12px; padding: 6px 8px; border-radius: 12px; background: transparent; border-color: transparent; }
+  .person:hover { background: var(--s1); border-color: transparent; }
+  .person .avatar { --sz: 40px !important; }
+  .person-text b { font-size: 14px; }
+  .person-text small { font-size: 12px; }
+  .people.is-collapsed > .person:nth-child(n+5) { display: none; }
+  .people-more:not(.is-many) { display: inline-flex; }
   .person-head { gap: 16px; }
 
 }

@@ -276,6 +276,8 @@
     /* Take a show off Your shows. Episodes you've seen are kept, so watching it again picks up where you were. */
     dropShow(show) { return update(show, (e) => { e.dropped = true; }, "drop"); },
     undropShow(show) { return update(show, () => {}, "undrop"); },
+    /* Hide a show from New episodes until something airs after `date` (YYYY-MM-DD). */
+    snoozeNew(show, date) { return update(show, (e) => { if (date) e.newSnooze = date; else delete e.newSnooze; }, "snooze"); },
 
     setProgress(film, progress) {
       // Progress writes are frequent; they don't bump `updated` ordering in lists.

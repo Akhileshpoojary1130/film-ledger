@@ -30,14 +30,19 @@ Live: https://film-ledger-mocha.vercel.app/
   series": Rocky → Creed III, Jurassic Park → Jurassic World, the Bond films, Dhoom, Housefull, K.G.F…) and, for series
   Wikidata doesn't have, strict title rules: a film joins only as a marked instalment (*Baaghi 2*, *Golmaal Returns*,
   *Phir Hera Pheri*, *Kantara: Chapter 1*) or the one original they follow, so namesakes (Baaghi 1990) and look-alikes
-  (*Super 8*, *Apollo 13*) stay out. Films Iris hasn't met yet appear from Wikidata and open like any other. On a
-  phone, Collections has a button in the top bar (and is the last tab in Library).
+  (*Super 8*, *Apollo 13*) stay out. Wikidata knows few Indian series, so a hand-checked list adds ~70 Hindi and
+  regional ones (Munna Bhai, Hera Pheri, Dhamaal, Raaz, 1920, Baahubali, Drishyam in Hindi and Malayalam, Lucifer,
+  Timepass…), each shown once two of its films are in the catalogue. A film listed twice (the bundle's copy and a web
+  copy under IMDb's longer name) counts once. Films Iris hasn't met yet appear from Wikidata and open like any other.
+  On a phone, Collections has a button in the top bar.
 - **Shows** — Indian reality & talent (Bigg Boss, India's Got Talent, Lock Upp…), **Indian web series** (Mirzapur,
   Panchayat, The Family Man, Scam 1992, Kota Factory…), popular and reality series worldwide. Seasons and episodes
   are fetched live, so new ones appear on their own. The × on a card in *Your shows* takes it off (with Undo); the
   episodes you've seen stay, and watching it again brings it back.
 - **Search** — `⌘K` / `Ctrl K`, tolerant of spellings and typos; anything not bundled is fetched from the web, and
   **On Vega** lists Vega's own uploads Iris doesn't have yet (new and dubbed releases), ready to play.
+- **Where to watch** — the film and show pages list the streaming services that carry the title in India, with
+  what it costs ("Netflix · Stream", "Apple TV · Rent ₹129"), from JustWatch via `api/where.js`.
 - **Film page** — live IMDb score, the **trailer inline** (a still that plays in place), the **full cast** with the
   parts they play (Wikidata adds everyone after Cinemeta's leads), director, writers, music and camera, with photos
   (tap one for their full filmography), the series in order, *More from* the director, similar films, rating, watch
@@ -133,9 +138,14 @@ Hindi-dubbed titles.
   bars fade after a few still seconds and come back at the top or bottom edge.
 - Titles no server carries (many Indian reality shows) have *Where to watch*. Keys: `N` next server, `1`–`9` pick,
   `F` fullscreen, `Esc` close.
-- **Download** — when Vega has download buttons for a title, the player's top bar (and the film page) gets a
-  *Download* list of those pages by quality. Each opens in a new tab; the host's own steps, including its "are you
+- **Download** — when Vega or Vega Hot (vega-hot.com) has download pages for a title, the player's top bar and the
+  film page get a *Download* list, labelled by quality, codec and size ("720p x265 HEVC · 780MB"); an episode gets that
+  episode's pages and whole-season packs. Each opens in a new tab; the host's own steps, including its "are you
   human" check, happen there. Iris doesn't go around that check.
+- **Shield** (Settings → Player) — Vega's Super Player and 2Embed play in a sandboxed frame, so they can't open ad
+  tabs. Most other hosts refuse to play sandboxed, so for them Iris asks "Leave site?" if the player tries to send the
+  page elsewhere. MixDrop (adult ads) is tried last; for Indian series and shows 2Embed and Videasy lead, since
+  VidLink often has the wrong show.
 
 ## Found on search
 
@@ -161,6 +171,7 @@ index.html            shell, boot loader, early theme
 movie.html            redirect for old links
 api/vega.js           Vercel Edge function: finds a title on Vega and returns its player and download links
 api/sync.js           Vercel Edge function: keeps each synced library (ciphertext) in the project's Upstash Redis
+api/where.js          Vercel Edge function: streaming services for a title in India (JustWatch)
 tests/                unit tests (node --test), live server check, in-browser page sweep
 tools/build-series.mjs  builds data/series.js from Wikidata (about a minute)
 data/catalogue.js     the bundled vault (window.FILM_STATIC_CATALOGUE, schema 2)

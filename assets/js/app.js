@@ -64,7 +64,7 @@
           // Search lives in the top bar on every page, so the tab bar's big middle button is Browse.
           '<a href="#/browse" class="tab-browse" data-nav="browse" aria-label="Browse" title="Browse">' + icon("compass") + "</a>" +
           '<a href="#/shows" data-nav="shows">' + icon("tv") + "<span>Shows</span></a>" +
-          '<a href="#/library/watchlist" data-nav="library" data-nav-also="collections">' + icon("layers") + "<span>Library</span></a>" +
+          '<a href="#/library/watchlist" data-nav="library">' + icon("layers") + "<span>Library</span></a>" +
         "</nav>",
     };
   }

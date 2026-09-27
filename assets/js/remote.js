@@ -330,7 +330,9 @@
       });
   }
 
-  /* Followed shows with episodes aired since the last one you ticked — "Bigg Boss S20 · 3 new". */
+  /* Followed shows with episodes that came out since you last watched one — "Bigg Boss S20 · 3 new". Episodes of an
+     old show you simply haven't reached aren't new (Mirzapur 2018 isn't news); nor is anything you've already
+     dismissed from the row (the × there hides it until the next episode airs). */
   function newEpisodes(limit) {
     const followed = FL.store.shows().slice(0, limit || 8);
     return Promise.all(followed.map((e) => show(e.id).then((d) => {
@@ -339,7 +341,10 @@
       let last = -1;
       aired.forEach((v, i) => { if (FL.store.episodeWatched(d.film.id, v.s, v.e)) last = i; });
       if (last === -1) return null; // following but not started: nothing is "new" yet
-      const fresh = aired.slice(last + 1);
+      const entry = FL.store.peek(d.film.id) || {};
+      const ticked = Object.values(entry.episodes || {}).filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x)).sort();
+      const since = [ticked[ticked.length - 1] || "", entry.newSnooze || ""].sort().pop();
+      const fresh = aired.slice(last + 1).filter((v) => !since || (v.date && v.date > since));
       if (!fresh.length) return null;
       const next = fresh[0];
       return { film: d.film, count: fresh.length, next, latest: fresh[fresh.length - 1] };

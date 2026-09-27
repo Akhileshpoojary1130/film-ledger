@@ -1021,6 +1021,111 @@
   /* Every collection: the superhero universes plus film series found by title (Harry Potter, Pirates of the
      Caribbean, Fast & Furious, Dhoom, Golmaal…) with at least three instalments and a real audience. */
   let collectionCache = { v: -1, list: [] };
+  /* Indian film series Wikidata doesn't list (it knows few), found by title and year among the films Iris has. A series
+     shows once two of its films are here. */
+  const CURATED = [
+    // Hindi
+    ["Munna Bhai", [["Munna Bhai M.B.B.S.", 2003], ["Lage Raho Munna Bhai", 2006]]],
+    ["Hera Pheri", [["Hera Pheri", 2000], ["Phir Hera Pheri", 2006]]],
+    ["Welcome", [["Welcome", 2007], ["Welcome Back", 2015]]],
+    ["Dhamaal", [["Dhamaal", 2007], ["Double Dhamaal", 2011], ["Total Dhamaal", 2019]]],
+    ["Masti", [["Masti", 2004], ["Grand Masti", 2013], ["Great Grand Masti", 2016]]],
+    ["Raaz", [["Raaz", 2002], ["Raaz: The Mystery Continues", 2009], [["Raaz 3", "Raaz 3: The Third Dimension"], 2012], [["Raaz Reboot", "Raaz: Reboot"], 2016]]],
+    ["1920", [["1920", 2008], ["1920: The Evil Returns", 2012], ["1920: London", 2016], ["1920: Horrors of the Heart", 2023]]],
+    ["Hate Story", [["Hate Story", 2012], ["Hate Story 2", 2014], ["Hate Story 3", 2015], [["Hate Story 4", "Hate Story IV"], 2018]]],
+    ["Don", [[["Don", "Don: The Chase Begins Again"], 2006], ["Don 2", 2011]], "Hindi"],
+    ["Aashiqui", [["Aashiqui", 1990], ["Aashiqui 2", 2013]]],
+    ["ABCD", [["ABCD: Any Body Can Dance", 2013], ["ABCD 2", 2015]]],
+    ["Tanu Weds Manu", [["Tanu Weds Manu", 2011], ["Tanu Weds Manu Returns", 2015]]],
+    ["Student of the Year", [["Student of the Year", 2012], ["Student of the Year 2", 2019]]],
+    ["Ek Villain", [["Ek Villain", 2014], ["Ek Villain Returns", 2022]]],
+    ["Pyaar Ka Punchnama", [["Pyaar Ka Punchnama", 2011], ["Pyaar Ka Punchnama 2", 2015]]],
+    ["Commando", [[["Commando", "Commando: A One Man Army"], 2013], ["Commando 2", 2017], ["Commando 3", 2019]]],
+    ["Jannat", [["Jannat", 2008], ["Jannat 2", 2012]]],
+    ["Heropanti", [["Heropanti", 2014], ["Heropanti 2", 2022]]],
+    ["Drishyam (Hindi)", [["Drishyam", 2015], ["Drishyam 2", 2022], [["Drishyam 3", "Drishyam: The Conclusion"], 2026]], "Hindi"],
+    ["Satyameva Jayate", [["Satyameva Jayate", 2018], ["Satyameva Jayate 2", 2021]]],
+    ["Hindi Medium", [["Hindi Medium", 2017], ["Angrezi Medium", 2020]]],
+    ["Gadar", [["Gadar: Ek Prem Katha", 2001], ["Gadar 2", 2023]]],
+    ["Dream Girl", [["Dream Girl", 2019], ["Dream Girl 2", 2023]]],
+    ["OMG", [["OMG – Oh My God!", 2012], ["OMG 2", 2023]]],
+    ["Judwaa", [["Judwaa", 1997], ["Judwaa 2", 2017]]],
+    ["Rock On!!", [["Rock On!!", 2008], ["Rock On 2", 2016]]],
+    ["Kya Kool Hain Hum", [["Kya Kool Hain Hum", 2005], ["Kya Super Kool Hain Hum", 2012], ["Kyaa Kool Hain Hum 3", 2016]]],
+    ["Shootout", [["Shootout at Lokhandwala", 2007], ["Shootout at Wadala", 2013]]],
+    ["Once Upon a Time in Mumbai", [["Once Upon a Time in Mumbaai", 2010], ["Once Upon ay Time in Mumbai Dobaara!", 2013]]],
+    ["Kahaani", [["Kahaani", 2012], [["Kahaani 2", "Kahaani 2: Durga Rani Singh"], 2016]]],
+    ["Baby", [["Baby", 2015], ["Naam Shabana", 2017]]],
+    ["Ghayal", [["Ghayal", 1990], ["Ghayal: Once Again", 2016]]],
+    ["No Entry", [["No Entry", 2005], ["No Entry 2", 2026]]],
+    ["Border", [["Border", 1997], ["Border 2", 2026]]],
+    // Telugu
+    ["Baahubali", [["Baahubali: The Beginning", 2015], ["Baahubali 2: The Conclusion", 2017]]],
+    ["Karthikeya", [["Karthikeya", 2014], ["Karthikeya 2", 2022]]],
+    ["HIT", [["HIT: The First Case", 2020], ["HIT: The Second Case", 2022], ["HIT: The Third Case", 2025]], "OtherIndian"],
+    ["DJ Tillu", [["DJ Tillu", 2022], ["Tillu Square", 2024]]],
+    ["F2", [["F2: Fun and Frustration", 2019], ["F3: Fun and Frustration", 2022]]],
+    ["Arya", [["Arya", 2004], ["Arya 2", 2009]]],
+    ["Bangarraju", [["Soggade Chinni Nayana", 2016], ["Bangarraju", 2022]]],
+    ["Kick (Telugu)", [["Kick", 2009], ["Kick 2", 2015]], "OtherIndian"],
+    ["Mathu Vadalara", [["Mathu Vadalara", 2019], ["Mathu Vadalara 2", 2024]]],
+    ["Salaar", [["Salaar: Part 1 – Ceasefire", 2023], ["Salaar: Part 2 – Shouryaanga Parvam", 2026]]],
+    // Tamil
+    ["Enthiran", [["Enthiran", 2010], ["2.0", 2018]]],
+    ["Vishwaroopam", [["Vishwaroopam", 2013], ["Vishwaroopam II", 2018]]],
+    ["Billa", [["Billa", 2007], ["Billa II", 2012]]],
+    ["Maari", [["Maari", 2015], ["Maari 2", 2018]]],
+    ["Saamy", [["Saamy", 2003], ["Saamy Square", 2018]]],
+    ["Sandakozhi", [["Sandakozhi", 2005], ["Sandakozhi 2", 2018]]],
+    ["Kalakalappu", [["Kalakalappu", 2012], ["Kalakalappu 2", 2018]]],
+    ["Pizza", [["Pizza", 2012], ["Pizza 2: The Villa", 2013], ["Pizza 3: The Mummy", 2023]], "OtherIndian"],
+    ["Demonte Colony", [["Demonte Colony", 2015], ["Demonte Colony 2", 2024]]],
+    ["Indian", [["Indian", 1996], ["Indian 2", 2024]], "OtherIndian"],
+    ["Jailer", [["Jailer", 2023], ["Jailer 2", 2026]]],
+    ["Sardar", [["Sardar", 2022], ["Sardar 2", 2026]], "OtherIndian"],
+    // Malayalam
+    ["Drishyam (Malayalam)", [["Drishyam", 2013], ["Drishyam 2", 2021], ["Drishyam 3", 2026]], "OtherIndian"],
+    ["Lucifer", [["Lucifer", 2019], ["L2: Empuraan", 2025], [["L3", "L3 (Lucifer 3)"], 2026]], "OtherIndian"],
+    ["Aadu", [["Aadu", 2015], ["Aadu 2", 2017]]],
+    ["CBI", [["Oru CBI Diary Kurippu", 1988], ["Jagratha", 1989], ["Sethurama Iyer CBI", 2004], ["Nerariyan CBI", 2005], ["CBI 5: The Brain", 2022]]],
+    // Kannada
+    ["Mungaru Male", [["Mungaru Male", 2006], ["Mungaru Male 2", 2016]]],
+    // Marathi
+    ["Zapatlela", [["Zapatlela", 1993], ["Zapatlela 2", 2013]]],
+    ["Dagdi Chawl", [["Dagdi Chawl", 2015], ["Dagdi Chawl 2", 2022]]],
+    ["Timepass", [["Timepass", 2014], ["Timepass 2", 2015], ["Timepass 3", 2022]]],
+    // Punjabi
+    ["Carry On Jatta", [["Carry On Jatta", 2012], ["Carry On Jatta 2", 2018], ["Carry On Jatta 3", 2023]]],
+    ["Jatt & Juliet", [["Jatt & Juliet", 2012], ["Jatt & Juliet 2", 2013], ["Jatt & Juliet 3", 2024]]],
+    ["Ardaas", [["Ardaas", 2016], ["Ardaas Karaan", 2019], ["Ardaas Sarbat De Bhale Di", 2024]]],
+    ["Manje Bistre", [["Manje Bistre", 2017], ["Manje Bistre 2", 2019]]],
+    ["Qismat", [["Qismat", 2018], ["Qismat 2", 2021]]],
+    ["Chal Mera Putt", [["Chal Mera Putt", 2019], ["Chal Mera Putt 2", 2020], ["Chal Mera Putt 3", 2021]]],
+    ["Nikka Zaildar", [["Nikka Zaildar", 2016], ["Nikka Zaildar 2", 2017], ["Nikka Zaildar 3", 2019]]],
+    ["Sardaar Ji", [["Sardaar Ji", 2015], ["Sardaar Ji 2", 2016]]],
+  ];
+
+  /* A curated film: any of its names, released within a year of `year`, in the series' language when one is given
+     (Drishyam 2 is a 2021 Malayalam film and a 2022 Hindi one). */
+  function curatedFind(titles, year, lang) {
+    for (const t of [].concat(titles)) {
+      const key = normalize(t);
+      const cands = (byKey.get(key) || []).concat(byFlat.get(key.replace(/ /g, "")) || []);
+      const hit = cands.find((f) => f.type !== "series" && (!year || Math.abs((f.year || 0) - year) <= 1) && (!lang || f.lang === lang));
+      if (hit) return hit;
+    }
+    return null;
+  }
+
+  /* The same film listed twice — the bundle's own copy and a web copy under IMDb's longer name ("Pushpa: The Rise" and
+     "Pushpa: The Rise - Part 1"): the web copy goes. */
+  const DROP_WORDS = new Set(["the", "a", "part", "chapter", "1", "i"]);
+  const wordSet = (t) => normalize(t).split(" ").filter((w) => w && !DROP_WORDS.has(w)).sort().join(" ");
+  function withoutCopies(films) {
+    return films.filter((f) => !(f.remote && films.some((g) => g !== f && !g.remote &&
+      ((f.imdbId && g.imdbId === f.imdbId) || (Math.abs((g.year || 0) - (f.year || 0)) <= 2 && wordSet(g.title) === wordSet(f.title))))));
+  }
+
   function collections() {
     if (collectionCache.v === version) return collectionCache.list;
     if (!seriesIndex || seriesVersion !== version) buildSeries();
@@ -1037,6 +1142,19 @@
       known.forEach((f) => { const k = seriesKey(f); if (k) seen.add(k); });
       out.push({ id: entry.id, name: entry.name, films: list, kind: "series", source: "wikidata", audience: list.reduce((n, f) => n + (f.votes || 0), 0) });
     });
+    // The curated Indian series, unless a collection above already has them.
+    CURATED.forEach(([name, list, lang]) => {
+      const films = [];
+      list.forEach(([titles, year]) => { const f = curatedFind(titles, year, lang); if (f && films.indexOf(f) === -1) films.push(f); });
+      const released = films.filter((f) => f.year && f.year <= new Date().getFullYear());
+      if (films.length < 2 || released.length < 1) return;
+      const idset = new Set(films.map((f) => f.id));
+      if (out.some((c) => c.films.filter((f) => idset.has(f.id)).length >= 2)) return;
+      const id = "c-" + normalize(name).replace(/ /g, "-");
+      ids.add(id);
+      films.forEach((f) => { const k = seriesKey(f); if (k) seen.add(k); });
+      out.push({ id, name, films: films.sort((a, b) => (a.year || 9999) - (b.year || 9999)), kind: "series", source: "curated" });
+    });
     seriesIndex.forEach((members) => {
       const anchor = members.find((f) => !f.remote && sequelMarked(f.title)) || members.find((f) => !f.remote) || members[0];
       const s = anchor && series(anchor);
@@ -1049,9 +1167,12 @@
       if (!regional && audience < 30000 && !s.films.some((f) => (f.rating || 0) >= 7 && (f.votes || 0) >= 5000)) return;
       out.push({ id: "s-" + s.key, name: s.name, films: s.films, kind: "series", audience });
     });
-    out.forEach((c) => { if (c.audience == null) c.audience = c.films.reduce((n, f) => n + (f.votes || 0), 0); });
-    collectionCache = { v: version, list: out };
-    return out;
+    out.forEach((c) => {
+      c.films = withoutCopies(c.films);
+      if (c.audience == null) c.audience = c.films.reduce((n, f) => n + (f.votes || 0), 0);
+    });
+    collectionCache = { v: version, list: out.filter((c) => c.films.length >= 2) };
+    return collectionCache.list;
   }
   const collection = (id) => collections().find((c) => c.id === id) || null;
 

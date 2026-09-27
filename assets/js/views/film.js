@@ -127,7 +127,7 @@
     if (!m && !wd) return '<h2 class="label">Cast &amp; crew</h2><div class="people"><span class="skeleton-line"></span></div>';
     const list = people(m, wd);
     if (!list.length) return "";
-    return '<h2 class="label">Cast &amp; crew</h2><div class="people">' + list.map((p) => FL.people.chip(p.name, roleLabel(p))).join("") + "</div>";
+    return FL.people.block("Cast &amp; crew", list.map((p) => FL.people.chip(p.name, roleLabel(p))));
   }
 
   const castNames = (m, wd) => people(m, wd).map((p) => p.name);
@@ -142,7 +142,6 @@
     const out = [];
     if (tt) out.push('<a class="link" target="_blank" rel="noopener noreferrer" href="https://www.imdb.com/title/' + tt + '/">IMDb ↗</a>');
     out.push('<a class="link" target="_blank" rel="noopener noreferrer" href="https://en.wikipedia.org/wiki/' + encodeURIComponent((film.wiki || film.title).replace(/ /g, "_")) + '">Wikipedia ↗</a>');
-    out.push('<a class="link" target="_blank" rel="noopener noreferrer" href="' + FL.ui.whereToWatch(film) + '">Where to watch ↗</a>');
     return '<p class="ext-links">' + out.join("") + "</p>";
   }
 
@@ -229,6 +228,7 @@
         '<div class="container film-body">' +
           '<div class="film-main">' +
             '<section><h2 class="label">Overview</h2><p class="lede" data-slot="overview">' + (desc() ? esc(desc()) : '<span class="skeleton-line"></span><span class="skeleton-line"></span><span class="skeleton-line short"></span>') + "</p></section>" +
+            '<section data-slot="where" hidden></section>' +
             '<section data-slot="trailer" hidden></section>' +
             '<section data-slot="credits">' + credits(m) + "</section>" +
             franchiseBlock(film) +
@@ -348,6 +348,7 @@
       });
     }
 
+    FL.ui.fillWhere(slot("where"), film);
     // Warm up the servers (and look the title up on Vega) so Play starts faster; the same lookup finds downloads.
     FL.util.idle(() => {
       FL.player.prefetch(film);

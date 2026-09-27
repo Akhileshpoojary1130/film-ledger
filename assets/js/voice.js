@@ -21,14 +21,31 @@
 
   /* Each line: [plain part, emphasised part]. */
   const LINES = {
-    late: [["Still up?", "Let's make it a short one."], ["The late show", "starts whenever you say."], ["Can't sleep?", "A comfort film might help."], ["Midnight screening,", "just for you."], ["Night owl hours.", "Pick something gentle."], ["Quiet house.", "Perfect for a loud film."]],
-    dawn: [["Up before the sun?", "Start with something gentle."], ["Early start.", "Room for a short one?"], ["First light,", "first frame."], ["Chai's brewing.", "So is the reel."]],
-    morning: [["Good morning.", "What's on the reel today?"], ["Coffee first,", "classics after."], ["Fresh day,", "fresh film."], ["Slow morning?", "Line up something for tonight."], ["Rise and shine.", "The credits can roll later."]],
-    lunch: [["Had lunch yet?", "Grab a bite, then a film."], ["How was lunch?", "Here's dessert."], ["Lunch break?", "Something under two hours."], ["Eat first.", "The film will wait."], ["Lunch sorted?", "Let's find a side of cinema."]],
-    afternoon: [["Lazy afternoon?", "Perfect matinee weather."], ["It's matinee time.", "What are we watching?"], ["Tea's ready.", "Now for a good story."], ["Post-lunch slump?", "Something lively, then."], ["Sip some water,", "then pick a film."]],
-    evening: [["Evening's here.", "What's the mood?"], ["Done for the day?", "Put your feet up."], ["Golden hour,", "golden films."], ["Long day?", "Let a story carry you."]],
-    dinner: [["Dinner done?", "Pick something for after."], ["Dinner and a movie.", "The classic pairing."], ["Plates down,", "lights down."], ["Food's ready,", "and so is the screen."]],
-    night: [["What are we", "watching tonight?"], ["Lights down,", "screen up."], ["Tonight's feature", "is your call."], ["One more before bed?", "Make it a good one."], ["Settle in.", "This one's worth staying up for."]],
+    late: [["Still up?", "Let's make it a short one."], ["The late show", "starts whenever you say."], ["Can't sleep?", "A comfort film might help."], ["Midnight screening,", "just for you."], ["Night owl hours.", "Pick something gentle."], ["Quiet house.", "Perfect for a loud film."], ["Everyone's asleep.", "The screen's all yours."], ["One more episode?", "We won't tell."]],
+    dawn: [["Up before the sun?", "Start with something gentle."], ["Early start.", "Room for a short one?"], ["First light,", "first frame."], ["Chai's brewing.", "So is the reel."], ["Birds are up.", "So are you."]],
+    morning: [["Good morning.", "What's on the reel today?"], ["Coffee first,", "classics after."], ["Fresh day,", "fresh film."], ["Slow morning?", "Line up something for tonight."], ["Rise and shine.", "The credits can roll later."], ["Weekend plans?", "Start the watchlist now."], ["Morning chai,", "evening cinema."]],
+    lunch: [["Had lunch yet?", "Grab a bite, then a film."], ["How was lunch?", "Here's dessert."], ["Lunch break?", "Something under two hours."], ["Eat first.", "The film will wait."], ["Lunch sorted?", "Let's find a side of cinema."], ["Thali done?", "Time for a short one."]],
+    afternoon: [["Lazy afternoon?", "Perfect matinee weather."], ["It's matinee time.", "What are we watching?"], ["Tea's ready.", "Now for a good story."], ["Post-lunch slump?", "Something lively, then."], ["Sip some water,", "then pick a film."], ["Afternoon matinee,", "anyone?"], ["Rainy outside?", "Cosy inside."]],
+    evening: [["Evening's here.", "What's the mood?"], ["Done for the day?", "Put your feet up."], ["Golden hour,", "golden films."], ["Long day?", "Let a story carry you."], ["Samosa and a screen?", "Say no more."], ["Work's done.", "Showtime."]],
+    dinner: [["Dinner done?", "Pick something for after."], ["Dinner and a movie.", "The classic pairing."], ["Plates down,", "lights down."], ["Food's ready,", "and so is the screen."], ["Family's gathering?", "Find one everyone likes."]],
+    night: [["What are we", "watching tonight?"], ["Lights down,", "screen up."], ["Tonight's feature", "is your call."], ["One more before bed?", "Make it a good one."], ["Settle in.", "This one's worth staying up for."], ["Blanket on?", "Press play."]],
+  };
+
+  /* Lines in the key of what you've been watching (the mood below): a horror streak gets a spooky welcome, a run of
+     comedies a cheerful one. They take turns with the time-of-day lines. */
+  const MOOD_LINES = {
+    eerie: [["Lights off?", "Something's waiting in the dark."], ["Brave tonight?", "Watch through your fingers."], ["Creaky floors, cold spots.", "Perfect horror weather."],
+      ["Don't look behind you.", "Look at these instead."], ["Scared yet?", "Let's fix that."], ["Heard that noise?", "Probably nothing. Probably."]],
+    tense: [["Trust no one.", "Especially the narrator."], ["Case open.", "Who did it tonight?"], ["Edge of your seat?", "We've got just the thing."],
+      ["Plot twists ahead.", "Mind the gap."], ["Every clue matters.", "Pay attention."]],
+    bold: [["Ready for a ride?", "Buckle up."], ["Something loud tonight?", "Turn it up."], ["Slow-motion walk?", "Pick your hero."],
+      ["Big screen energy.", "Let's go."], ["Mass entry time.", "Whistles ready?"]],
+    future: [["Another world tonight?", "The portal's open."], ["Space, time or dragons?", "Your pick."], ["Beam me somewhere.", "Anywhere but here."],
+      ["Reality's overrated.", "Try a new one."]],
+    sweet: [["In the mood for love?", "Hearts on screen tonight."], ["A little romance?", "Keep the tissues close."], ["Butterflies wanted.", "Here's a start."],
+      ["Old songs, new love?", "Press play."], ["Feeling filmy?", "Let's go full Bollywood."]],
+    sunny: [["Need a laugh?", "We've got you."], ["Long day?", "Let's make it funnier."], ["Belly laughs only.", "Pick one."],
+      ["Something light tonight?", "Easy watching ahead."], ["Life's too short", "for boring films."]],
   };
 
 
@@ -51,7 +68,11 @@
 
   function greeting(name) {
     const [, id, hello] = slotAt(new Date().getHours());
-    return { id, eyebrow: hello + (name ? ", " + name : ""), line: pick(LINES[id], id) };
+    // Every other six-hour block (on the whole), the line follows your mood instead of the clock.
+    const m = moodOn() ? mood() : null;
+    const d = new Date();
+    const useMood = m && MOOD_LINES[m.id] && hash(d.toDateString() + "|" + Math.floor(d.getHours() / 6) + "|mood") % 2 === 0;
+    return { id, eyebrow: hello + (name ? ", " + name : ""), line: useMood ? pick(MOOD_LINES[m.id], "m" + m.id) : pick(LINES[id], id) };
   }
 
   const signoff = () => pick(SIGNOFFS, "signoff");
@@ -97,9 +118,11 @@
     document.head.appendChild(link);
   }
 
+  const moodOn = () => (FL.store.prefs().appearance || {}).moodType !== false;
+
   /* Attributes for the headline element: a mood class and the font stack (off when motion is calm or disabled). */
   function moodAttrs(text) {
-    if ((FL.store.prefs().appearance || {}).moodType === false) return "";
+    if (!moodOn()) return "";
     const m = mood();
     if (!m) return "";
     loadFont(m, text);

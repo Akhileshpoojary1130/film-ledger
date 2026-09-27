@@ -356,11 +356,12 @@
       '<h4 class="set-sub">More</h4>' +
       '<div class="setting-row"><span>Year picker<small>How you choose a year on the Years page</small></span>' +
         FL.ui.segmented("picker", [["dial", "Dial"], ["wheel", "Wheel"], ["ruler", "Ruler"], ["chips", "Chips"]], picker) + "</div>" +
-      '<div class="setting-row"><span>Search button<small>On phones: in the middle of the top bar, or a round button under Settings</small></span>' +
-        FL.ui.segmented("searchspot", [["center", "Top centre"], ["float", "Under settings"]], a.searchSpot === "float" ? "float" : "center") + "</div>" +
-      '<div class="setting-row"><span>Trailer on hover<small>Rest the mouse on a poster for 3 seconds to preview it</small></span>' +
-        FL.ui.segmented("hovertrailer", [["on", "On"], ["off", "Off"]], a.hoverTrailer === false ? "off" : "on") + "</div>" +
-      '<div class="setting-row"><span>Mood headline<small>Home’s headline takes a typeface from what you’ve been watching</small></span>' +
+      // Only what applies on this device: the search button is a phone thing, trailers on hover need a mouse.
+      (phone() ? '<div class="setting-row"><span>Search button<small>In the middle of the top bar, or a round button under Settings</small></span>' +
+        FL.ui.segmented("searchspot", [["center", "Top centre"], ["float", "Under settings"]], a.searchSpot === "float" ? "float" : "center") + "</div>" : "") +
+      (mouse() ? '<div class="setting-row"><span>Trailer on hover<small>Rest the mouse on a poster for 3 seconds to preview it</small></span>' +
+        FL.ui.segmented("hovertrailer", [["on", "On"], ["off", "Off"]], a.hoverTrailer === false ? "off" : "on") + "</div>" : "") +
+      '<div class="setting-row"><span>Mood headline<small>Home’s headline follows what you’ve been watching: its words and its typeface</small></span>' +
         FL.ui.segmented("moodtype", [["on", "On"], ["off", "Off"]], a.moodType === false ? "off" : "on") + "</div>";
   }
 
@@ -395,12 +396,29 @@
         (status.supported ? '<button type="button" class="btn" data-set="file-restore">' + icon("upload") + "Restore from file…</button>" : '<label class="btn">' + icon("upload") + 'Restore from file…<input type="file" accept="application/json,.json" data-set="import" hidden></label>') +
         '<button type="button" class="btn btn-ghost" data-set="export">' + icon("download") + "Export backup</button>" +
         '<button type="button" class="btn btn-ghost" data-set="csv">' + icon("download") + "Letterboxd CSV</button>" +
-      "</div>" +
-      '<div class="setting-row move-row"><span>Sync<small>' + (FL.sync && FL.sync.on
-        ? "On: watched, Watch later, favourites, shows, where you stopped and settings follow you between devices"
-        : "Keep watched, Watch later, favourites, shows, where you stopped and settings the same on your phone and laptop") + "</small></span>" +
-        '<a class="btn btn-sm" href="#/move">' + icon("sync") + (FL.sync && FL.sync.on ? "Manage" : "Set up") + "</a></div>";
+      "</div>";
   }
+
+  /* Sync first: it's what keeps everything else in step across devices. */
+  function syncRow() {
+    const on = FL.sync && FL.sync.on;
+    return '<div class="setting-row"><span>Sync' + (on ? ' <span class="set-on">On</span>' : "") + "<small>" + (on
+      ? "Watched, Watch later, favourites, shows, where you stopped and these settings follow you between devices"
+      : "Keep your library and settings the same on your phone and laptop") + "</small></span>" +
+      '<a class="btn btn-sm' + (on ? "" : " btn-primary") + '" href="#/move">' + icon("devices") + (on ? "Manage" : "Set up") + "</a></div>";
+  }
+
+  /* Player: the pop-up shield, then which servers answer from this network. */
+  function playerHtml() {
+    const shield = (FL.store.prefs().player || {}).shield !== false;
+    return '<div class="setting-row"><span>Block pop-ups and redirects<small>Vega Super and 2Embed play shielded: no ad tabs. Other servers refuse to play that way, so Iris asks before any of them takes you to another site. Turn off if a server stops playing.</small></span>' +
+      FL.ui.segmented("shield", [["on", "On"], ["off", "Off"]], shield ? "on" : "off") + "</div>" +
+      '<p class="sub set-sub-note">Servers from your network right now. “Unreachable” usually means your internet provider blocks it; the player skips those.</p>' +
+      '<ul class="server-list">' + serverRows() + '</ul><button type="button" class="btn btn-sm btn-ghost" data-set="recheck">Re-check</button>';
+  }
+
+  const phone = () => window.matchMedia("(max-width: 760px)").matches;
+  const mouse = () => window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
   function serverRows() {
     return FL.player.SERVERS.map((s) => '<li data-srv-row="' + s.id + '"><i class="srv-dot"></i><span>' + s.name + '</span><small class="muted">' + s.origin.replace("https://", "") + "</small><em>…</em></li>").join("");
@@ -411,14 +429,14 @@
     const m = modal(
       '<div class="modal-pad settings">' +
         '<h2 class="h2">Settings</h2>' +
+        '<section data-sec="you"><h3 class="label">You</h3>' +
+          '<div class="setting-row setting-stack"><label for="set-name">Your name<small>Used in Home’s greeting</small></label>' +
+          '<input class="input" id="set-name" maxlength="40" placeholder="Optional" value="' + esc(prefs.name || "") + '"></div>' +
+          syncRow() + "</section>" +
         '<section data-sec="appearance"><h3 class="label">Appearance</h3><div data-appearance>' + appearanceHtml() + "</div></section>" +
         '<section data-sec="home"><h3 class="label">Home</h3><div data-homeset>' + homeHtml() + "</div></section>" +
-        '<section><label class="label" for="set-name">Your name</label>' +
-          '<input class="input" id="set-name" maxlength="40" placeholder="Used in the greeting" value="' + esc(prefs.name || "") + '"></section>' +
-        '<section data-sec="storage"><h3 class="label">Storage</h3><div data-storage>' + storageHtml(FL.persist.status(), false) + "</div></section>" +
-        '<section><h3 class="label">Stream servers</h3><p class="sub">Reachability from your network right now; the player skips servers that don’t answer. ' +
-          "“Unreachable” usually means your internet provider or an ad blocker blocks that server, which Iris can’t change. Titles on Vega also get Vega’s own players (MixDrop, RPM, MultiCloud…), looked up when you press play. Titles no server carries have a <em>Where to watch</em> link.</p>" +
-          '<ul class="server-list">' + serverRows() + '</ul><button type="button" class="btn btn-sm btn-ghost" data-set="recheck">Re-check</button></section>' +
+        '<section data-sec="player"><h3 class="label">Player</h3><div data-playerset>' + playerHtml() + "</div></section>" +
+        '<section data-sec="storage"><h3 class="label">Backup</h3><div data-storage>' + storageHtml(FL.persist.status(), false) + "</div></section>" +
         '<section><h3 class="label">Maintenance</h3><div class="btn-row">' +
           '<button type="button" class="btn btn-ghost" data-set="clear-cache">Clear artwork & details cache</button>' +
           '<button type="button" class="btn btn-danger-ghost" data-set="reset">Erase library…</button></div></section>' +
@@ -435,7 +453,9 @@
     paintStorage();
     const off = FL.persist.on(paintStorage);
 
+    let lastServerResults = [];
     function paintServers(results) {
+      lastServerResults = results || [];
       FL.player.SERVERS.forEach((s, i) => {
         const li = $('[data-srv-row="' + s.id + '"]', m.el);
         const r = results[i];
@@ -505,6 +525,13 @@
       }
       const pk = e.target.closest('[data-seg="picker"]');
       if (pk) { FL.store.patchPref("years", { picker: pk.dataset.value }); repaintAppearance(); FL.app.refresh(); return; }
+      const sh = e.target.closest('[data-seg="shield"]');
+      if (sh) {
+        FL.store.patchPref("player", { shield: sh.dataset.value === "on" });
+        $("[data-playerset]", m.el).innerHTML = playerHtml();
+        paintServers(lastServerResults);
+        return;
+      }
       const sp = e.target.closest('[data-seg="searchspot"]');
       if (sp) { FL.theme.set({ searchSpot: sp.dataset.value }); repaintAppearance(); return; }
       const ht = e.target.closest('[data-seg="hovertrailer"]');

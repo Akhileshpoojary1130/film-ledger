@@ -301,5 +301,22 @@
       .map((n) => ({ name: n, role: seen[n].role, films: seen[n].films }));
   }
 
-  FL.people = { photos, info, face, chip, paint, href, filmography, favourites, credits };
+  /* A cast list that starts short — 4 on a phone (a vertical list), 12 elsewhere — with "Show all" for the rest. */
+  function block(label, chips) {
+    if (!chips.length) return "";
+    return '<h2 class="label">' + label + '</h2><div class="people is-collapsed">' + chips.join("") + "</div>" +
+      (chips.length > 4 ? '<button type="button" class="btn btn-sm btn-ghost people-more' + (chips.length > 12 ? " is-many" : "") +
+        '" data-people-more aria-expanded="false">Show all ' + chips.length + "</button>" : "");
+  }
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-people-more]");
+    if (!b) return;
+    const list = b.previousElementSibling;
+    if (!list || !list.classList.contains("people")) return;
+    const open = list.classList.toggle("is-collapsed") === false;
+    b.setAttribute("aria-expanded", String(open));
+    b.textContent = open ? "Show fewer" : "Show all " + list.children.length;
+  });
+
+  FL.people = { photos, info, face, chip, paint, href, filmography, favourites, credits, block };
 })(window.FL = window.FL || {});

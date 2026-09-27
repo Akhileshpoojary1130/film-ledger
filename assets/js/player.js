@@ -21,7 +21,8 @@
       },
     },
     {
-      id: "2embed", name: "2Embed", origin: "https://www.2embed.cc",
+      // Plays in a sandboxed frame, so it can't open ad tabs (see the shield in load()).
+      id: "2embed", name: "2Embed", origin: "https://www.2embed.cc", sandbox: true,
       url: ({ imdb, tmdb, tv, s, e }) => {
         const id = imdb || tmdb;
         if (!id) return null;
@@ -47,7 +48,7 @@
     },
     {
       // Vega's "Super Player": heads the Vega group in the bar, ahead of the per-title links found below.
-      id: "vega", name: "Vega", short: "Super", label: "Super Player", origin: "https://slast430did.com",
+      id: "vega", name: "Vega", short: "Super", label: "Super Player", origin: "https://slast430did.com", sandbox: true,
       url: ({ imdb, tv }) => (imdb && !tv ? "https://slast430did.com/play/" + imdb : null),
     },
   ];
@@ -239,6 +240,13 @@
       // Vega is built for Hindi and Indian films (its Super Player is what Vega's own site plays Pushpa on); until
       // your own history says otherwise, its servers lead for them.
       if (film && (film.lang === "Hindi" || film.lang === "OtherIndian") && (s.id === "vega" || /^vg-/.test(s.id))) score += 22;
+      // MixDrop fronts its player with adult ads: last resort.
+      if (/^vg-mxdrop/.test(s.id)) score -= 40;
+      // Indian series and shows: 2Embed and Videasy carry most of them (Bigg Boss, KBC, Panchayat, Kota Factory…);
+      // VidLink often has the wrong show or none, so it waits.
+      if (state.ep && film && (film.lang === "Hindi" || film.lang === "OtherIndian" || /India/.test(film.country || ""))) {
+        score += { "2embed": 18, videasy: 10, vidlink: -25 }[s.id] || 0;
+      }
       return [score, s];
     }).sort((a, b) => b[0] - a[0]).map((x) => x[1]);
   }
@@ -524,6 +532,12 @@
     // Browser-default referrer: several hosts refuse to play when the embedding page is anonymous.
     iframe.referrerPolicy = "strict-origin-when-cross-origin";
     iframe.title = film.title + (state.ep ? " " + epLabel(state.ep) : "") + " · " + nameOf(server);
+    // The shield. Hosts that play in a sandboxed frame (Vega's Super Player, 2Embed) get one: they can play but can't
+    // open ad tabs or send this page elsewhere. Most hosts refuse to play sandboxed ("Please disable sandbox"), so they
+    // run as they are, and any attempt to navigate Iris away gets the browser's "Leave site?" question instead.
+    const shield = (FL.store.prefs().player || {}).shield !== false;
+    if (shield && server.sandbox) iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock allow-orientation-lock");
+    state.guard = shield && !server.sandbox;
     frame().appendChild(iframe);
     // Big hosts show a blank or spinning frame for 10–20 s; say so, so a working server isn't abandoned.
     const starting = document.createElement("div");
@@ -776,6 +790,8 @@
   }, true);
 
   window.addEventListener("pagehide", () => { if (state.open) settle(); });
+  // An unshielded player that tries to send this page to another site gets the browser's "Leave site?" question.
+  window.addEventListener("beforeunload", (e) => { if (state.open && state.guard) { e.preventDefault(); e.returnValue = ""; } });
 
   /* ---------- trailers ---------- */
 

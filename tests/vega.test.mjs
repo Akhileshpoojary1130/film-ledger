@@ -1,7 +1,7 @@
 // Unit tests for the Vega lookup's matching and clean-up (no network): node --test tests/
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseTitle, similar, queries, playerOptions, episodeOf, cleanUrl, episodeLink, GONE, language, posterOf, downloadLinks } from "../api/vega.js";
+import { parseTitle, similar, queries, playerOptions, episodeOf, cleanUrl, episodeLink, GONE, language, posterOf, downloadLinks, parseHot, hotDownloads } from "../api/vega.js";
 
 test("parseTitle reads name, year and season off Vega's post titles", () => {
   assert.deepEqual(
@@ -119,4 +119,34 @@ test("downloadLinks reads a post's download buttons, grouped by page", () => {
   assert.deepEqual(downloadLinks(season, 2).map((d) => d.label), ["EP-2", "Complete Season 1080p"]);
   assert.deepEqual(downloadLinks(season, 0).length, 5);
   assert.deepEqual(downloadLinks('<a href="javascript:alert(1)"><button class="download-button">Download</button></a>'), []);
+});
+
+test("parseHot reads Vega Hot's titles", () => {
+  const a = parseHot("Mirzapur (2018) S01 (2018) Hindi Web Series [Complete] [HDRip]");
+  assert.deepEqual([a.name, a.year, a.season], ["Mirzapur", 2018, 1]);
+  const b = parseHot("The Vvaan: Force of the Forrest 2026 Hindi Line Audio V2 HQ [HQ HDTC]");
+  assert.deepEqual([b.name, b.year, b.season], ["The Vvaan: Force of the Forrest", 2026, 0]);
+  const c = parseHot("Bigg Boss 2026 Season 20 Hindi Audio [JioHotStar Series] [EP-20 Added] [WEB DL]");
+  assert.deepEqual([c.name, c.year, c.season], ["Bigg Boss", 2026, 20]);
+  const d = parseHot("1920 (2008) Hindi [HDRip]");
+  assert.deepEqual([d.name, d.year], ["1920", 2008]);
+});
+
+test("hotDownloads reads both of Vega Hot's layouts", () => {
+  // Newer posts: a quality heading, then a button with the size.
+  const btn = (q, id, size) => '<h3 style="text-align: center;"><span style="color: #ff0000;">' + q + '</span></h3>' +
+    '<h3 style="text-align: center;"><div><a class="btn" href="https://nexdrive.help/' + id + '/" target="_blank" rel="noopener"> <button class="dwd-button">' +
+    '<i class="fa fa-download"></i>⚡Click Here To Download [' + size + '] ⚡</button></a></div></h3>';
+  const fresh = '<h5>—–== Download Links ==—–</h5><div class="download-links-div">' + btn("480p", "a", "460MB") + btn("720p x265 HEVC", "b", "780MB") +
+    btn("1080p x264", "c", "2.6GB") + '<hr></div><h3>Winding Up ❤️</h3><p><a href="/">vega-hot.com</a></p>';
+  assert.deepEqual(hotDownloads(fresh).map((d) => d.label), ["480p · 460MB", "720p x265 HEVC · 780MB", "1080p x264 · 2.6GB"]);
+  // Older posts: everything in the link, with pictures in between.
+  const old = '<p>Download Links</p><p><a href="https://1.bp.blogspot.com/x.png"><img src="x"></a></p>' +
+    '<p><a href="https://vgmlinks.live/31331">Download Complete 720p Hindi Season – 1 – GDrive – 1.6GB</a></p>' +
+    '<p><a href="https://vgmlinks.live/31332">Download Complete 480p Hindi Season – 1 – GDrive – 860MB</a></p><p>Winding Up</p>';
+  assert.deepEqual(hotDownloads(old), [
+    { label: "720p · 1.6GB", url: "https://vgmlinks.live/31331" },
+    { label: "480p · 860MB", url: "https://vgmlinks.live/31332" },
+  ]);
+  assert.deepEqual(hotDownloads("<p>nothing here</p>"), []);
 });

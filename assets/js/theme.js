@@ -205,7 +205,7 @@
       "chevron_left", "chevron_right", "close", "dark_mode", "delete", "download", "edit", "expand_more", "explore", "favorite",
       "folder_open", "fullscreen", "grid_view", "history", "home", "keyboard", "light_mode", "live_tv", "movie", "open_in_new",
       "palette", "person", "play_arrow", "replay", "schedule", "search", "shuffle", "smart_display", "star", "tune", "upload",
-      "video_library", "view_list", "qr_code_2", "ios_share", "group", "photo_camera", "link", "devices", "sync"];
+      "video_library", "view_list", "qr_code_2", "ios_share", "group", "photo_camera", "link", "devices", "refresh"];
     const link = document.createElement("link");
     link.id = "font-material";
     link.rel = "stylesheet";

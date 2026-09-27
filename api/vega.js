@@ -127,8 +127,9 @@ function downloadLinks(html, episode) {
     if (!/download-button|\bdownload\b|\bEP[\s.-]*\d/i.test(m[2])) continue;
     const url = cleanUrl(m[1]);
     if (!url || url.startsWith(SITE) || SOCIAL.test(url)) continue;
-    const label = decode(m[2]).replace(/\bdownload(?: now)?\b/ig, "").replace(/[[\]|:]/g, " ").replace(/\s+/g, " ").trim().slice(0, 40);
+    let label = decode(m[2]).replace(/\bdownload(?: now)?\b/ig, "").replace(/[[\]|:]/g, " ").replace(/\s+/g, " ").trim().slice(0, 40);
     if (/^watch\b|watch online/i.test(label)) continue; // a player link dressed as a button
+    if (/^multiples?$/i.test(label)) label = "All episodes";
     if (!byUrl.has(url)) byUrl.set(url, []);
     const labels = byUrl.get(url);
     if (labels.indexOf(label) === -1) labels.push(label);
@@ -231,6 +232,101 @@ async function lookup({ title, year, imdb, s, e }) {
   return { match: null, servers: [], downloads: [] };
 }
 
+/* ---------- Vega Hot (vega-hot.com): a second place for download pages ----------
+   A DataLife Engine site with titles Vega doesn't keep (older seasons, some shows). Its search is a plain GET; each
+   post lists downloads either as "Download 720p … 1.6GB" links or as a quality heading ("720p x265 HEVC") above a
+   "Click Here To Download [780MB]" button. Only its download pages are used (its player is Vega's Super Player). */
+const HOT = "https://vega-hot.com";
+
+function hotGet(url) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 6000);
+  return fetch(url, { signal: ctrl.signal, headers: { "user-agent": UA, accept: "text/html" } })
+    .then((res) => { if (!res.ok) throw new Error("vega-hot → HTTP " + res.status); return res.text(); })
+    .finally(() => clearTimeout(timer));
+}
+
+/* "Mirzapur (2018) S01 (2018) Hindi Web Series [Complete]" → Mirzapur, 2018, season 1;
+   "The Vvaan: Force of the Forrest 2026 Hindi …" → The Vvaan: Force of the Forrest, 2026. */
+function parseHot(raw) {
+  const title = decode(raw);
+  const paren = /\((19\d{2}|20\d{2})\)/.exec(title);
+  const bare = paren ? null : /(?!^)\b(19\d{2}|20\d{2})\b/.exec(title);
+  const y = paren || bare;
+  const name = (y ? title.slice(0, y.index) : title).replace(/[\s–—:|-]+$/, "").trim();
+  const sm = title.match(/\bseason\s*0*(\d{1,3})\b|\bS0*(\d{1,3})\b(?!\s*E\d)/i);
+  return { title, name, year: y ? +y[1] : 0, season: sm ? +(sm[1] || sm[2]) : 0 };
+}
+
+async function hotSearch(q) {
+  const html = await hotGet(HOT + "/index.php?do=search&subaction=search&story=" + encodeURIComponent(q));
+  const out = [];
+  const re = /class="entry-title[^"]*"[^>]*>\s*<a href="(https:\/\/vega-hot\.com\/[^"]+\.html)"[^>]*>([\s\S]*?)<\/a>/g;
+  let m;
+  while ((m = re.exec(html))) out.push(Object.assign({ url: m[1] }, parseHot(m[2])));
+  return out;
+}
+
+const QUALITY = /\b(2160p|4k|1080p|720p|480p|360p)\b/i;
+const SIZE = /\b(\d+(?:\.\d+)?\s?(?:MB|GB))\b/i;
+const IMAGE = /\.(?:jpe?g|png|webp|gif)(?:[?#]|$)|blogspot\.com|googleusercontent\.com/i;
+
+/* A post's download pages, labelled "720p x265 HEVC · 780MB" (heading + size) or "720p · 1.6GB" (from the link). */
+function hotDownloads(html, episode) {
+  const src = String(html || "");
+  const start = src.search(/download-links-div|==\s*Download|Download Links/i);
+  if (start === -1) return [];
+  const endAt = src.slice(start).search(/Winding Up|class="entry-footer|<\/article>/i);
+  const block = src.slice(start, endAt === -1 ? start + 60000 : start + endAt);
+  // Headings that label what follows (ones without a link inside).
+  const heads = [];
+  const hre = /<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/g;
+  let h;
+  while ((h = hre.exec(block))) if (!/<a\b/i.test(h[1])) heads.push({ at: h.index, text: decode(h[1]) });
+  const list = [];
+  const are = /<a\b[^>]*?href=["']\s*([^"']+?)\s*["'][^>]*>([\s\S]*?)<\/a>/g;
+  let a;
+  while ((a = are.exec(block))) {
+    const url = cleanUrl(a[1]);
+    if (!url || url.startsWith(HOT) || url.startsWith(SITE) || IMAGE.test(url) || SOCIAL.test(url)) continue;
+    const text = decode(a[2]);
+    if (!/download|\bEP[\s.-]*\d|episode/i.test(text + " " + a[2])) continue;
+    const before = heads.filter((x) => x.at < a.index);
+    const near = before[before.length - 1];
+    const qHead = before.filter((x) => QUALITY.test(x.text)).pop();
+    const headText = qHead ? qHead.text.replace(/[^\w\s.+-]/g, " ").replace(/\s+/g, " ").trim().slice(0, 30) : "";
+    const q = (text.match(QUALITY) || [])[1] || headText;
+    const size = (text.match(SIZE) || (near && near.text.match(SIZE)) || [])[1] || "";
+    const ep = (text.match(EP_NO) || (near && near.text.match(EP_NO)) || [])[0] || "";
+    const label = [ep && ep.replace(/\s+/g, " ").toUpperCase(), q || (size ? "Download" : ""), size.replace(/\s+/g, "")].filter(Boolean).join(" · ") ||
+      text.replace(/click here to|download(?: now)?/ig, "").replace(/[[\]|:]/g, " ").replace(/\s+/g, " ").trim().slice(0, 40) || "Download";
+    if (!list.some((d) => d.url === url)) list.push({ label, url });
+  }
+  if (episode) {
+    const numbered = list.filter((d) => EP_NO.test(d.label));
+    if (numbered.length) return list.filter((d) => (EP_NO.test(d.label) ? +d.label.match(EP_NO)[1] === episode : true));
+  }
+  return list.slice(0, 12);
+}
+
+/* A title's download pages on Vega Hot: the best-matching post (same name, year within one for films, same season for
+   shows). Two-letter titles are searched with their year, since the site ignores very short searches. */
+async function hotLookup({ title, year, s, e }) {
+  const tv = s > 0;
+  const q = title.replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
+  const hits = await hotSearch(q.length < 3 && year ? q + " " + year : q);
+  const best = hits
+    .map((r) => Object.assign(r, { score: similar(r.name, title) }))
+    .filter((r) => r.score >= 0.75 && (tv ? r.season === s : !r.season && (!year || !r.year || Math.abs(r.year - year) <= 1)))
+    .sort((a, b) => b.score - a.score || (b.year === year) - (a.year === year))[0];
+  if (!best) return [];
+  const list = hotDownloads(await hotGet(best.url), tv ? e : 0);
+  // A season still airing ("[EP-20 Added]") only has its latest episodes: unless a link names this episode, its pages
+  // may be for another one, so none are offered.
+  if (tv && /\b(?:EP|Episode)[\s.-]*\d+\s*Added\b/i.test(best.title) && !list.some((d) => EP_NO.test(d.label))) return [];
+  return list;
+}
+
 /* Vega's language tag after the year: "Hindi" (a Hindi film), "Hindi Dubbed", "Punjabi HD"… */
 const INDIAN = /\b(Tamil|Telugu|Malayalam|Kannada|Marathi|Bengali|Punjabi|Gujarati)\b/;
 function language(title) {
@@ -282,9 +378,16 @@ export default async function handler(req) {
   }
   if (!input.title || (input.s && !input.e)) return reply(400, { error: "title (and e with s) required" }, "no-store");
   try {
-    const out = await lookup(input);
+    // Vega's players and downloads, and Vega Hot's downloads, looked up side by side.
+    const [vega, hot] = await Promise.all([
+      lookup(input).catch((err) => ({ match: null, servers: [], downloads: [], error: String((err && err.message) || err) })),
+      hotLookup(input).catch(() => []),
+    ]);
+    const downloads = vega.downloads.slice();
+    hot.forEach((d) => { if (downloads.length < 16 && !downloads.some((x) => x.url === d.url)) downloads.push(d); });
+    const out = Object.assign({}, vega, { downloads });
     // Links rarely change once posted; a miss is re-checked sooner so new uploads show up.
-    return reply(200, out, out.servers.length
+    return reply(200, out, out.servers.length || out.downloads.length
       ? "public, max-age=3600, s-maxage=43200, stale-while-revalidate=172800"
       : "public, max-age=600, s-maxage=21600");
   } catch (err) {
@@ -293,4 +396,4 @@ export default async function handler(req) {
 }
 
 // For tests/vega.test.mjs.
-export { parseTitle, similar, queries, playerOptions, episodeOf, cleanUrl, episodeLink, GONE, RETIRED, language, posterOf, downloadLinks };
+export { parseTitle, similar, queries, playerOptions, episodeOf, cleanUrl, episodeLink, GONE, RETIRED, language, posterOf, downloadLinks, parseHot, hotDownloads };
