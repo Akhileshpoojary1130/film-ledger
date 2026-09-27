@@ -1,5 +1,6 @@
-/* Iris — Move (your library from one device to another by QR code) and Movie night (compare Watch later lists
-   with a friend by link). No server: the data travels inside the QR codes and the link's #fragment. */
+/* Iris — Sync (the same library and settings on every device you link; sync.js) with a one-time copy by QR code
+   as the no-internet fallback, and Movie night (compare Watch later lists with a friend by link). The one-time copy
+   and Movie night need no server: the data travels inside the QR codes and the link's #fragment. */
 (function (FL) {
   "use strict";
 
@@ -13,8 +14,8 @@
   const PARTS_KEY = "film_ledger_move_parts";
 
   FL.views.move = {
-    title: "Move your library",
-    mount(el, params) {
+    title: "Sync your devices",
+    mount(el, params, query, joinCode) {
       let alive = true;
       let cycle = 0;
       let paused = false;
@@ -31,23 +32,25 @@
 
       el.innerHTML = '<div class="container page move-page">' +
         '<header class="page-head"><div><p class="eyebrow">Phone ↔ laptop</p>' +
-          '<h1 class="display-sm">Move your <em>library.</em></h1>' +
-          '<p class="sub">Show the code on one device and scan it with Iris on the other. It all travels inside the code. Nothing is uploaded, and whatever is already on the other device stays.</p></div></header>' +
+          '<h1 class="display-sm">Sync your <em>devices.</em></h1>' +
+          '<p class="sub">Watched, Watch later, favourites, ratings, shows, where you stopped and your settings: the same on every device you link.</p></div></header>' +
+        '<section class="panel move-card sync-card" data-sync aria-live="polite"></section>' +
         '<div class="move-grid">' +
-          '<section class="panel move-card" data-send>' +
-            '<div class="move-head"><span class="move-ico">' + icon("qr") + '</span><div><h2 class="h3">Send from this device</h2>' +
-              '<p class="sub">' + (total ? [plural(watched, "film") + " watched", listed + " to watch", shows ? plural(shows, "show") : ""].filter(Boolean).join(" · ") : "Nothing to send yet") + "</p></div></div>" +
-            '<button type="button" class="qr-stage" data-qr hidden aria-label="Pause or resume the code"></button>' +
-            '<p class="qr-foot" data-qrfoot hidden></p>' +
-            '<div class="btn-row"><button type="button" class="btn btn-primary" data-move="show"' + (total ? "" : " disabled") + ">" + icon("qr") + "Show code</button></div>" +
-          "</section>" +
           '<section class="panel move-card" data-recv>' +
-            '<div class="move-head"><span class="move-ico">' + icon("camera") + '</span><div><h2 class="h3">Receive on this device</h2>' +
-              '<p class="sub">Open this page on the other device, tap <strong>Show code</strong>, and point this camera at it.</p></div></div>' +
+            '<div class="move-head"><span class="move-ico">' + icon("camera") + '</span><div><h2 class="h3">Scan a code</h2>' +
+              '<p class="sub">Point this camera at the sync code on your other device. One-time copy codes work here too.</p></div></div>' +
             '<div class="scan-stage" data-scan hidden><video muted playsinline></video><i class="scan-box" aria-hidden="true"></i>' +
               '<div class="scan-meter" data-meter aria-live="polite"></div></div>' +
             '<div data-recvbody></div>' +
             '<div class="btn-row" data-recvbtns><button type="button" class="btn btn-primary" data-move="scan">' + icon("camera") + "Scan code</button></div>" +
+          "</section>" +
+          '<section class="panel move-card" data-send>' +
+            '<div class="move-head"><span class="move-ico">' + icon("qr") + '</span><div><h2 class="h3">One-time copy</h2>' +
+              '<p class="sub">No internet needed: ' + (total ? [plural(watched, "film") + " watched", listed + " to watch", shows ? plural(shows, "show") : ""].filter(Boolean).join(" · ") : "nothing to send yet") +
+              " travel inside the code. It doesn’t stay in sync.</p></div></div>" +
+            '<button type="button" class="qr-stage" data-qr hidden aria-label="Pause or resume the code"></button>' +
+            '<p class="qr-foot" data-qrfoot hidden></p>' +
+            '<div class="btn-row"><button type="button" class="btn btn-ghost" data-move="show"' + (total ? "" : " disabled") + ">" + icon("qr") + "Show code</button></div>" +
           "</section>" +
         "</div></div>";
 
@@ -122,7 +125,7 @@
         qrFoot.hidden = true;
         qrStage.innerHTML = "";
         btn.dataset.move = "show";
-        btn.className = "btn btn-primary";
+        btn.className = "btn btn-ghost";
         btn.innerHTML = icon("qr") + "Show code";
       }
 
@@ -161,6 +164,14 @@
       }
 
       function onCode(text) {
+        const code = FL.sync && FL.sync.codeFrom(text);
+        if (code) {
+          stopScan();
+          recvBtns.innerHTML = '<button type="button" class="btn btn-primary" data-move="scan">' + icon("camera") + "Scan code</button>";
+          if (navigator.vibrate) navigator.vibrate(12);
+          offerJoin(code);
+          return;
+        }
         const f = FL.share.parseFrame(text);
         if (!f) {
           if (Date.now() - lastHint > 4000) { lastHint = Date.now(); toast("That QR code isn’t from Iris."); }
@@ -216,6 +227,124 @@
         }
       }
 
+      /* ----- sync ----- */
+
+      const syncCard = $("[data-sync]", el);
+      let ready = null; // is a store connected on the server? (null until asked)
+      let showQr = false;
+      let joining = "";
+      let qrCache = "";
+      const ago = (ms) => {
+        const s = (Date.now() - ms) / 1000;
+        if (s < 50) return "just now";
+        if (s < 3600) return Math.round(s / 60) + " min ago";
+        const d = new Date(ms);
+        return (s < 20 * 3600 ? "at " : d.toLocaleDateString([], { day: "numeric", month: "short" }) + ", ") + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      };
+      const head = (ico, title, sub) => '<div class="move-head"><span class="move-ico">' + icon(ico) + '</span><div><h2 class="h3">' + title + "</h2>" +
+        (sub ? '<p class="sub">' + sub + "</p>" : "") + "</div></div>";
+      const SETUP = "It needs a free Upstash Redis store connected to this site in Vercel (Storage → Upstash → Connect). Until then, a one-time copy below still works.";
+
+      function paintSync() {
+        if (!alive) return;
+        const st = FL.sync.state();
+        if (joining) {
+          const other = st.on && FL.sync.link().slice(-43) !== joining;
+          syncCard.innerHTML = head("sync", other ? "Switch to that library?" : "Link this device?",
+            other ? "This device is linked to a different library. Switching adds what’s here to the new one; the old one stays on your other devices."
+              : "What’s on this device is added to your synced library, and from then on both stay the same.") +
+            '<div class="btn-row"><button type="button" class="btn btn-primary" data-move="sync-join">' + icon("sync") + (other ? "Switch" : "Link this device") + "</button>" +
+            '<button type="button" class="btn btn-ghost" data-move="sync-cancel">Cancel</button></div>';
+          return;
+        }
+        if (!st.on) {
+          if (ready === false) {
+            syncCard.innerHTML = head("sync", "Sync isn’t switched on for this site yet", SETUP);
+            return;
+          }
+          syncCard.innerHTML = head("sync", "Keep this device in sync",
+            "Turn it on here, then scan the code with your other device. It’s encrypted before it leaves the device; only devices with your code can read it.") +
+            '<div class="btn-row"><button type="button" class="btn btn-primary" data-move="sync-on"' + (ready ? "" : " disabled") + ">" +
+              (ready == null ? FL.ui.loader(16) : icon("sync")) + "Turn on sync</button>" +
+            '<button type="button" class="btn btn-ghost" data-move="scan">' + icon("camera") + "I have a code</button></div>";
+          return;
+        }
+        const line = st.phase === "syncing" ? "Syncing…"
+          : st.phase === "error" ? (st.code === "not-configured" ? SETUP : "Couldn’t sync: " + esc(st.error) + ". It tries again on its own.")
+          : st.at ? "Synced " + ago(st.at) + ". Changes reach your other devices within a minute." : "Linked.";
+        syncCard.innerHTML = head("sync", "Sync is on", line) +
+          (showQr ? '<div class="qr-stage is-static" data-syncqr>' + qrCache + "</div>" +
+            '<p class="qr-foot"><span>Scan it with the other device’s camera, or open Iris there → Settings → Sync → <strong>I have a code</strong>. ' +
+            "Anyone with this code can see and change your library, so keep it to your own devices.</span></p>" : "") +
+          '<div class="btn-row">' +
+            (showQr ? '<button type="button" class="btn btn-primary" data-move="sync-copy">' + icon("link") + "Copy link</button>" +
+              '<button type="button" class="btn btn-ghost" data-move="sync-hide">' + icon("x") + "Hide code</button>"
+              : '<button type="button" class="btn btn-primary" data-move="sync-add">' + icon("qr") + "Add a device</button>" +
+              '<button type="button" class="btn btn-ghost" data-move="sync-now"' + (st.phase === "syncing" ? " disabled" : "") + ">" + icon("sync") + "Sync now</button>") +
+            '<button type="button" class="btn btn-ghost" data-move="sync-off">Turn off here</button>' +
+          "</div>";
+        if (showQr) {
+          if (!qrCache) FL.share.qrSvg(FL.sync.link()).then((svg) => { qrCache = svg; const q = $("[data-syncqr]", el); if (q) q.innerHTML = svg; });
+          if (!release) release = FL.share.keepAwake();
+        }
+      }
+
+      function offerJoin(code) {
+        if (FL.sync.on && FL.sync.link().slice(-43) === code) { toast("This device is already linked to that library."); return; }
+        joining = code;
+        paintSync();
+        syncCard.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+
+      function syncAction(act) {
+        if (act === "sync-on") {
+          qrCache = "";
+          FL.sync.create().then((st) => {
+            showQr = !!st.on && st.phase !== "error";
+            paintSync();
+            if (st.phase !== "error") toast("Sync is on. Scan the code with your other device.");
+          });
+          paintSync();
+        } else if (act === "sync-join") {
+          const code = joining;
+          joining = "";
+          qrCache = "";
+          FL.sync.join(code).then((st) => {
+            paintSync();
+            if (st.phase === "error") toast("Couldn’t link: " + st.error + ".");
+            else toast("Linked. This device now stays in sync.");
+          });
+          paintSync();
+        } else if (act === "sync-cancel") { joining = ""; paintSync(); }
+        else if (act === "sync-add") { showQr = true; paintSync(); }
+        else if (act === "sync-hide") { showQr = false; if (release) { release(); release = null; } paintSync(); }
+        else if (act === "sync-copy") FL.share.copy(FL.sync.link()).then(() => toast("Link copied. Open it on your other device."));
+        else if (act === "sync-now") FL.sync.now();
+        else if (act === "sync-off") {
+          // Two taps: the first asks, so a stray tap doesn't unlink the device.
+          const btn = $('[data-move="sync-off"]', el);
+          if (btn && !btn.dataset.armed) {
+            btn.dataset.armed = "1";
+            btn.classList.add("btn-danger");
+            btn.textContent = "Tap again to turn off";
+            setTimeout(() => { if (btn.isConnected) { delete btn.dataset.armed; btn.classList.remove("btn-danger"); btn.textContent = "Turn off here"; } }, 4000);
+            return;
+          }
+          FL.sync.leave();
+          showQr = false;
+          qrCache = "";
+          if (release) { release(); release = null; }
+          paintSync();
+          toast("Sync is off on this device.");
+        }
+      }
+
+      const unlisten = FL.sync.listen(paintSync);
+      if (joinCode) { history.replaceState(null, "", "#/move"); joining = FL.sync.codeFrom(joinCode); }
+      paintSync();
+      FL.sync.ready().then((ok) => { ready = ok; paintSync(); });
+      if (joining && FL.sync.on && FL.sync.link().slice(-43) === joining) { joining = ""; paintSync(); toast("This device is already linked to that library."); }
+
       /* Opened from a phone's camera app: the link is one part of the code. Parts from earlier scans wait in storage. */
       if (params[0]) {
         const f = FL.share.parseFrame("#/move/" + params[0]);
@@ -239,6 +368,7 @@
         const b = e.target.closest("[data-move]");
         if (!b) return;
         const act = b.dataset.move;
+        if (act.indexOf("sync-") === 0) { syncAction(act); return; }
         if (act === "show") showCode(b);
         else if (act === "hide") hideCode(b);
         else if (act === "scan") startScan();
@@ -257,12 +387,18 @@
       return {
         destroy() {
           alive = false;
+          unlisten();
           stopSending();
           stopScan();
           el.removeEventListener("click", onClick);
         },
       };
     },
+  };
+
+  FL.views.sync = {
+    title: "Sync your devices",
+    mount: (el, params, query) => FL.views.move.mount(el, [], query, params[0]),
   };
 
   /* ---------- Movie night ---------- */

@@ -19,6 +19,7 @@
     [/^\/collection\/([\w-]+)$/, "collection"],
     [/^\/person\/(.+)$/, "person"],
     [/^\/move(?:\/(.+))?$/, "move"],
+    [/^\/sync\/([A-Za-z0-9_-]{43})$/, "sync"],
     [/^\/match(?:\/(.+))?$/, "match"],
   ];
 

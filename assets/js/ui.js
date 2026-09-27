@@ -57,6 +57,7 @@
     camera: '<path d="M4 8.5a1.5 1.5 0 0 1 1.5-1.5h2.2L9.3 5h5.4l1.6 2h2.2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="12.8" r="3.3"/>',
     link: '<path d="M10.5 13.5a3.8 3.8 0 0 0 5.4 0l3-3a3.8 3.8 0 0 0-5.4-5.4l-1 1"/><path d="M13.5 10.5a3.8 3.8 0 0 0-5.4 0l-3 3a3.8 3.8 0 0 0 5.4 5.4l1-1"/>',
     devices: '<rect x="3" y="5" width="13" height="10" rx="1.5"/><path d="M1.5 18.5h11"/><rect x="16" y="9" width="5.5" height="10.5" rx="1.3"/>',
+    sync: '<path d="M19 8.5a7.5 7.5 0 0 0-13.6-2.3M5 15.5a7.5 7.5 0 0 0 13.6 2.3"/><path d="M19.2 3.8v4.7h-4.7M4.8 20.2v-4.7h4.7"/>',
   };
 
   const MSR = {
@@ -67,7 +68,7 @@
     download: "download", upload: "upload", film: "movie", tv: "live_tv", rewatch: "replay", trash: "delete", keyboard: "keyboard",
     trailer: "smart_display", grid: "grid_view", list: "view_list", clock: "schedule", history: "history", spark: "auto_awesome",
     palette: "palette", folder: "folder_open", years: "bar_chart", qr: "qr_code_2", share: "ios_share", users: "group",
-    camera: "photo_camera", link: "link", devices: "devices",
+    camera: "photo_camera", link: "link", devices: "devices", sync: "sync",
   };
 
   function icon(name, cls) {
@@ -403,12 +404,13 @@
   }
 
   /* Top-right actions: Watch later (stays visible once saved) and Mark watched (gone once watched — the badge says it). */
-  function quick(film, st) {
+  function quick(film, st, dismiss) {
+    const drop = dismiss ? '<button type="button" class="qa qa-drop" data-qa="drop" aria-label="Remove ' + esc(film.title) + ' from Your shows" title="Remove from Your shows">' + icon("x") + "</button>" : "";
     const later = '<button type="button" class="qa qa-later' + (st.listed ? " on" : "") + '" data-qa="list" aria-pressed="' + st.listed + '" aria-label="' +
       (st.listed ? "Remove from Watch later" : "Watch later") + '" title="' + (st.listed ? "Saved for later" : "Watch later") + '">' + icon("bookmark") + "</button>";
     const seen = film.type === "series" || st.watched ? "" :
       '<button type="button" class="qa" data-qa="seen" aria-pressed="false" aria-label="Mark as watched" title="Mark watched">' + icon("check") + "</button>";
-    return '<div class="card-quick">' + later + seen + "</div>";
+    return '<div class="card-quick">' + drop + later + seen + "</div>";
   }
 
   /* Official streaming options (JustWatch, India) — for titles the free hosts don't carry. */
@@ -416,14 +418,15 @@
 
   const hrefFor = (film) => "#/" + (film.type === "series" ? "show" : "film") + "/" + encodeURIComponent(film.id);
 
+  /* opts.dismiss: a rail you can take titles off (Your shows) — an × above the bookmark. */
   function card(film, opts) {
     const o = opts || {};
     const st = FL.store.state(film.id);
     const href = hrefFor(film);
-    return '<article class="card' + (st.watched ? " is-watched" : "") + '" data-id="' + esc(film.id) + '" data-variant="card">' +
+    return '<article class="card' + (st.watched ? " is-watched" : "") + '" data-id="' + esc(film.id) + '" data-variant="card"' + (o.dismiss ? ' data-dismiss="1"' : "") + ">" +
       '<a class="card-link" href="' + href + '" aria-label="' + esc(film.title) + ", " + esc(FL.catalogue.yearLabel(film)) + '">' +
         art(film, o) + badges(film, st) + progressBar(film) +
-      "</a>" + quick(film, st) +
+      "</a>" + quick(film, st, o.dismiss) +
       '<div class="card-body"><a class="card-title" href="' + href + '" tabindex="-1">' + esc(film.title) + "</a>" +
       '<div class="card-meta"><span>' + metaLine(film) + "</span>" + scoreBit(film, st) + "</div>" +
       (o.caption ? '<div class="card-caption">' + o.caption + "</div>" : "") +
@@ -460,7 +463,7 @@
     $$('[data-id="' + CSS.escape(id) + '"][data-variant]').forEach((el) => {
       const rank = el.querySelector(".row-rank");
       const caption = el.querySelector(".card-caption, .row-caption");
-      const opts = { rank: rank ? +rank.textContent : 0, caption: caption ? caption.innerHTML : "" };
+      const opts = { rank: rank ? +rank.textContent : 0, caption: caption ? caption.innerHTML : "", dismiss: !!el.dataset.dismiss };
       const tmp = document.createElement("div");
       tmp.innerHTML = el.dataset.variant === "row" ? row(film, opts) : card(film, opts);
       const fresh = tmp.firstChild;
@@ -484,6 +487,15 @@
       const entry = FL.store.toggleList(film);
       const listed = !!(entry && entry.listed);
       toast(listed ? "Saved to Watch later" : "Removed from Watch later", { action: "Undo", onAction: () => FL.store.toggleList(film) });
+    } else if (act === "drop") {
+      // Off the rail at once; the show and its episodes stay in the library.
+      FL.store.dropShow(film); // (re-renders its cards, so find them afterwards)
+      $$('[data-dismiss][data-id="' + CSS.escape(film.id) + '"]').forEach((c) => {
+        const track = c.parentNode;
+        c.remove();
+        if (track && !track.children.length) { const r = track.closest(".rail"); if (r) r.remove(); }
+      });
+      toast("Removed " + film.title + " from Your shows", { action: "Undo", onAction: () => { FL.store.undropShow(film); if (FL.app) FL.app.refresh(); } });
     } else if (act === "seen") {
       const st = FL.store.state(film.id);
       if (st.watched && st.count) {
@@ -507,7 +519,7 @@
       '<div class="section-tools">' + (o.more ? '<a class="link-more" href="' + o.more + '">See all' + icon("arrow-right") + "</a>" : "") +
       '<button type="button" class="icon-btn icon-btn-sm rail-btn" data-rail="-1" aria-label="Scroll left">' + icon("chevron-left") + "</button>" +
       '<button type="button" class="icon-btn icon-btn-sm rail-btn" data-rail="1" aria-label="Scroll right">' + icon("chevron-right") + "</button></div></header>" +
-      (films.length ? '<div class="rail-track">' + films.map((f) => card(f, { caption: o.caption ? o.caption(f) : "" })).join("") + "</div>" : o.empty) +
+      (films.length ? '<div class="rail-track">' + films.map((f) => card(f, { caption: o.caption ? o.caption(f) : "", dismiss: o.dismiss })).join("") + "</div>" : o.empty) +
       "</section>";
   }
 

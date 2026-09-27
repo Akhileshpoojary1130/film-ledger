@@ -17,7 +17,8 @@
       '<h1 class="display hero-line"><span class="hero-words"' + FL.voice.moodAttrs(text) + ">" + esc(g.line[0]) + " <em>" + esc(g.line[1]) + "</em></span></h1>" +
       '<button type="button" class="hero-search" data-open="palette" data-page-search>' + icon("search") +
         "<span>Search " + Math.floor(count / 1000) + ",000+ films and shows</span><kbd>" + mod + "</kbd></button>" +
-      (hasLibrary ? glance() : (FL.persist.supported ? '<p class="footnote"><button type="button" class="link" data-home="restore">Restore your library from a file</button></p>' : "")) +
+      // The numbers strip is off unless turned on (Settings → Home); Stats has the same numbers and more.
+      (hasLibrary ? ((FL.store.prefs().home || {}).glance ? glance() : "") : (FL.persist.supported ? '<p class="footnote"><button type="button" class="link" data-home="restore">Restore your library from a file</button></p>' : "")) +
       "</section>";
   }
 

@@ -18,7 +18,7 @@
     { id: "stats", label: "Open stats", icon: "chart", keys: "g s", run: () => go("#/stats") },
     { id: "collections", label: "Collections: series & universes", icon: "collections", run: () => go("#/collections") },
     { id: "match", label: "Movie night: compare Watch later with a friend", icon: "users", run: () => go("#/match") },
-    { id: "move", label: "Move your library to another device (QR code)", icon: "qr", run: () => go("#/move") },
+    { id: "move", label: "Sync your devices (phone ↔ laptop)", icon: "sync", run: () => go("#/move") },
     { id: "pick", label: "Surprise me: pick a film", icon: "shuffle", keys: "r", run: () => pick() },
     { id: "appearance", label: "Theme & colours", icon: "palette", run: () => settings("appearance") },
     { id: "settings", label: "Settings, storage & backup", icon: "sliders", run: () => settings() },
@@ -368,6 +368,8 @@
     const max = (FL.store.prefs().home || {}).continueMax || 3;
     return '<div class="setting-row"><span>Continue watching<small>How many unfinished titles Home shows</small></span>' +
       FL.ui.segmented("cwmax", [["1", "1"], ["2", "2"], ["3", "3"]], String(max)) + "</div>" +
+      '<div class="setting-row"><span>Numbers on Home<small>Films watched, this year, hours and Watch later, under the headline</small></span>' +
+      FL.ui.segmented("glance", [["on", "Show"], ["off", "Hide"]], (FL.store.prefs().home || {}).glance ? "on" : "off") + "</div>" +
       (FL.pet ? '<div class="setting-row setting-stack"><span>Break reminders<small>On long sittings a little friend drops in at the top right: water, a stretch, rest your eyes</small></span>' +
         '<div class="pet-picker" role="radiogroup" aria-label="Break reminder companion">' + FL.pet.PETS.map(([k, label]) => {
           const on = FL.pet.choice() === k;
@@ -394,8 +396,10 @@
         '<button type="button" class="btn btn-ghost" data-set="export">' + icon("download") + "Export backup</button>" +
         '<button type="button" class="btn btn-ghost" data-set="csv">' + icon("download") + "Letterboxd CSV</button>" +
       "</div>" +
-      '<div class="setting-row move-row"><span>Phone ↔ laptop<small>Copy this library to another device with a QR code. No account, nothing uploaded</small></span>' +
-        '<a class="btn btn-sm" href="#/move">' + icon("qr") + "Move library</a></div>";
+      '<div class="setting-row move-row"><span>Sync<small>' + (FL.sync && FL.sync.on
+        ? "On: watched, Watch later, favourites, shows, where you stopped and settings follow you between devices"
+        : "Keep watched, Watch later, favourites, shows, where you stopped and settings the same on your phone and laptop") + "</small></span>" +
+        '<a class="btn btn-sm" href="#/move">' + icon("sync") + (FL.sync && FL.sync.on ? "Manage" : "Set up") + "</a></div>";
   }
 
   function serverRows() {
@@ -512,6 +516,13 @@
         FL.store.patchPref("care", { pet: pt.dataset.pet });
         $("[data-homeset]", m.el).innerHTML = homeHtml();
         if (pt.dataset.pet !== "off") FL.pet.hello(pt.dataset.pet);
+        return;
+      }
+      const gl = e.target.closest('[data-seg="glance"]');
+      if (gl) {
+        FL.store.patchPref("home", { glance: gl.dataset.value === "on" });
+        $("[data-homeset]", m.el).innerHTML = homeHtml();
+        FL.app.refresh();
         return;
       }
       const cw = e.target.closest('[data-seg="cwmax"]');

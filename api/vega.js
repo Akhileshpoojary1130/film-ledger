@@ -5,7 +5,7 @@
 
    GET /api/vega?title=K.G.F: Chapter 2&year=2022&imdb=tt10698680
    GET /api/vega?title=Mirzapur&imdb=tt6473300&s=3&e=4
-   → { match: { id, title } | null, servers: [{ label, url }] }
+   → { match: { id, title } | null, servers: [{ label, url }], downloads: [{ label, url }] }
    GET /api/vega?q=awarapan   (search, for Iris's search box)
    → { results: [{ post, title, year, lang, region, dubbed, poster }] } */
 // Edge, not Node: Vega's Cloudflare answers 403 to Vercel's Node functions (AWS addresses) but lets the Edge network in.
@@ -112,6 +112,28 @@ function playerOptions(html) {
   return out;
 }
 
+/* The post's own download buttons ("Download Now [1080p]"), which open the host's download page — the rest of the way
+   (including its "are you human" check) happens in the viewer's browser. Grouped by page, since several qualities
+   often share one. [{ label: "1080p · 720p", url }] */
+const SOCIAL = /^https:\/\/(?:[\w-]+\.)*(?:t\.me|telegram\.\w+|facebook\.com|twitter\.com|x\.com|whatsapp\.com|instagram\.com)\//;
+function downloadLinks(html) {
+  const byUrl = new Map();
+  const re = /<a\b[^>]*?href=["']\s*([^"']+?)\s*["'][^>]*>([\s\S]*?)<\/a>/g;
+  let m;
+  while ((m = re.exec(String(html || "")))) {
+    if (!/download-button|\bdownload\b/i.test(m[2])) continue;
+    const url = cleanUrl(m[1]);
+    if (!url || url.startsWith(SITE) || SOCIAL.test(url)) continue;
+    const text = decode(m[2]);
+    const q = (text.match(/\b(2160p|4k|1080p|720p|480p|360p)\b/i) || [])[1];
+    const label = q ? q.toLowerCase() : text.replace(/download(?: now)?/ig, "").replace(/[[\]|:]/g, " ").replace(/\s+/g, " ").trim().slice(0, 40);
+    if (!byUrl.has(url)) byUrl.set(url, []);
+    const labels = byUrl.get(url);
+    if (label && labels.indexOf(label) === -1) labels.push(label);
+  }
+  return [...byUrl].slice(0, 8).map(([url, labels]) => ({ label: labels.join(" · ") || "Download", url }));
+}
+
 /* Vega's links come with stray spaces, "//host" and "host//embed//tt…"; anything but a clean https link is dropped. */
 function cleanUrl(raw) {
   let url = String(raw || "").trim();
@@ -169,7 +191,8 @@ async function lookup({ title, year, imdb, s, e }) {
     for (const c of candidates) {
       if (Date.now() - t0 > BUDGET) break;
       seen.add(c.id);
-      const options = playerOptions(await get(c.url));
+      const html = await get(c.url);
+      const options = playerOptions(html);
       // "Super Player" and "Ultra Stream" carry the IMDb id: fetched to check the match, and for shows Ultra Stream's
       // show-wide player is pointed at the episode.
       const checks = options.filter((o) => /super|ultra/i.test(o.label));
@@ -190,10 +213,10 @@ async function lookup({ title, year, imdb, s, e }) {
       });
       const dead = await Promise.all(servers.map((x) => gone(x.url)));
       const live = servers.filter((x, i) => !dead[i]);
-      if (live.length) return { match: { id: c.id, title: c.title }, servers: live };
+      if (live.length) return { match: { id: c.id, title: c.title }, servers: live, downloads: downloadLinks(html) };
     }
   }
-  return { match: null, servers: [] };
+  return { match: null, servers: [], downloads: [] };
 }
 
 /* Vega's language tag after the year: "Hindi" (a Hindi film), "Hindi Dubbed", "Punjabi HD"… */
@@ -258,4 +281,4 @@ export default async function handler(req) {
 }
 
 // For tests/vega.test.mjs.
-export { parseTitle, similar, queries, playerOptions, episodeOf, cleanUrl, episodeLink, GONE, RETIRED, language, posterOf };
+export { parseTitle, similar, queries, playerOptions, episodeOf, cleanUrl, episodeLink, GONE, RETIRED, language, posterOf, downloadLinks };

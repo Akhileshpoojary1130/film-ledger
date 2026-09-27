@@ -1588,6 +1588,33 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
   background: var(--raised); border: 1px solid var(--line-2); border-radius: 10px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5); font-size: 13px;
   animation: enter 0.3s var(--ease) both;
 }
+/* Film page Download with several pages: a small list under the button. */
+.dl-menu { position: relative; }
+.dl-menu > summary { list-style: none; cursor: pointer; }
+.dl-menu > summary::-webkit-details-marker { display: none; }
+.dl-list {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; display: flex; flex-direction: column; gap: 2px; width: max-content; min-width: 220px;
+  max-width: min(320px, calc(100vw - 32px)); padding: 8px; background: var(--raised); border: 1px solid var(--line-2); border-radius: var(--r-lg); box-shadow: var(--shadow-lg);
+}
+.dl-link { --isz: 16px; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 10px; border-radius: var(--r); font-size: 14px; }
+.dl-link span { flex: 1; }
+.dl-link .i:last-child { color: var(--text-3); }
+.dl-link:hover, .dl-link:focus-visible { background: var(--s2); }
+.dl-note { margin: 4px 10px 2px; font-size: 12px; color: var(--text-3); }
+
+/* Download: a short list of the title's download pages under the top bar. */
+.player-dl {
+  position: absolute; top: calc(58px + env(safe-area-inset-top, 0px)); right: 12px; z-index: 4; display: flex; flex-direction: column; gap: 4px;
+  width: min(320px, calc(100% - 24px)); padding: 10px; background: var(--raised); border: 1px solid var(--line-2); border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55); animation: enter 0.2s var(--ease) both;
+}
+.player-dl[hidden] { display: none; }
+.player-dl .label { margin: 2px 6px 4px; }
+.player-dl-link { --isz: 16px; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 10px; border-radius: 8px; font-size: 14px; font-weight: 500; }
+.player-dl-link span { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.player-dl-link .i:last-child { color: var(--text-3); }
+.player-dl-link:hover, .player-dl-link:focus-visible { background: var(--s3); }
+.player-dl-note { margin: 4px 6px 2px; font-size: 12px; line-height: 1.45; color: var(--text-3); }
 .player-bar { display: flex; align-items: center; gap: 12px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); overflow-x: auto; background: #060607; border-top: 1px solid var(--line); }
 .player-bar .label { margin: 0; }
 .player-servers { display: flex; flex: 1; gap: 6px; min-width: 0; overflow-x: auto; scrollbar-width: thin; }
@@ -2274,6 +2301,8 @@ html.has-page-search:not(.search-docked) [data-page-search] { view-transition-na
 .move-page .page-head, .match-page .page-head { margin-bottom: 22px; }
 .move-page .sub, .match-page .page-head .sub { max-width: 60ch; }
 .move-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.sync-card { margin-bottom: 16px; }
+.sync-card .qr-foot { max-width: 46ch; margin: 0 auto; }
 .move-card { display: flex; flex-direction: column; gap: 14px; padding: 22px; }
 .move-card .btn-row { margin-top: 0; }
 .move-card .label { margin: 0 0 -6px; }

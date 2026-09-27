@@ -34,7 +34,8 @@ Live: https://film-ledger-mocha.vercel.app/
   phone, Collections has a button in the top bar (and is the last tab in Library).
 - **Shows** — Indian reality & talent (Bigg Boss, India's Got Talent, Lock Upp…), **Indian web series** (Mirzapur,
   Panchayat, The Family Man, Scam 1992, Kota Factory…), popular and reality series worldwide. Seasons and episodes
-  are fetched live, so new ones appear on their own.
+  are fetched live, so new ones appear on their own. The × on a card in *Your shows* takes it off (with Undo); the
+  episodes you've seen stay, and watching it again brings it back.
 - **Search** — `⌘K` / `Ctrl K`, tolerant of spellings and typos; anything not bundled is fetched from the web, and
   **On Vega** lists Vega's own uploads Iris doesn't have yet (new and dubbed releases), ready to play.
 - **Film page** — live IMDb score, the **trailer inline** (a still that plays in place), the **full cast** with the
@@ -81,15 +82,26 @@ In this browser (`localStorage`). Clearing site data erases it, so Settings → 
 
 - **Keep a copy on this computer** (Chrome / Edge desktop) — every change is written to a JSON file you pick.
   It survives clearing browser data; put it in iCloud Drive / Google Drive / Dropbox to carry it to other computers.
-- **Phone ↔ laptop** (Settings → Storage → Move library, or `#/move`) — one device shows a QR code, Iris on the other
-  scans it. A big library becomes a few codes shown in turn; the scanner collects them in any order. It merges
-  (watched, Watch later, ratings, shows, where you stopped) and never deletes. Each code is also a link, so a phone's
-  own camera app can open it.
+- **Sync** (Settings → Storage → Sync, or `#/move`) — turn it on on one device, scan its code (or open its link) on
+  the others, and they stay the same: watched, Watch later, favourites, ratings, shows and episodes, where you stopped
+  (start on the laptop, carry on on the phone at the same minute and server) and your settings. Devices pull when Iris
+  opens, when you come back to it and every minute while it's on screen, and push a moment after any change. Per
+  title the newer edit wins, a removal wins over anything older, and settings merge per section. The library is
+  encrypted on the device (AES-GCM, key from the code): the server only stores ciphertext, and anyone without the code
+  can't read it. *Turn off here* unlinks one device and keeps its library.
+- **One-time copy** (same page) — no internet needed: the library travels inside a QR code (a big one becomes a few
+  codes shown in turn) and merges on the other side without deleting anything.
 - **Export backup** / **Restore from file** anywhere, and a Letterboxd-compatible CSV.
 - The app also asks the browser for persistent storage so it isn't evicted on its own.
 
-Movie-night links and moving codes carry the data inside the code or after the `#` of the link, which browsers never
-send to a server. Syncing automatically would need a server; your library stays in the browser on purpose.
+Movie-night links, one-time copy codes and sync links carry their data or key after the `#` of the link, which
+browsers never send to a server.
+
+**Setting up sync (once, for whoever deploys Iris):** sync keeps each library in this project's own Redis. In Vercel,
+open the project → **Storage** → **Create Database** → **Upstash for Redis** (free plan) → **Connect** it to the
+project (all environments), then redeploy. That adds `KV_REST_API_URL` and `KV_REST_API_TOKEN`, which `api/sync.js`
+reads (`UPSTASH_REDIS_REST_URL` / `_TOKEN` and custom prefixes work too). Until then the Sync card says it isn't
+switched on, and the one-time copy still works.
 
 ## Player
 
@@ -121,6 +133,9 @@ Hindi-dubbed titles.
   bars fade after a few still seconds and come back at the top or bottom edge.
 - Titles no server carries (many Indian reality shows) have *Where to watch*. Keys: `N` next server, `1`–`9` pick,
   `F` fullscreen, `Esc` close.
+- **Download** — when Vega has download buttons for a title, the player's top bar (and the film page) gets a
+  *Download* list of those pages by quality. Each opens in a new tab; the host's own steps, including its "are you
+  human" check, happen there. Iris doesn't go around that check.
 
 ## Found on search
 
@@ -144,7 +159,8 @@ kept. A page that fails on its own shows an error in place instead of taking the
 ```
 index.html            shell, boot loader, early theme
 movie.html            redirect for old links
-api/vega.js           Vercel Edge function: finds a title on Vega and returns its player links
+api/vega.js           Vercel Edge function: finds a title on Vega and returns its player and download links
+api/sync.js           Vercel Edge function: keeps each synced library (ciphertext) in the project's Upstash Redis
 tests/                unit tests (node --test), live server check, in-browser page sweep
 tools/build-series.mjs  builds data/series.js from Wikidata (about a minute)
 data/catalogue.js     the bundled vault (window.FILM_STATIC_CATALOGUE, schema 2)
@@ -163,11 +179,12 @@ assets/js/
   persist.js          File System Access backup file
   ui.js               icons, cards, rails, rating, reveal & tilt motion, toasts, modals
   share.js            packing, QR codes (qrcode-generator), camera scanner (BarcodeDetector / jsQR), share links
+  sync.js             sync: encryption, merging (newer wins, removals remembered), when to pull and push
   player.js           theatre player, server choice (fixed hosts + Vega's per-title links), auto-logging
   pet.js              break reminders: the cat / dog / Iris companion and the sitting timer
   palette.js          ⌘K palette, surprise me, settings, shortcuts
   views/              home, years (dial), browse, film, shows, person, library + collections + diary, insights (stats),
-                      together (Move and Movie night)
+                      together (Sync, one-time copy and Movie night)
   app.js              router, chrome, page transitions
 ```
 
@@ -188,8 +205,9 @@ A local static server has no `/api`, so a copy on localhost asks the deployed fu
 node --test tests/*.test.mjs
 ```
 
-Unit tests for the Vega lookup: reading Vega's titles, matching names written differently (K.G.F / KGF), search
-spellings, episode labels, link clean-up and dead-link detection. No network.
+Unit tests for the Vega lookup (reading Vega's titles, matching names written differently — K.G.F / KGF — search
+spellings, episode labels, link clean-up, dead-link detection, download buttons), the sync store (setup detection,
+revisions, two devices writing at once, against an in-memory Redis) and the icon font subset. No network.
 
 ```bash
 node tests/servers.mjs

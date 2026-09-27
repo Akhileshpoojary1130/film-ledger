@@ -5,6 +5,19 @@
   const { esc, fmtDate, fmtRuntime, fmtClock, compact, todayISO, $ } = FL.util;
   const { icon, art, stars, ratingWidget, rail, row } = FL.ui;
 
+  /* Download pages found for a title this visit (from the player's Vega lookup), shown once known. */
+  const dlKnown = new Map();
+  function downloadButton(film) {
+    const list = dlKnown.get(film.id) || [];
+    if (!list.length) return "";
+    const link = (d, cls) => '<a class="' + cls + '" href="' + esc(d.url) + '" target="_blank" rel="noopener noreferrer nofollow" title="Opens the download page in a new tab">' +
+      icon("download") + (cls === "btn btn-lg" ? "Download" : "<span>" + esc(d.label) + "</span>" + icon("external")) + "</a>";
+    if (list.length === 1) return link(list[0], "btn btn-lg");
+    return '<details class="dl-menu"><summary class="btn btn-lg">' + icon("download") + "Download</summary>" +
+      '<div class="dl-list">' + list.map((d) => link(d, "dl-link")).join("") +
+      '<p class="dl-note">Each opens its download page in a new tab.</p></div></details>';
+  }
+
   function actionButtons(film) {
     const st = FL.store.state(film.id);
     const e = FL.store.peek(film.id);
@@ -16,7 +29,8 @@
       '<button type="button" class="btn btn-lg toggle' + (st.listed ? " is-on" : "") + '" data-fa="list" aria-pressed="' + st.listed + '">' + icon("bookmark") + (st.listed ? "Saved for later" : "Watch later") + "</button>" +
       '<button type="button" class="btn btn-lg toggle' + (st.watched ? " is-on" : "") + '" data-fa="seen" aria-pressed="' + st.watched + '">' + icon("check") +
         (st.watched ? "Watched" + (st.count > 1 ? " " + st.count + "×" : "") : "Mark watched") + "</button>" +
-      '<button type="button" class="icon-btn icon-btn-lg toggle fav' + (st.fav ? " is-on" : "") + '" data-fa="fav" aria-pressed="' + st.fav + '" aria-label="Favourite" title="Favourite (F)">' + icon("heart") + "</button>";
+      '<button type="button" class="icon-btn icon-btn-lg toggle fav' + (st.fav ? " is-on" : "") + '" data-fa="fav" aria-pressed="' + st.fav + '" aria-label="Favourite" title="Favourite (F)">' + icon("heart") + "</button>" +
+      downloadButton(film);
   }
 
   function record(film) {
@@ -325,8 +339,20 @@
       });
     }
 
-    // Warm up the servers (and look the title up on Vega) so Play starts faster.
-    FL.util.idle(() => FL.player.prefetch(film));
+    // Warm up the servers (and look the title up on Vega) so Play starts faster; the same lookup finds downloads.
+    FL.util.idle(() => {
+      FL.player.prefetch(film);
+      if (film.type === "series" || !FL.player.downloads) return;
+      FL.player.downloads(film).then((list) => {
+        if (!list.length || !page.isConnected) return;
+        dlKnown.set(film.id, list);
+        const box = slot("actions");
+        if (!box) return;
+        box.innerHTML = actionButtons(film);
+        const tr = $('[data-fa="trailer"]', el);
+        if (tr) tr.hidden = !(m && m.trailer);
+      });
+    });
 
     function act(name) {
       const st = FL.store.state(film.id);

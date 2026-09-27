@@ -200,11 +200,12 @@
       document.head.appendChild(g);
     }
     if (theme !== "material" || document.getElementById("font-material")) return;
+    // Only these glyphs are downloaded: every Material name in ui.js's MSR map must be here (tests/icons.test.mjs checks).
     const names = ["add", "arrow_back", "arrow_forward", "auto_awesome", "bar_chart", "bookmark", "calendar_month", "check",
       "chevron_left", "chevron_right", "close", "dark_mode", "delete", "download", "edit", "expand_more", "explore", "favorite",
       "folder_open", "fullscreen", "grid_view", "history", "home", "keyboard", "light_mode", "live_tv", "movie", "open_in_new",
       "palette", "person", "play_arrow", "replay", "schedule", "search", "shuffle", "smart_display", "star", "tune", "upload",
-      "video_library", "view_list", "qr_code_2", "ios_share", "group", "photo_camera", "link", "devices"];
+      "video_library", "view_list", "qr_code_2", "ios_share", "group", "photo_camera", "link", "devices", "sync"];
     const link = document.createElement("link");
     link.id = "font-material";
     link.rel = "stylesheet";

@@ -29,6 +29,7 @@
   let prefs = JSON.parse(JSON.stringify(DEFAULT_PREFS));
   let version = 1;
   const listeners = new Set();
+  const prefListeners = new Set();
 
   /* ---------- persistence ---------- */
 
@@ -93,6 +94,21 @@
   }
 
   function savePrefs() { storage.set(PREFS_KEY, prefs); }
+
+  /* A settings change: stamped per section (so sync can merge phone and laptop edits), saved, announced. */
+  function changedPref(key) {
+    prefs._at = Object.assign({}, prefs._at, { [key]: Date.now() });
+    savePrefs();
+    prefListeners.forEach((fn) => { try { fn(key); } catch (e) { console.error(e); } });
+  }
+
+  /* A removed title leaves a note of when, so a device that syncs later doesn't bring it back — unless it was
+     changed there after that. Notes older than four months are dropped (sync.js). */
+  function bury(id, at) {
+    lib.gone = lib.gone || {};
+    lib.gone[id] = Math.max(lib.gone[id] || 0, at || Date.now());
+  }
+  function unbury(id) { if (lib.gone && lib.gone[id]) delete lib.gone[id]; }
 
   /* Ask the browser not to evict this site's storage under disk pressure (it still clears on "Clear browsing data"). */
   let persistAsked = false;
@@ -167,10 +183,10 @@
     let e = lib.films[film.id];
     if (!e) e = blank(film);
     if (!e.episodes) e.episodes = {};
+    if (kind !== "drop") delete e.dropped; // doing anything with a show you'd removed brings it back
     mutate(e);
     e.updated = Date.now();
-    if (isEmpty(e)) delete lib.films[film.id];
-    else lib.films[film.id] = e;
+    if (isEmpty(e)) { delete lib.films[film.id]; bury(film.id, e.updated); } else { lib.films[film.id] = e; unbury(film.id); }
     persist();
     askPersistence();
     emit({ id: film.id, kind });
@@ -254,15 +270,20 @@
       }, "episode");
     },
     shows() {
-      return api.entries().filter((e) => isShow(e) && (e.listed || e.fav || Object.keys(e.episodes).length || e.progress))
+      return api.entries().filter((e) => isShow(e) && !e.dropped && (e.listed || e.fav || Object.keys(e.episodes).length || e.progress))
         .sort((a, b) => b.updated - a.updated);
     },
+    /* Take a show off Your shows. Episodes you've seen are kept, so watching it again picks up where you were. */
+    dropShow(show) { return update(show, (e) => { e.dropped = true; }, "drop"); },
+    undropShow(show) { return update(show, () => {}, "undrop"); },
 
     setProgress(film, progress) {
       // Progress writes are frequent; they don't bump `updated` ordering in lists.
       let e = lib.films[film.id];
       if (!e) { e = blank(film); lib.films[film.id] = e; }
       e.progress = progress;
+      delete e.dropped;
+      unbury(film.id);
       // One timestamp per sitting (a new one after a two-hour gap) feeds the "when you watch" stats.
       const last = e.times && e.times[e.times.length - 1];
       if (!last || Date.now() - last > 2 * 3600e3) stamp(e);
@@ -272,16 +293,22 @@
     clearProgress(id) {
       const e = lib.films[id];
       if (!e || !e.progress) return;
+      const at = e.progress.at || 0;
       delete e.progress;
-      if (isEmpty(e)) delete lib.films[id];
+      e.progressCleared = Math.max(e.progressCleared || 0, at); // other devices drop this sitting, not later ones
+      if (isEmpty(e)) { delete lib.films[id]; bury(id, Math.max(e.updated || 0, at)); }
       persist();
       emit({ id, kind: "progress" });
     },
     /* Undo for clearProgress: the entry comes back exactly as it was (clearProgress may have dropped it). */
     restoreProgress(id, saved) {
       if (!saved || !saved.progress) return;
+      // A millisecond newer than what was removed, so the undo wins on synced devices too (the order doesn't change).
+      const progress = Object.assign({}, saved.progress, { at: (saved.progress.at || 0) + 1 });
       const e = lib.films[id];
-      if (e) e.progress = saved.progress; else lib.films[id] = saved;
+      if (e) e.progress = progress;
+      else lib.films[id] = Object.assign({}, saved, { progress, updated: Math.max(saved.updated || 0, progress.at) });
+      unbury(id);
       persist();
       emit({ id, kind: "progress" });
     },
@@ -327,19 +354,53 @@
 
     /* ---------- prefs ---------- */
     prefs: () => prefs,
-    setPref(key, value) { prefs[key] = value; savePrefs(); },
-    patchPref(key, patch) { prefs[key] = Object.assign({}, prefs[key], patch); savePrefs(); },
+    onPrefs(fn) { prefListeners.add(fn); return () => prefListeners.delete(fn); },
+    setPref(key, value) { prefs[key] = value; changedPref(key); },
+    patchPref(key, patch) { prefs[key] = Object.assign({}, prefs[key], patch); changedPref(key); },
     pushRecent(id) {
       prefs.recent = [id].concat((prefs.recent || []).filter((x) => x !== id)).slice(0, 8);
-      savePrefs();
+      changedPref("recent");
     },
     pushSearch(q) {
       const clean = String(q || "").trim().slice(0, 60);
       if (clean.length < 2) return;
       prefs.searches = [clean].concat((prefs.searches || []).filter((x) => x.toLowerCase() !== clean.toLowerCase())).slice(0, 8);
-      savePrefs();
+      changedPref("searches");
     },
-    clearSearches() { prefs.searches = []; savePrefs(); },
+    clearSearches() { prefs.searches = []; changedPref("searches"); },
+
+    /* ---------- sync (sync.js does the merging) ---------- */
+    /* Everything that follows you between devices: titles, removals, and settings with when each was last changed.
+       Server reachability stays per device (it depends on the network you're on). */
+    syncDoc() {
+      const p = {};
+      const at = {};
+      Object.keys(prefs).forEach((k) => {
+        if (k === "_at" || k === "servers") return;
+        p[k] = prefs[k];
+        at[k] = (prefs._at && prefs._at[k]) || 0;
+      });
+      return { films: lib.films, gone: lib.gone || {}, prefs: p, prefsAt: at };
+    },
+    /* Take a merged library in. Returns the settings sections that changed. */
+    applySync(doc) {
+      lib.films = doc.films;
+      lib.gone = doc.gone;
+      persist();
+      const changed = [];
+      Object.keys(doc.prefs || {}).forEach((k) => {
+        if (k === "_at" || k === "servers") return;
+        const ts = +(doc.prefsAt || {})[k] || 0;
+        if (ts <= ((prefs._at && prefs._at[k]) || 0)) return;
+        const v = JSON.parse(JSON.stringify(doc.prefs[k]));
+        prefs[k] = DEFAULT_PREFS[k] && typeof DEFAULT_PREFS[k] === "object" && !Array.isArray(DEFAULT_PREFS[k]) ? Object.assign({}, DEFAULT_PREFS[k], v) : v;
+        prefs._at = Object.assign({}, prefs._at, { [k]: ts });
+        changed.push(k);
+      });
+      if (changed.length) savePrefs();
+      emit({ id: null, kind: "sync" });
+      return changed;
+    },
 
     /* ---------- backup ---------- */
     snapshot() {
@@ -420,6 +481,7 @@
       });
 
       if (mode === "replace") {
+        Object.keys(lib.films).forEach((id) => { if (!incoming[id]) bury(id); });
         lib.films = incoming;
       } else {
         Object.keys(incoming).forEach((id) => {
@@ -454,7 +516,11 @@
     },
 
     resetLibrary() {
-      lib = { v: 1, films: {} };
+      // Linked devices are cleared too: every title is noted as removed.
+      const now = Date.now();
+      const gone = Object.assign({}, lib.gone);
+      Object.keys(lib.films).forEach((id) => { gone[id] = now; });
+      lib = { v: 1, films: {}, gone };
       persist();
       emit({ id: null, kind: "reset" });
     },

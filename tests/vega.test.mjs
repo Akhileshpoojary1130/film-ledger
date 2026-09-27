@@ -1,7 +1,7 @@
 // Unit tests for the Vega lookup's matching and clean-up (no network): node --test tests/
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseTitle, similar, queries, playerOptions, episodeOf, cleanUrl, episodeLink, GONE, language, posterOf } from "../api/vega.js";
+import { parseTitle, similar, queries, playerOptions, episodeOf, cleanUrl, episodeLink, GONE, language, posterOf, downloadLinks } from "../api/vega.js";
 
 test("parseTitle reads name, year and season off Vega's post titles", () => {
   assert.deepEqual(
@@ -97,4 +97,18 @@ test("posterOf turns Vega's thumbnails into full-size posters", () => {
   assert.equal(posterOf("https://vegamovito.run/wp-content/uploads/2026/05/download-5-90x135.jpg"),
     "https://vegamovito.run/wp-content/uploads/2026/05/download-5.jpg");
   assert.equal(posterOf(""), "");
+});
+
+test("downloadLinks reads a post's download buttons, grouped by page", () => {
+  const page = "https://hdm2.xyz/shri-ramayan-katha-shri-ram-ki-2026-hindi-hdtc/";
+  const btn = (q, url) => '<p><a href=" ' + url + ' " target="_blank" rel="noopener noreferrer nofollow"><br><button class="download-button">Download Now [' + q + ']</button><br></a></p><hr>';
+  const html = '<div class="download-container"><h1>Download Multi Audio</h1>' + btn("1080p", page) + btn("1080p", page) + btn("720p", page) + btn("480p", page) +
+    btn("720p", "https://other.example/file/9") + '</div><ul class="wp-tags"><li><a href="https://vegamovito.run/tag/x/" rel="tag">Download Full HD</a></li></ul>' +
+    '<a href="https://t.me/vega">Download on Telegram</a><a href="https://vegamovito.run/how-to-download/">How to download</a>';
+  assert.deepEqual(downloadLinks(html), [
+    { label: "1080p · 720p · 480p", url: page },
+    { label: "720p", url: "https://other.example/file/9" },
+  ]);
+  assert.deepEqual(downloadLinks("<p>no downloads</p>"), []);
+  assert.deepEqual(downloadLinks('<a href="javascript:alert(1)"><button class="download-button">Download</button></a>'), []);
 });

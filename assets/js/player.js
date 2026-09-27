@@ -74,10 +74,11 @@
     return Promise.race([FL.meta.resolveImdb(film).catch(() => ""), wait(2500)]).then(tt);
   }
 
-  function vegaLinks(film, ep) {
+  /* { list: players, dl: download pages } for a title or episode, cached for the visit. */
+  function vegaInfo(film, ep) {
     const key = film.id + (ep ? "|" + ep.s + "|" + ep.e : "");
     const hit = session.get(VEGA_KEY, {})[key];
-    if (hit && Date.now() - hit.at < VEGA_TTL) return Promise.resolve(hit.list);
+    if (hit && hit.dl && Date.now() - hit.at < VEGA_TTL) return Promise.resolve(hit);
     if (vegaInflight.has(key)) return vegaInflight.get(key);
     const p = imdbFor(film, ep).then((imdb) => {
       const q = new URLSearchParams({ title: film.title });
@@ -86,16 +87,20 @@
       if (ep) { q.set("s", ep.s); q.set("e", ep.e); }
       return FL.util.fetchJSON(VEGA_API + "?" + q, { timeout: 12000 });
     }).then((d) => {
-      const list = (d && Array.isArray(d.servers) ? d.servers : []).filter((x) => x && /^https:\/\//.test(x.url));
+      const clean = (arr) => (Array.isArray(arr) ? arr : []).filter((x) => x && /^https:\/\//.test(x.url)).slice(0, 12);
+      const info = { at: Date.now(), list: clean(d && d.servers), dl: clean(d && d.downloads) };
       const cache = session.get(VEGA_KEY, {});
-      cache[key] = { at: Date.now(), list };
+      cache[key] = info;
       Object.keys(cache).sort((a, b) => cache[b].at - cache[a].at).slice(60).forEach((k) => delete cache[k]);
       session.set(VEGA_KEY, cache);
-      return list;
-    }).catch(() => []).finally(() => vegaInflight.delete(key));
+      return info;
+    }).catch(() => ({ list: [], dl: [] })).finally(() => vegaInflight.delete(key));
     vegaInflight.set(key, p);
     return p;
   }
+  const vegaLinks = (film, ep) => vegaInfo(film, ep).then((d) => d.list);
+  /* Download pages for a title, from the same lookup (Vega's own download buttons). */
+  const downloads = (film, ep) => vegaInfo(film, ep || null).then((d) => d.dl || []);
 
   /* Vega's titles for a search (films only), for the search box. Cached per query for this visit. */
   const vegaFound = new Map();
@@ -242,7 +247,7 @@
 
   const state = {
     open: false, film: null, ids: null, ep: null, show: null, server: null, extra: [], tried: new Set(), start: 0, confirmed: false, runtime: 0,
-    lastSave: 0, logged: false, hintTimer: 0, openedAt: 0, token: 0,
+    lastSave: 0, logged: false, hintTimer: 0, openedAt: 0, token: 0, dl: [],
   };
   let root = null;
   let onClose = null;
@@ -264,6 +269,7 @@
         '<div class="player-title"></div>' +
         '<div class="player-top-actions">' +
           '<button type="button" class="btn btn-sm btn-ghost" data-pl="next-ep" hidden>' + "Next episode" + icon("chevron-right") + "</button>" +
+          '<button type="button" class="btn btn-ghost btn-sm" data-pl="download" aria-expanded="false" hidden>' + icon("download") + "<span>Download</span></button>" +
           '<a class="btn btn-ghost btn-sm" data-pl="newtab" target="_blank" rel="noopener noreferrer">' + icon("external") + "<span>New tab</span></a>" +
           '<button type="button" class="icon-btn" data-pl="fullscreen" aria-label="Fullscreen (F)">' + icon("expand") + "</button>" +
         "</div>" +
@@ -271,6 +277,7 @@
       '<div class="player-stage"><div class="player-frame"></div></div>' +
       '<div class="player-hot player-hot-top" aria-hidden="true"></div><div class="player-hot player-hot-bottom" aria-hidden="true"></div>' +
       '<div class="player-notice" hidden></div>' +
+      '<div class="player-dl" data-dl hidden></div>' +
       '<footer class="player-bar">' +
         '<span class="label">Server</span>' +
         '<div class="player-servers" role="radiogroup" aria-label="Stream server"></div>' +
@@ -288,6 +295,13 @@
       else if (act === "next-ep") nextEpisode();
       else if (act === "restart") { state.start = 0; load(state.server, true); }
       else if (act === "dismiss") hideNotice();
+      else if (act === "download") toggleDownloads();
+    });
+    // The download list closes when you pick a page or click anywhere else in the player.
+    root.addEventListener("click", (e) => {
+      const panel = root.querySelector("[data-dl]");
+      if (panel.hidden || e.target.closest('[data-pl="download"]')) return;
+      if (e.target.closest(".player-dl-link") || !e.target.closest("[data-dl]")) toggleDownloads(false);
     });
     FL.util.on(root, "click", "[data-srv]", (e, el) => {
       const s = allServers().find((x) => x.id === el.dataset.srv);
@@ -302,6 +316,25 @@
   }
 
   function frame() { return root.querySelector(".player-frame"); }
+
+  /* Download: the title's download pages from Vega, when it has any (the button stays hidden otherwise). */
+  function paintDownloads() {
+    const btn = root.querySelector('[data-pl="download"]');
+    const panel = root.querySelector("[data-dl]");
+    const list = state.dl || [];
+    btn.hidden = !list.length;
+    if (!list.length) toggleDownloads(false);
+    panel.innerHTML = '<p class="label">Download</p>' + list.map((d) =>
+      '<a class="player-dl-link" href="' + esc(d.url) + '" target="_blank" rel="noopener noreferrer nofollow">' + icon("download") +
+      "<span>" + esc(d.label) + "</span>" + icon("external") + "</a>").join("") +
+      '<p class="player-dl-note">Opens the download page in a new tab. It may ask you to confirm you’re human before the file starts.</p>';
+  }
+  function toggleDownloads(force) {
+    const panel = root.querySelector("[data-dl]");
+    const open = force != null ? !!force : panel.hidden && !!(state.dl && state.dl.length);
+    panel.hidden = !open;
+    root.querySelector('[data-pl="download"]').setAttribute("aria-expanded", String(open));
+  }
 
   function setTitle() {
     const f = state.film;
@@ -406,6 +439,10 @@
           return { imdb, tmdb: (m && m.tmdb) || 0 };
         });
       });
+
+    state.dl = [];
+    paintDownloads();
+    downloads(film, ep).then((list) => { if (token === state.token) { state.dl = list; paintDownloads(); } });
 
     const vega = vegaLinks(film, ep)
       .then((links) => {
@@ -725,7 +762,8 @@
 
   document.addEventListener("keydown", (e) => {
     if (!state.open || FL.util.isTyping(e) || e.metaKey || e.ctrlKey || e.altKey) return;
-    if (e.key === "Escape" && !document.fullscreenElement) { e.preventDefault(); close(); }
+    if (e.key === "Escape" && root && !root.querySelector("[data-dl]").hidden) { e.preventDefault(); toggleDownloads(false); } // first Esc closes the list
+    else if (e.key === "Escape" && !document.fullscreenElement) { e.preventDefault(); close(); }
     else if (e.key === "n" || e.key === "N") { e.preventDefault(); next(); }
     else if (e.key === "f" || e.key === "F") { e.preventDefault(); fullscreen(); }
     else if (/^[1-9]$/.test(e.key)) {
@@ -747,7 +785,7 @@
   }
 
   FL.player = {
-    SERVERS, open, close, trailer, probeAll, prefetch, vegaSearch,
+    SERVERS, open, close, trailer, probeAll, prefetch, vegaSearch, downloads,
     isOpen: () => state.open,
     current: () => state.film,
   };
