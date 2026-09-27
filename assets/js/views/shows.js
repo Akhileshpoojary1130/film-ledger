@@ -101,7 +101,7 @@
               '<h1 class="display film-title">' + esc(show.title) + "</h1>" +
               '<p class="film-facts">' + facts + "</p>" +
               '<p class="film-scores">' + (show.rating ? '<span class="imdb-score"><b>IMDb</b> ' + show.rating.toFixed(1) + "</span>" : "") +
-                (watchedEps ? '<span class="muted"> · ' + seenCount + " of " + airedCount + " episodes watched" + scopeLabel + "</span>" : "") + "</p>" +
+                (watchedEps ? '<span class="muted show-seen">' + seenCount + " of " + airedCount + " episodes watched" + scopeLabel + "</span>" : "") + "</p>" +
               '<div class="film-actions">' +
                 (up ? '<a class="btn btn-primary btn-lg" href="' + playHref + '">' + icon("play") + (watchedEps ? "Continue" : "Start") + " <small>S" + up.s + " · E" + up.e + "</small></a>" : "") +
                 '<button type="button" class="btn btn-lg toggle' + (st.listed ? " is-on" : "") + '" data-sa="list" aria-pressed="' + st.listed + '">' + icon("bookmark") + (st.listed ? "Following" : "Follow") + "</button>" +

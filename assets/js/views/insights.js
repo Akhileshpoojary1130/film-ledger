@@ -376,7 +376,7 @@
         '<div class="hero-figure"><span class="hero-num">' + s.films.toLocaleString() + '</span><span class="hero-label">' + (s.films === 1 ? "film" : "films") + (all ? " watched" : " in " + scope) + "</span></div>" +
         '<div class="tiles">' +
           tile(fmtHours(s.minutes), "Cinema time", s.timed ? fmtRuntime(Math.round(s.minutes / s.timed)) + " on average" : "") +
-          tile(s.rated ? s.avgRating.toFixed(1) + " ★" : "None", "Average rating", s.rated ? plural(s.rated, "film") + " rated" : "") +
+          tile(s.rated ? s.avgRating.toFixed(1) + " ★" : "—", "Average rating", s.rated ? plural(s.rated, "film") + " rated" : "Rate a film to see it") +
           tile(s.rewatches.toLocaleString(), "Rewatches", s.viewings + " viewings in all") +
           tile(s.favorites.toLocaleString(), "Favourites", "") +
         "</div></section>" +

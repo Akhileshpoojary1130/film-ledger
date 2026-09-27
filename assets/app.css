@@ -1588,6 +1588,11 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
   background: var(--raised); border: 1px solid var(--line-2); border-radius: 10px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5); font-size: 13px;
   animation: enter 0.3s var(--ease) both;
 }
+/* A show's "3 of 29 episodes watched" keeps together (wraps whole, not word by word). */
+.show-seen { white-space: nowrap; }
+.imdb-score + .show-seen::before { content: " · "; }
+@media (max-width: 640px) { .film-scores .show-seen { display: block; margin-top: 2px; } .imdb-score + .show-seen::before { content: none; } }
+
 /* Film page Download with several pages: the list in a sheet. */
 .modal-dl { max-width: 420px; }
 .dl-sheet .h3 { margin: 2px 40px 14px 0; }

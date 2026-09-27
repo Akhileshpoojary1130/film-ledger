@@ -154,7 +154,16 @@
       FL.meta.cinemetaSearch(q, true),
       queue(() => fetchJSON(showUrl, { timeout: 12000 })).then((d) => (d && d.metas) || []).catch(() => []),
     ]).then(([movies, shows]) => {
-      const out = ingest(movies.slice(0, 14), { type: "movie", search: true }).concat(ingest(shows.slice(0, 6), { type: "series", search: true }));
+      // The web's search is loose ("kantara" also brings "Quién te cantará"): keep titles that have every word you
+      // typed (as the start of one of theirs), unless that leaves nothing — then a typo still finds something.
+      const words = q.split(" ").filter(Boolean);
+      const relevant = (m) => {
+        const t = normalize(m.name || "").split(" ");
+        const joined = t.join(""); // "K.G.F" is "k g f" once normalised; "kgf" still finds it
+        return words.every((w) => t.some((x) => x.startsWith(w)) || joined.includes(w));
+      };
+      const pick = (list, n) => { const good = list.filter(relevant); return (good.length ? good : list).slice(0, n); };
+      const out = ingest(pick(movies, 14), { type: "movie", search: true }).concat(ingest(pick(shows, 6), { type: "series", search: true }));
       results.set(q, out);
       // Fill genres/ratings for the first few so their cards read like everything else.
       out.slice(0, 8).forEach((f) => {
