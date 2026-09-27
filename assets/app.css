@@ -1425,6 +1425,9 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
   background: var(--scrim); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
 }
 .modal-backdrop.in { opacity: 1; }
+/* A glass sheet blurs what's behind it; a blur on the scrim too would leave it only the scrim to blur (the page shows
+   through sharp). */
+[data-glass]:not([data-glass="off"]) .modal-backdrop { -webkit-backdrop-filter: none; backdrop-filter: none; }
 .modal {
   position: relative; width: 100%; max-width: 560px; transform: translateY(10px) scale(0.985); transition: transform 0.26s var(--ease-out);
   background: var(--raised); border: 1px solid var(--line-2); border-radius: var(--r-lg); box-shadow: var(--shadow-lg);
@@ -1501,6 +1504,17 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 
 /* settings */
 .settings section { margin-top: 26px; }
+.set-me { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
+.set-avatar { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: 18px; font-weight: 700; }
+.set-me .input { flex: 1; min-width: 0; }
+.set-group { padding: 0 14px; border-radius: 16px; border: 1px solid var(--line); background: color-mix(in oklab, var(--text) 3%, transparent); }
+.set-group > .setting-row { margin: 0; padding: 12px 0; border-top: 1px solid var(--line); }
+.set-group > .setting-row:first-child { border-top: 0; }
+.settings .theme-grid + .set-group, .settings .set-group + .set-group { margin-top: 14px; }
+.settings [data-storage] { margin-top: 12px; }
+.settings .set-sub { margin: 18px 0 10px; }
+.set-group .setting-stack { gap: 6px; }
+.set-group .pal-rail { margin: 0 -6px; }
 .settings .h2 { margin-bottom: 4px; }
 .settings .sub { margin-bottom: 12px; }
 .settings label.btn { cursor: pointer; }
@@ -1904,10 +1918,6 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 .pal-swatch-art::after { content: ""; position: absolute; left: 6px; right: 30%; bottom: 6px; height: 3px; border-radius: 2px; background: var(--pv-text); opacity: 0.7; }
 .pal-swatch.is-on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .pal-swatch.is-on small { color: var(--text); font-weight: 600; }
-.set-num {
-  display: inline-grid; place-items: center; width: 20px; height: 20px; margin-right: 8px; border-radius: 50%;
-  background: var(--accent-soft); color: var(--accent); font-size: 11px; font-weight: 700; vertical-align: 1px;
-}
 .theme-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .theme-fluent { --pv-bg: #1C1C1C; --pv-text: #FFFFFF; --pv-accent: #60CDFF; --pv-card: #3D3D3D; --pv-r: 3px; --pv-btn: 4px; }
 .theme-oneui { --pv-bg: #000000; --pv-text: #FAFAFA; --pv-accent: #5E9EFF; --pv-card: #262626; --pv-r: 10px; --pv-btn: 999px; }
@@ -1963,10 +1973,12 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 .ambient canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
 /* Artwork: the title's picture, blurred to a wash of its colours; it drifts slowly unless motion is calm. */
 .ambient-art { position: absolute; inset: 0; }
-.ambient-art img { position: absolute; inset: -12%; width: 124%; height: 124%; object-fit: cover; opacity: 0; filter: blur(64px) saturate(1.5);
+.ambient-art img { position: absolute; inset: -12%; width: 124%; height: 124%; object-fit: cover; opacity: 0; filter: blur(72px) saturate(1.15) brightness(0.62);
   transition: opacity 1.2s ease; animation: artDrift 48s ease-in-out infinite alternate; }
-.ambient-art img.is-on { opacity: 0.5; }
-[data-mode="light"] .ambient-art img.is-on { opacity: 0.32; }
+.ambient-art img.is-on { opacity: 0.26; }
+[data-mode="light"] .ambient-art img.is-on { opacity: 0.16; filter: blur(72px) saturate(1.1); }
+/* Fades to the page colour away from the top, so text sits on something calm. */
+.ambient-art::after { content: ""; position: absolute; inset: 0; background: radial-gradient(120% 90% at 50% 0%, transparent 30%, var(--bg) 100%); }
 [data-motion="calm"] .ambient-art img { animation: none; }
 @keyframes artDrift { from { transform: scale(1) translate(0, 0); } to { transform: scale(1.12) translate(-2%, 1.5%); } }
 /* Keep the lights low: a dark veil at the edges so they glow through rather than shine. */
@@ -2701,16 +2713,19 @@ html.has-page-search:not(.search-docked) [data-page-search] { view-transition-na
    On top of the frosted fill: a specular rim that catches the light at the top left and fades round the edge (a
    gradient ring drawn with a mask, so it follows any corner radius), a deeper blur with more colour, and on phones a
    tab bar that floats as a capsule above the page. Off when glass is off (and Pop / Retro, which are flat by design). */
-/* No weight of its own (:where), so the tab bar, toasts and sticky panels keep their fixed / sticky positions. */
+/* No weight of its own (:where), so the tab bar, toasts and sticky panels keep their fixed / sticky positions.
+   Sheets and segmented rows scroll, so their rim is a shadow on the box instead (a ::before would scroll away). */
+[data-glass]:not([data-glass="off"]) .seg { box-shadow: inset 0 1px 0 rgba(255, 255, 255, calc(var(--rim) * 2.2)), inset 0 0 0 1px rgba(255, 255, 255, calc(var(--rim) * 0.8)); }
+[data-glass]:not([data-glass="off"]) .modal { box-shadow: inset 0 1px 0 rgba(255, 255, 255, calc(var(--rim) * 2.2)), inset 0 0 0 1px rgba(255, 255, 255, calc(var(--rim) * 0.8)), var(--shadow-lg); }
 :where([data-glass]:not([data-glass="off"]) :is(.search-trigger, .hero-search, .modal, .toast, .panel, .seg, .chip, .tabbar, .search-float, .tn-play)) { position: relative; isolation: isolate; }
-[data-glass]:not([data-glass="off"]) :is(.search-trigger, .hero-search, .modal, .toast, .panel, .seg, .chip, .tabbar, .search-float)::before {
+[data-glass]:not([data-glass="off"]) :is(.search-trigger, .hero-search, .toast, .panel, .chip, .tabbar, .search-float)::before {
   content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: inherit; padding: 1px;
   background: linear-gradient(135deg, rgba(255, 255, 255, calc(var(--rim) * 2.6)) 0%, rgba(255, 255, 255, calc(var(--rim) * 0.6)) 28%,
     rgba(255, 255, 255, 0.02) 55%, rgba(255, 255, 255, calc(var(--rim) * 1.2)) 100%);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
 }
-[data-mode="light"][data-glass]:not([data-glass="off"]) :is(.search-trigger, .hero-search, .modal, .toast, .panel, .seg, .chip, .tabbar, .search-float)::before {
+[data-mode="light"][data-glass]:not([data-glass="off"]) :is(.search-trigger, .hero-search, .toast, .panel, .chip, .tabbar, .search-float)::before {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.35) 30%, rgba(0, 0, 0, 0.06) 60%, rgba(255, 255, 255, 0.7));
 }
 [data-glass="clear"] :is(.search-trigger, .hero-search, .search-float) {
@@ -2827,8 +2842,6 @@ html.has-page-search:not(.search-docked) [data-page-search] { view-transition-na
 @media (min-width: 1000px) {
   .az-strip { flex-wrap: wrap; overflow: visible; -webkit-mask: none; mask: none; }
 }
-.lib-tabs { margin: 18px 0 26px; }
-.lib-tabs .seg-btn small { margin-left: 2px; font-variant-numeric: tabular-nums; }
 .sakura-genres .chip-row { padding-bottom: 4px; }
 
 /* The player's Sub / Dub switch (anime only). */
@@ -2840,5 +2853,5 @@ html.has-page-search:not(.search-docked) [data-page-search] { view-transition-na
 .settings .apps .app-icon { width: 52px; height: 52px; border-radius: 14px; }
 .settings .apps .app-icon .mark { width: 40px; height: 40px; }
 .settings .apps .app-text strong { font-size: 18px; }
-.settings .apps .app-check { position: static; flex: none; margin-left: auto; }
+.settings .apps .app-check { display: none; }
 .settings .apps .app-text { min-width: 0; }

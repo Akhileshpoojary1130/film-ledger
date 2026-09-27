@@ -386,13 +386,15 @@
         }[tab];
         el.innerHTML = '<div class="container page">' +
           '<header class="page-head"><div><h1 class="h1">Library</h1></div></header>' +
-          '<nav class="seg lib-tabs" aria-label="Lists">' + TABS.map(([t, l]) =>
-            '<a class="seg-btn' + (t === tab ? " is-on" : "") + '" href="#/anime/library/' + t + '"' + (t === tab ? ' aria-current="page"' : "") + ">" + l +
-            ' <small class="muted">' + lists[t].length + "</small></a>").join("") + "</nav>" +
+          '<nav class="tabs" aria-label="Lists">' + TABS.map(([t, l]) =>
+            '<a class="tab' + (t === tab ? " is-on" : "") + '" href="#/anime/library/' + t + '"' + (t === tab ? ' aria-current="page"' : "") + ">" + l +
+            "<span>" + lists[t].length + "</span></a>").join("") + "</nav>" +
           (list.length ? grid(list) : FL.ui.empty(empty[0], empty[1], '<a class="btn" href="#/anime">Find something to watch</a>')) + "</div>";
       }
+      const current = () => { const on = $(".tabs .is-on", el); if (on) on.scrollIntoView({ inline: "center", block: "nearest" }); };
       render();
-      return { update(d) { if (d.kind !== "progress") { const y = window.scrollY; render(); window.scrollTo(0, y); } } };
+      current();
+      return { update(d) { if (d.kind !== "progress") { const y = window.scrollY; render(); window.scrollTo(0, y); current(); } } };
     },
   };
 

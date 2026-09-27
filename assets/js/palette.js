@@ -343,58 +343,62 @@
     const swatches = '<button type="button" class="swatch swatch-auto' + (!a.accent ? " is-on" : "") + '" data-accent="" title="Palette default" aria-label="Palette default">' + icon("spark") + "</button>" +
       T.ACCENTS.map(([hex, name]) => '<button type="button" class="swatch' + (a.accent === hex ? " is-on" : "") + '" data-accent="' + hex + '" style="--sw:' + hex + '" title="' + name + '" aria-label="' + name + '"></button>').join("") +
       '<label class="swatch swatch-custom" title="Custom colour" style="--sw:' + current + '"><input type="color" value="' + current + '" data-accent-custom aria-label="Custom accent colour"></label>';
-    const picker = FL.store.prefs().years.picker || "dial";
-    // Most changed first: light or dark and the colour, then the style, then the finer glass and motion.
-    return '<h4 class="set-sub"><span class="set-num">1</span>Colour</h4>' +
-      '<div class="setting-row"><span>Mode</span>' + FL.ui.segmented("mode", [["dark", "Dark"], ["light", "Light"], ["system", "Auto"]], a.mode) + "</div>" +
-      '<div class="setting-row"><span>Accent</span><div class="swatches">' + swatches + "</div></div>" +
-      '<div class="pal-rail"><button type="button" class="icon-btn icon-btn-sm pal-arrow" data-palscroll="-1" aria-label="Previous palettes">' + icon("chevron-left") + "</button>" +
-        '<div class="palette-row" data-palrow>' + palettes + "</div>" +
-        '<button type="button" class="icon-btn icon-btn-sm pal-arrow" data-palscroll="1" aria-label="More palettes">' + icon("chevron-right") + "</button></div>" +
-      '<h4 class="set-sub"><span class="set-num">2</span>Style</h4><div class="theme-grid">' + themes + "</div>" +
-      '<h4 class="set-sub"><span class="set-num">3</span>Glass &amp; motion</h4>' +
-      '<div class="setting-row"><span>Liquid glass<small>Frosted, see-through bars, panels and sheets</small></span>' + FL.ui.segmented("glass", T.GLASS, T.glass()) + "</div>" +
-      '<div class="setting-row"><span>Background<small>Lights glow softly behind frosted glass; Aurora drifts slow colour</small></span>' + FL.ui.segmented("ambient", T.AMBIENT, T.ambient()) + "</div>" +
-      '<div class="setting-row"><span>Motion<small>Calm keeps things still: no tilt, drift or page effects</small></span>' + FL.ui.segmented("motion", [["full", "Full"], ["calm", "Calm"]], a.motion === "calm" ? "calm" : "full") + "</div>" +
-      '<h4 class="set-sub">More</h4>' +
-      '<div class="setting-row"><span>Year picker<small>How you choose a year on the Years page</small></span>' +
-        FL.ui.segmented("picker", [["dial", "Dial"], ["wheel", "Wheel"], ["ruler", "Ruler"], ["chips", "Chips"]], picker) + "</div>" +
-      // Only what applies on this device: the search button is a phone thing, trailers on hover need a mouse.
-      (phone() ? '<div class="setting-row"><span>Search button<small>In the middle of the top bar, or a round button under Settings</small></span>' +
-        FL.ui.segmented("searchspot", [["center", "Top centre"], ["float", "Under settings"]], a.searchSpot === "float" ? "float" : "center") + "</div>" : "") +
-      (mouse() ? '<div class="setting-row"><span>Trailer on hover<small>Rest the mouse on a poster for 3 seconds to preview it</small></span>' +
-        FL.ui.segmented("hovertrailer", [["on", "On"], ["off", "Off"]], a.hoverTrailer === false ? "off" : "on") + "</div>" : "") +
-      '<div class="setting-row"><span>Moodline<small>Home’s headline follows what you’ve been watching: its words and its typeface</small></span>' +
-        FL.ui.segmented("moodtype", [["on", "On"], ["off", "Off"]], a.moodType === false ? "off" : "on") + "</div>";
+    // Colour first (what people change most), then the style, then glass and motion.
+    return '<div class="set-group">' +
+        '<div class="setting-row"><span>Mode</span>' + FL.ui.segmented("mode", [["dark", "Dark"], ["light", "Light"], ["system", "Auto"]], a.mode) + "</div>" +
+        '<div class="setting-row"><span>Accent</span><div class="swatches">' + swatches + "</div></div>" +
+        '<div class="setting-row setting-stack"><span>Palette</span><div class="pal-rail"><button type="button" class="icon-btn icon-btn-sm pal-arrow" data-palscroll="-1" aria-label="Previous palettes">' + icon("chevron-left") + "</button>" +
+          '<div class="palette-row" data-palrow>' + palettes + "</div>" +
+          '<button type="button" class="icon-btn icon-btn-sm pal-arrow" data-palscroll="1" aria-label="More palettes">' + icon("chevron-right") + "</button></div></div>" +
+      "</div>" +
+      '<h4 class="set-sub">Style</h4><div class="theme-grid">' + themes + "</div>" +
+      '<div class="set-group">' +
+        '<div class="setting-row"><span>Liquid glass</span>' + FL.ui.segmented("glass", T.GLASS, T.glass()) + "</div>" +
+        '<div class="setting-row"><span>Background</span>' + FL.ui.segmented("ambient", T.AMBIENT, T.ambient()) + "</div>" +
+        '<div class="setting-row"><span>Motion</span>' + FL.ui.segmented("motion", [["full", "Full"], ["calm", "Calm"]], a.motion === "calm" ? "calm" : "full") + "</div>" +
+      "</div>";
   }
 
+  /* What Home and the pages show (only what applies on this device: the search button is a phone thing, trailers on
+     hover need a mouse). */
   function homeHtml() {
-    const max = (FL.store.prefs().home || {}).continueMax || 3;
-    return '<div class="setting-row"><span>Up Next<small>How many unfinished titles Home shows</small></span>' +
-      FL.ui.segmented("cwmax", [["1", "1"], ["2", "2"], ["3", "3"]], String(max)) + "</div>" +
-      '<div class="setting-row"><span>Glance<small>Your numbers under Home’s headline: films watched, this year, hours, Watch later</small></span>' +
-      FL.ui.segmented("glance", [["on", "Show"], ["off", "Hide"]], (FL.store.prefs().home || {}).glance ? "on" : "off") + "</div>" +
-      (FL.pet ? '<div class="setting-row setting-stack"><span>Pause Pals<small>On long sittings a little friend drops in at the top right: water, a stretch, rest your eyes</small></span>' +
-        '<div class="pet-picker" role="radiogroup" aria-label="Break reminder companion">' + FL.pet.PETS.map(([k, label]) => {
-          const on = FL.pet.choice() === k;
-          return '<button type="button" role="radio" aria-checked="' + on + '" class="pet-pick' + (on ? " is-on" : "") + '" data-pet="' + k + '">' +
-            '<span class="pet-pick-face">' + (k === "off" ? icon("x") : k === "mix" ? '<span class="pet-pick-mix">🎲</span>' : FL.pet.face(k)) + "</span><small>" + label + "</small></button>";
-        }).join("") + "</div></div>" : "");
+    const a = FL.store.prefs().appearance;
+    const home = FL.store.prefs().home || {};
+    const picker = FL.store.prefs().years.picker || "dial";
+    return '<div class="setting-row"><span>Moodline<small>Headline follows your taste</small></span>' +
+        FL.ui.segmented("moodtype", [["on", "On"], ["off", "Off"]], a.moodType === false ? "off" : "on") + "</div>" +
+      '<div class="setting-row"><span>Up Next</span>' + FL.ui.segmented("cwmax", [["1", "1"], ["2", "2"], ["3", "3"]], String(home.continueMax || 3)) + "</div>" +
+      '<div class="setting-row"><span>Glance<small>Your numbers under the headline</small></span>' +
+        FL.ui.segmented("glance", [["on", "Show"], ["off", "Hide"]], home.glance ? "on" : "off") + "</div>" +
+      '<div class="setting-row"><span>Year picker</span>' + FL.ui.segmented("picker", [["dial", "Dial"], ["wheel", "Wheel"], ["ruler", "Ruler"], ["chips", "Chips"]], picker) + "</div>" +
+      (phone() ? '<div class="setting-row"><span>Search button</span>' +
+        FL.ui.segmented("searchspot", [["center", "Top"], ["float", "Floating"]], a.searchSpot === "float" ? "float" : "center") + "</div>" : "") +
+      (mouse() ? '<div class="setting-row"><span>Trailer on hover</span>' +
+        FL.ui.segmented("hovertrailer", [["on", "On"], ["off", "Off"]], a.hoverTrailer === false ? "off" : "on") + "</div>" : "");
+  }
+
+  /* Pause Pals: the break-reminder companion. */
+  function petHtml() {
+    if (!FL.pet) return "";
+    return '<div class="pet-picker" role="radiogroup" aria-label="Break reminder companion">' + FL.pet.PETS.map(([k, label]) => {
+      const on = FL.pet.choice() === k;
+      return '<button type="button" role="radio" aria-checked="' + on + '" class="pet-pick' + (on ? " is-on" : "") + '" data-pet="' + k + '">' +
+        '<span class="pet-pick-face">' + (k === "off" ? icon("x") : k === "mix" ? '<span class="pet-pick-mix">🎲</span>' : FL.pet.face(k)) + "</span><small>" + label + "</small></button>";
+    }).join("") + "</div>";
   }
 
   function storageHtml(status, protectedStorage) {
     const fileBlock = !status.supported
-      ? '<p class="sub">This browser can’t keep a live file. Use <strong>Export backup</strong> now and then, or open Iris in Chrome or Edge on a computer to save automatically.</p>'
+      ? '<p class="sub">Export a backup now and then (Chrome or Edge on a computer can save one automatically).</p>'
       : status.active
         ? '<div class="file-status ok">' + icon("folder") + "<div><strong>" + esc(status.name) + "</strong><small>Saving automatically" + (status.lastSaved ? " · last saved " + new Date(status.lastSaved).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "") + "</small></div>" +
           '<button type="button" class="btn btn-sm btn-ghost" data-set="file-stop">Stop</button></div>'
         : status.needsPermission
           ? '<div class="file-status warn">' + icon("folder") + "<div><strong>" + esc(status.name) + "</strong><small>Paused. The browser needs your permission again.</small></div>" +
             '<button type="button" class="btn btn-sm btn-primary" data-set="file-reconnect">Resume saving</button></div>'
-          : '<button type="button" class="btn btn-primary" data-set="file-connect">' + icon("folder") + "Keep a copy on this computer…</button>" +
-            '<p class="footnote">Iris saves every change to a file you choose. It survives clearing browser data. Put it in iCloud Drive, Google Drive or Dropbox and it follows you to other computers.</p>';
-    return '<p class="sub">Your library lives in this browser (' + plural(FL.store.entries().length, "title") + ", " + kb(FL.store.storageBytes()) + " incl. caches). Clearing browsing data erases it, so keep a copy below." +
-      (protectedStorage ? " The browser won’t clear it on its own." : "") + "</p>" + fileBlock +
+          : '<button type="button" class="btn btn-primary" data-set="file-connect">' + icon("folder") + "Keep a copy on this computer…</button>";
+    return '<p class="sub">' + plural(FL.store.entries().length + FL.store.animeEntries().length, "title") + " · " + kb(FL.store.storageBytes()) + " in this browser" +
+      (protectedStorage ? " · protected" : "") + "</p>" + fileBlock +
       '<div class="btn-row">' +
         (status.supported ? '<button type="button" class="btn" data-set="file-restore">' + icon("upload") + "Restore from file…</button>" : '<label class="btn">' + icon("upload") + 'Restore from file…<input type="file" accept="application/json,.json" data-set="import" hidden></label>') +
         '<button type="button" class="btn btn-ghost" data-set="export">' + icon("download") + "Export backup</button>" +
@@ -405,9 +409,7 @@
   /* Sync first: it's what keeps everything else in step across devices. */
   function syncRow() {
     const on = FL.sync && FL.sync.on;
-    return '<div class="setting-row"><span>Relay' + (on ? ' <span class="set-on">On</span>' : "") + "<small>" + (on
-      ? "Watched, Watch later, favourites, shows, where you stopped and these settings follow you between devices"
-      : "Keep your library and settings the same on your phone and laptop") + "</small></span>" +
+    return '<div class="setting-row"><span>Relay' + (on ? ' <span class="set-on">On</span>' : "") + "<small>Same library on all your devices</small></span>" +
       '<a class="btn btn-sm' + (on ? "" : " btn-primary") + '" href="#/move">' + icon("devices") + (on ? "Manage" : "Set up") + "</a></div>";
   }
 
@@ -415,12 +417,12 @@
   function playerHtml() {
     const pp = FL.store.prefs().player || {};
     const shield = pp.shield !== false;
-    return '<div class="setting-row"><span>Autoplay next episode<small>At the credits, the next episode starts after a 10-second countdown</small></span>' +
+    return '<div class="setting-row"><span>Autoplay next episode</span>' +
       FL.ui.segmented("autonext", [["on", "On"], ["off", "Off"]], pp.autoNext === false ? "off" : "on") + "</div>" +
-      '<div class="setting-row"><span>Clear Play<small>No pop-up tabs or redirects from players. Vega Super plays fully shielded; other servers refuse to play that way, so Iris asks before any of them takes you to another site. Turn off if a server stops playing.</small></span>' +
+      '<div class="setting-row"><span>Clear Play<small>Blocks pop-ups and redirects</small></span>' +
       FL.ui.segmented("shield", [["on", "On"], ["off", "Off"]], shield ? "on" : "off") + "</div>" +
       '<details class="set-details"><summary>Server status</summary>' +
-        '<p class="sub set-sub-note">From your network right now. “Unreachable” usually means your internet provider blocks it; the player skips those.</p>' +
+        '<p class="sub set-sub-note">From your network right now; the player skips unreachable ones.</p>' +
         '<ul class="server-list">' + serverRows() + '</ul><button type="button" class="btn btn-sm btn-ghost" data-set="recheck">Re-check</button></details>';
   }
 
@@ -436,18 +438,17 @@
     const m = modal(
       '<div class="modal-pad settings">' +
         '<h2 class="h2">Settings</h2>' +
-        // Iris or Sakura (the anime app); the logo switches too.
+        // You first: your name (Home greets you with it).
+        '<div class="set-me"><span class="set-avatar" aria-hidden="true">' + esc((prefs.name || "").trim().charAt(0).toUpperCase() || "☺") + "</span>" +
+          '<input class="input" id="set-name" maxlength="40" placeholder="Your name" aria-label="Your name" autocomplete="nickname" value="' + esc(prefs.name || "") + '"></div>' +
         (FL.sakura ? '<section data-sec="app" class="apps"><h3 class="label">App</h3>' + FL.sakura.appTiles() + "</section>" : "") +
-        '<section data-sec="relay"><h3 class="label">Relay</h3>' + syncRow() + "</section>" +
-        '<section data-sec="player"><h3 class="label">Player</h3><div data-playerset>' + playerHtml() + "</div></section>" +
         '<section data-sec="appearance"><h3 class="label">Appearance</h3><div data-appearance>' + appearanceHtml() + "</div></section>" +
-        '<section data-sec="home"><h3 class="label">Home</h3>' +
-          '<div class="setting-row setting-stack"><label for="set-name">Your name<small>Used in Home’s greeting</small></label>' +
-          '<input class="input" id="set-name" maxlength="40" placeholder="Optional" value="' + esc(prefs.name || "") + '"></div>' +
-          '<div data-homeset>' + homeHtml() + "</div></section>" +
-        '<section data-sec="storage"><h3 class="label">Backup</h3><div data-storage>' + storageHtml(FL.persist.status(), false) + "</div></section>" +
-        '<section><h3 class="label">Maintenance</h3><div class="btn-row">' +
-          '<button type="button" class="btn btn-ghost" data-set="clear-cache">Clear artwork & details cache</button>' +
+        '<section data-sec="home"><h3 class="label">Home &amp; pages</h3><div class="set-group" data-homeset>' + homeHtml() + "</div></section>" +
+        '<section data-sec="player"><h3 class="label">Player</h3><div class="set-group" data-playerset>' + playerHtml() + "</div></section>" +
+        (FL.pet ? '<section data-sec="pals"><h3 class="label">Pause Pals</h3><div data-petset>' + petHtml() + "</div></section>" : "") +
+        '<section data-sec="relay"><h3 class="label">Sync &amp; backup</h3><div class="set-group">' + syncRow() + '</div><div data-storage>' + storageHtml(FL.persist.status(), false) + "</div></section>" +
+        '<section data-sec="maintenance"><h3 class="label">Maintenance</h3><div class="btn-row">' +
+          '<button type="button" class="btn btn-ghost" data-set="clear-cache">Clear artwork cache</button>' +
           '<button type="button" class="btn btn-danger-ghost" data-set="reset">Erase library…</button></div></section>' +
       "</div>",
       { cls: "modal-md", label: "Settings" }
@@ -486,7 +487,12 @@
     }
 
     const name = $("#set-name", m.el);
-    name.addEventListener("change", () => { FL.store.setPref("name", name.value.trim().slice(0, 40)); FL.app.refresh(); });
+    name.addEventListener("change", () => {
+      FL.store.setPref("name", name.value.trim().slice(0, 40));
+      $(".set-avatar", m.el).textContent = name.value.trim().charAt(0).toUpperCase() || "☺";
+      FL.app.refresh();
+    });
+    const repaintHome = () => { const box = $("[data-homeset]", m.el); if (box) box.innerHTML = homeHtml(); };
 
     function repaintAppearance() {
       const box = $("[data-appearance]", m.el);
@@ -533,7 +539,7 @@
         return;
       }
       const pk = e.target.closest('[data-seg="picker"]');
-      if (pk) { FL.store.patchPref("years", { picker: pk.dataset.value }); repaintAppearance(); FL.app.refresh(); return; }
+      if (pk) { FL.store.patchPref("years", { picker: pk.dataset.value }); repaintHome(); FL.app.refresh(); return; }
       const an = e.target.closest('[data-seg="autonext"]');
       if (an) {
         FL.store.patchPref("player", { autoNext: an.dataset.value === "on" });
@@ -549,29 +555,29 @@
         return;
       }
       const sp = e.target.closest('[data-seg="searchspot"]');
-      if (sp) { FL.theme.set({ searchSpot: sp.dataset.value }); repaintAppearance(); return; }
+      if (sp) { FL.theme.set({ searchSpot: sp.dataset.value }); repaintHome(); return; }
       const ht = e.target.closest('[data-seg="hovertrailer"]');
-      if (ht) { FL.store.patchPref("appearance", { hoverTrailer: ht.dataset.value === "on" }); repaintAppearance(); return; }
+      if (ht) { FL.store.patchPref("appearance", { hoverTrailer: ht.dataset.value === "on" }); repaintHome(); return; }
       const mt = e.target.closest('[data-seg="moodtype"]');
-      if (mt) { FL.store.patchPref("appearance", { moodType: mt.dataset.value === "on" }); repaintAppearance(); FL.app.refresh(); return; }
+      if (mt) { FL.store.patchPref("appearance", { moodType: mt.dataset.value === "on" }); repaintHome(); FL.app.refresh(); return; }
       const pt = e.target.closest("[data-pet]");
       if (pt) {
         FL.store.patchPref("care", { pet: pt.dataset.pet });
-        $("[data-homeset]", m.el).innerHTML = homeHtml();
+        $("[data-petset]", m.el).innerHTML = petHtml();
         if (pt.dataset.pet !== "off") FL.pet.hello(pt.dataset.pet);
         return;
       }
       const gl = e.target.closest('[data-seg="glance"]');
       if (gl) {
         FL.store.patchPref("home", { glance: gl.dataset.value === "on" });
-        $("[data-homeset]", m.el).innerHTML = homeHtml();
+        repaintHome();
         FL.app.refresh();
         return;
       }
       const cw = e.target.closest('[data-seg="cwmax"]');
       if (cw) {
         FL.store.patchPref("home", { continueMax: +cw.dataset.value });
-        $("[data-homeset]", m.el).innerHTML = homeHtml();
+        repaintHome();
         FL.app.refresh();
         return;
       }
