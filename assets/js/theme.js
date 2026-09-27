@@ -65,7 +65,11 @@
     const m = prefs().mode;
     return m === "system" ? (media.matches ? "light" : "dark") : m === "light" ? "light" : "dark";
   }
-  function accent() {
+  /* Sakura (the anime app) has its own colour, cherry-blossom pink; Iris keeps yours. */
+  const SAKURA = { dark: "#FF8FB8", light: "#D23C77" };
+  const app = () => (root.dataset.app === "sakura" ? "sakura" : "iris");
+  function accent(which) {
+    if ((which || app()) === "sakura") return SAKURA[mode() === "light" ? "light" : "dark"];
     const p = palette();
     return prefs().accent || (p.acc ? p.acc[mode() === "light" ? 1 : 0] : THEMES[themeId()].accent[mode()]);
   }
@@ -220,8 +224,22 @@
     return "#" + c.map((v) => v.toString(16).padStart(2, "0")).join("");
   }
 
+  /* Sakura's mark: the same idea as a cherry blossom. Five notched petals, shaded like the blades (lit from the top
+     left), around the same pupil and catchlight; it turns and blinks the same way. */
+  const PETAL_SHADE = [1, 0, 4, 3, 2]; // blade shade classes for the petals from the top, clockwise
+  function petal(i, r) {
+    const w = 20;
+    const b = r * 0.5;
+    const pts = [[0, -b], [w * 0.9, -b - 8], [w * 1.2, -30], [w * 0.9, -40.5], [w * 0.62, -47.5], [w * 0.2, -46.5], [0, -40.5]];
+    const rot = (i * 72 * Math.PI) / 180;
+    const P = ([x, y], m) => { const X = x * (m || 1); return pt([X * Math.cos(rot) - y * Math.sin(rot), X * Math.sin(rot) + y * Math.cos(rot)]); };
+    return "M" + P(pts[0]) + "C" + P(pts[1]) + " " + P(pts[2]) + " " + P(pts[3]) + "Q" + P(pts[4]) + " " + P(pts[5]) + "L" + P(pts[6]) +
+      "L" + P(pts[5], -1) + "Q" + P(pts[4], -1) + " " + P(pts[3], -1) + "C" + P(pts[2], -1) + " " + P(pts[1], -1) + " " + P(pts[0]) + "Z";
+  }
+
   function mark(opts) {
-    const o = Object.assign({ size: 28, open: 0.9, animate: false, blink: false, fill: "" }, opts);
+    const o = Object.assign({ size: 28, open: 0.9, animate: false, blink: false, fill: "", kind: app() }, opts);
+    if (o.kind === "sakura") return bloom(o);
     const r = 7 + 7 * o.open;
     const gap = Math.max(2.4, (100 / o.size) * 2.2); // seams stay about a screen pixel wide at any size
     const blades = [0, 1, 2, 3, 4, 5].map((i) => '<path class="mark-b' + i + '" d="' + blade(i, r, gap) + '"' +
@@ -236,6 +254,23 @@
       '<g class="mark-blades">' + blades + turn + "</g>" +
       '<circle class="mark-pupil" r="' + f2(r) + '"' + (o.fill ? ' fill="#0B0B0E"' : "") + ' stroke-width="' + f2(Math.max(1.2, 100 / o.size * 0.6)) + '">' + pupil + "</circle>" +
       (o.size >= 20 ? '<circle class="mark-glint" cx="' + f2(-r * 0.34) + '" cy="' + f2(-r * 0.38) + '" r="' + f2(Math.max(1.6, r * 0.2)) + '"' + (o.fill ? ' fill="#fff"' : "") + "/>" : "") +
+      "</svg>";
+  }
+
+  function bloom(o) {
+    const r = 6 + 5 * o.open;
+    const petals = [0, 1, 2, 3, 4].map((i) => '<path class="mark-b' + PETAL_SHADE[i] + '" d="' + petal(i, r) + '"' +
+      (o.fill ? ' fill="' + mixHex(o.fill, SHADES[PETAL_SHADE[i]]) + '"' : "") + "/>").join("");
+    const turn = o.animate
+      ? '<animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="3.6s" repeatCount="indefinite"/>'
+      : o.blink ? '<animateTransform class="mark-blink" attributeName="transform" type="rotate" values="0;36;0" ' + SPLINE + ' dur=".8s" begin="indefinite"/>' : "";
+    const pupil = o.animate
+      ? '<animate attributeName="r" values="' + f2(r) + ";" + f2(r * 0.6) + ";" + f2(r) + '" ' + SPLINE + ' dur="1.8s" repeatCount="indefinite"/>'
+      : o.blink ? '<animate class="mark-blink" attributeName="r" values="' + f2(r) + ";" + f2(r * 0.35) + ";" + f2(r) + '" ' + SPLINE + ' dur=".8s" begin="indefinite"/>' : "";
+    return '<svg class="mark mark-sakura' + (o.cls ? " " + o.cls : "") + '" viewBox="-50 -50 100 100" width="' + o.size + '" height="' + o.size + '" aria-hidden="true" focusable="false">' +
+      '<g class="mark-blades">' + petals + turn + "</g>" +
+      '<circle class="mark-pupil" r="' + f2(r) + '"' + (o.fill ? ' fill="#0B0B0E"' : "") + ' stroke-width="' + f2(Math.max(1.2, 100 / o.size * 0.6)) + '">' + pupil + "</circle>" +
+      (o.size >= 20 ? '<circle class="mark-glint" cx="' + f2(-r * 0.34) + '" cy="' + f2(-r * 0.38) + '" r="' + f2(Math.max(1.5, r * 0.22)) + '"' + (o.fill ? ' fill="#fff"' : "") + "/>" : "") +
       "</svg>";
   }
 
@@ -268,6 +303,7 @@
     const tk = tokens(palette(), m);
     TOKEN_NAMES.forEach((k) => { if (tk) root.style.setProperty(k, tk[k]); else root.style.removeProperty(k); });
     root.style.setProperty("--accent", a);
+    root.style.setProperty("--iris-accent", accent("iris")); // the mode switcher shows each app in its own colour
     root.style.setProperty("--accent-ink", ink(a));
     root.style.colorScheme = m;
     loadFonts(t);
@@ -297,7 +333,7 @@
   apply();
 
   FL.theme = {
-    THEMES, ACCENTS, PALETTES, PRESETS, GLASS, AMBIENT, apply, set, mark, markBlink, mode, accent, palette, glass, ambient, calm,
+    THEMES, ACCENTS, PALETTES, PRESETS, GLASS, AMBIENT, SAKURA, apply, set, mark, markBlink, mode, accent, palette, glass, ambient, calm, app,
     preview, parseHex, id: themeId, icons: () => (themeId() === "material" ? "material" : "line"),
   };
 })(window.FL = window.FL || {});

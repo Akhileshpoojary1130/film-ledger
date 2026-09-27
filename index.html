@@ -33,15 +33,22 @@
     try {
       var r = document.documentElement;
       var look = JSON.parse(localStorage.getItem("film_ledger_look_v1") || "null");
+      var saved = JSON.parse(localStorage.getItem("film_ledger_prefs_v4") || "{}");
+      // Iris or Sakura (the anime app): from the link, else the app you used last.
+      var sakura = /^#\/anime/.test(location.hash) || (!location.hash && localStorage.getItem("film_ledger_app") === '"sakura"');
+      r.setAttribute("data-app", sakura ? "sakura" : "iris");
       if (look) {
         for (var k in look.data) r.setAttribute("data-" + k, look.data[k]);
         r.setAttribute("style", look.style || "");
+        var iris = r.style.getPropertyValue("--iris-accent");
+        if (sakura) r.style.setProperty("--accent", look.data.mode === "light" ? "#D23C77" : "#FF8FB8");
+        else if (iris) r.style.setProperty("--accent", iris);
         return;
       }
-      var a = (JSON.parse(localStorage.getItem("film_ledger_prefs_v4") || "{}").appearance) || {};
+      var a = saved.appearance || {};
       r.dataset.theme = a.theme || "material";
       r.dataset.mode = a.mode === "light" ? "light" : "dark";
-      r.style.setProperty("--accent", a.accent || (a.theme ? "" : "#0A84FF"));
+      r.style.setProperty("--accent", sakura ? "#FF8FB8" : a.accent || (a.theme ? "" : "#0A84FF"));
     } catch (e) {}
   })();
 </script>
@@ -56,7 +63,8 @@
 <div id="boot" class="boot" role="status" aria-label="Loading Iris">
   <div class="boot-inner">
     <svg class="mark mark-boot" viewBox="-50 -50 100 100" width="92" height="92" aria-hidden="true" focusable="false"><g class="mark-blades"><path class="mark-b0" d="M0.96 -45.99A46 46 0 0 1 39.35 -23.83Q21.98 -6.77 11.18 7.20A13.30 13.30 0 0 0 12.07 -5.58Q6.06 -22.19 0.96 -45.99Z"/><path class="mark-b1" d="M40.31 -22.16A46 46 0 0 1 40.31 22.16Q16.85 15.65 -0.65 13.28A13.30 13.30 0 0 0 10.87 7.67Q22.25 -5.84 40.31 -22.16Z"/><path class="mark-b2" d="M39.35 23.83A46 46 0 0 1 0.96 45.99Q-5.13 22.42 -11.83 6.08A13.30 13.30 0 0 0 -1.21 13.25Q16.18 16.34 39.35 23.83Z"/><path class="mark-b3" d="M-0.96 45.99A46 46 0 0 1 -39.35 23.83Q-21.98 6.77 -11.18 -7.20A13.30 13.30 0 0 0 -12.07 5.58Q-6.06 22.19 -0.96 45.99Z"/><path class="mark-b4" d="M-40.31 22.16A46 46 0 0 1 -40.31 -22.16Q-16.85 -15.65 0.65 -13.28A13.30 13.30 0 0 0 -10.87 -7.67Q-22.25 5.84 -40.31 22.16Z"/><path class="mark-b5" d="M-39.35 -23.83A46 46 0 0 1 -0.96 -45.99Q5.13 -22.42 11.83 -6.08A13.30 13.30 0 0 0 1.21 -13.25Q-16.18 -16.34 -39.35 -23.83Z"/><animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="3.2s" repeatCount="indefinite"/></g><circle class="mark-pupil" r="13.30" stroke-width="1.20"><animate attributeName="r" values="13.30;7.32;13.30" calcMode="spline" keyTimes="0;.5;1" keySplines=".65 0 .35 1;.65 0 .35 1" dur="1.6s" repeatCount="indefinite"/></circle><circle class="mark-glint" cx="-4.52" cy="-5.05" r="2.66"/></svg>
-    <div class="boot-word">Iris</div>
+    <svg class="mark mark-sakura mark-boot mark-boot-sakura" viewBox="-50 -50 100 100" width="92" height="92" aria-hidden="true" focusable="false"><g class="mark-blades"><path class="mark-b1" d="M0.00 -5.50C18.00 -13.50 24.00 -30.00 18.00 -40.50Q12.40 -47.50 4.00 -46.50L0.00 -40.50L-4.00 -46.50Q-12.40 -47.50 -18.00 -40.50C-24.00 -30.00 -18.00 -13.50 0.00 -5.50Z"/><path class="mark-b0" d="M5.23 -1.70C18.40 12.95 35.95 13.55 44.08 4.60Q49.01 -2.89 45.46 -10.57L38.52 -12.52L42.99 -18.17Q41.34 -26.47 32.96 -29.63C21.12 -32.10 7.28 -21.29 5.23 -1.70Z"/><path class="mark-b4" d="M3.23 4.45C-6.63 21.50 -1.78 38.38 9.24 43.35Q17.89 45.72 24.10 39.97L23.81 32.77L30.57 35.27Q37.95 31.14 38.37 22.19C37.05 10.16 22.50 0.34 3.23 4.45Z"/><path class="mark-b3" d="M-3.23 4.45C-22.50 0.34 -37.05 10.16 -38.37 22.19Q-37.95 31.14 -30.57 35.27L-23.81 32.77L-24.10 39.97Q-17.89 45.72 -9.24 43.35C1.78 38.38 6.63 21.50 -3.23 4.45Z"/><path class="mark-b2" d="M-5.23 -1.70C-7.28 -21.29 -21.12 -32.10 -32.96 -29.63Q-41.34 -26.47 -42.99 -18.17L-38.52 -12.52L-45.46 -10.57Q-49.01 -2.89 -44.08 4.60C-35.95 13.55 -18.40 12.95 -5.23 -1.70Z"/><animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="3.6s" repeatCount="indefinite"/></g><circle class="mark-pupil" r="11.00" stroke-width="1.20"><animate attributeName="r" values="11.00;6.60;11.00" calcMode="spline" keyTimes="0;.5;1" keySplines=".65 0 .35 1;.65 0 .35 1" dur="1.8s" repeatCount="indefinite"/></circle><circle class="mark-glint" cx="-3.74" cy="-4.18" r="2.42"/></svg>
+    <div class="boot-word"><span class="boot-iris">Iris</span><span class="boot-sakura">Sakura</span></div>
   </div>
 </div>
 <main id="view" class="view" tabindex="-1"></main>
@@ -114,6 +122,7 @@
 <script src="assets/js/ui.js" defer></script>
 <script src="assets/js/share.js" defer></script>
 <script src="assets/js/sync.js" defer></script>
+<script src="assets/js/anime.js" defer></script>
 <script src="assets/js/player.js" defer></script>
 <script src="assets/js/pet.js" defer></script>
 <script src="assets/js/views/insights.js" defer></script>
@@ -125,6 +134,7 @@
 <script src="assets/js/views/person.js" defer></script>
 <script src="assets/js/views/library.js" defer></script>
 <script src="assets/js/views/together.js" defer></script>
+<script src="assets/js/views/anime.js" defer></script>
 <script src="assets/js/palette.js" defer></script>
 <script src="assets/js/app.js" defer></script>
 </body>

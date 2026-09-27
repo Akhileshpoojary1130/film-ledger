@@ -2738,3 +2738,97 @@ html.has-page-search:not(.search-docked) [data-page-search] { view-transition-na
 :root[data-motion="full"] .tabbar a.is-on .i { animation: tabSpring 0.5s cubic-bezier(0.3, 1.6, 0.4, 1); }
 @keyframes tabSpring { 0% { transform: scale(0.82); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
 :root[data-motion="full"] .modal { transition: transform 0.42s cubic-bezier(0.22, 1.25, 0.36, 1); }
+
+/* ---------- Sakura, the anime app ----------
+   Iris's design language with its own colour (cherry-blossom pink, set in theme.js) and mark, plus a few parts of
+   its own: the app switch on the logo, the season and letter strips, the Sub / Dub switch in the player. */
+
+/* The logo is the switch between Iris and Sakura. */
+.brand-switch { padding: 4px 8px 4px 4px; margin-left: -4px; border: 0; border-radius: 999px; background: none; color: inherit; font: inherit; cursor: pointer; transition: background 0.2s; }
+.brand-switch:hover { background: var(--s2); }
+.brand-switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.brand-chev { --isz: 14px; margin-left: -4px; color: var(--text-3); transition: transform 0.25s var(--ease-out), color 0.2s; }
+.brand-switch:hover .brand-chev { color: var(--text); transform: translateY(1px); }
+.msr.brand-chev { font-size: 18px; }
+
+.modal-apps { max-width: 460px; }
+.apps .eyebrow { margin: 0 0 14px; }
+.apps-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.app-tile {
+  position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 14px; padding: 18px;
+  border-radius: 22px; background: var(--s2); border: 1px solid var(--line);
+  transition: transform 0.3s cubic-bezier(0.34, 1.3, 0.45, 1), border-color 0.2s, background 0.2s;
+}
+.app-tile:hover { transform: translateY(-3px); border-color: var(--line-2); }
+.app-tile:active { transform: scale(0.97); }
+.app-tile.is-on { border-color: color-mix(in oklab, var(--accent) 55%, transparent); background: color-mix(in oklab, var(--accent) 10%, var(--s2)); }
+.app-icon {
+  display: grid; place-items: center; width: 72px; height: 72px; border-radius: 20px; background: #0A0A0B;
+  box-shadow: 0 12px 26px -12px color-mix(in oklab, var(--accent) 60%, #000), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.app-icon .mark { width: 54px; height: 54px; }
+.app-tile:hover .app-icon .mark { transform: rotate(40deg); transition: transform 0.9s var(--ease-out); }
+.app-text { display: flex; flex-direction: column; gap: 2px; }
+.app-text strong { font-family: var(--word); font-style: var(--word-style); font-weight: var(--word-weight); font-size: 22px; line-height: 1.1; }
+.app-text small { font-size: 13px; color: var(--text-2); }
+.app-check { position: absolute; top: 14px; right: 14px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); --isz: 15px; }
+.apps .footnote { margin: 14px 0 0; }
+
+/* The boot screen shows the app you're opening. */
+.mark-boot-sakura, .boot-sakura { display: none; }
+[data-app="sakura"] .boot .mark-boot:not(.mark-boot-sakura), [data-app="sakura"] .boot-iris { display: none; }
+[data-app="sakura"] .boot .mark-boot-sakura { display: block; }
+[data-app="sakura"] .boot-sakura { display: inline; }
+
+/* Cards and title pages */
+.tag-air { box-shadow: inset 0 0 0 1px rgba(52, 199, 89, 0.55); color: #86E3A4; }
+.tag-air::before { content: "●"; font-size: 7px; vertical-align: 1px; }
+.film-alt { margin: -6px 0 12px; font-size: 15px; color: var(--text-3); }
+.air-next { display: inline-flex; align-items: center; gap: 6px; margin: 4px 12px 0 0; padding: 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 500; --isz: 14px; }
+.imdb-score + .air-next { margin-left: 12px; }
+.anime-page .film-scores { display: flex; flex-wrap: wrap; align-items: center; row-gap: 6px; }
+.person.char { cursor: default; }
+
+/* Lists: genres, seasons, letters */
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+:root .chip.is-on, :root .chip.is-on:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.sakura-chips { margin: 18px 0 4px; }
+.sakura-controls { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0 26px; }
+.page > .hero-search { width: 100%; margin-top: 18px; }
+.sakura-years, .az-strip {
+  display: flex; gap: 6px; margin-top: 18px; padding: 2px 0; overflow-x: auto; scrollbar-width: none;
+  -webkit-mask: linear-gradient(90deg, transparent, #000 20px, #000 calc(100% - 20px), transparent);
+  mask: linear-gradient(90deg, transparent, #000 20px, #000 calc(100% - 20px), transparent);
+}
+.sakura-years::-webkit-scrollbar, .az-strip::-webkit-scrollbar { display: none; }
+.sakura-years .chip { flex: none; font-variant-numeric: tabular-nums; }
+.az-letter {
+  flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px;
+  background: var(--s2); border: 1px solid var(--line); color: var(--text-2); font-size: 14px; font-weight: 600;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.2s var(--ease-out);
+}
+.az-letter:hover { color: var(--text); border-color: var(--line-2); transform: translateY(-1px); }
+.az-letter.is-on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+@media (min-width: 1000px) {
+  .az-strip { flex-wrap: wrap; overflow: visible; -webkit-mask: none; mask: none; }
+}
+.lib-tabs { margin: 18px 0 26px; }
+.lib-tabs .seg-btn small { margin-left: 2px; font-variant-numeric: tabular-nums; }
+.sakura-genres .chip-row { padding-bottom: 4px; }
+
+/* The player's Sub / Dub switch (anime only). */
+.player-audio { flex: none; }
+.player-audio .seg { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.12); }
+.player-audio .seg-btn { height: 26px; color: rgba(255, 255, 255, 0.7); }
+.player-audio .seg-btn.is-on { background: var(--accent); color: var(--accent-ink); }
+/* Narrow phones: the logo gives room to the search in the middle of the bar. */
+@media (max-width: 420px) {
+  .brand-switch { gap: 7px; padding-right: 2px; }
+  [data-app="sakura"] .topbar .brand-word { font-size: calc(var(--word-size) * 0.9); }
+}
+.settings .apps .app-tile { flex-direction: row; align-items: center; padding: 12px; border-radius: 18px; }
+.settings .apps .app-icon { width: 52px; height: 52px; border-radius: 14px; }
+.settings .apps .app-icon .mark { width: 40px; height: 40px; }
+.settings .apps .app-text strong { font-size: 18px; }
+.settings .apps .app-check { position: static; flex: none; margin-left: auto; }
+.settings .apps .app-text { min-width: 0; }

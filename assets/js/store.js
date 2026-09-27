@@ -138,7 +138,7 @@
     const m = FL.meta && FL.meta.cached(film);
     return {
       id: film.id,
-      type: film.type === "series" ? "series" : "movie",
+      type: film.type === "series" || film.type === "anime" ? film.type : "movie",
       title: film.title,
       year: film.year,
       lang: film.lang,
@@ -163,7 +163,8 @@
     return !e.seen && !e.watches.length && !e.listed && !e.fav && !e.rating && !e.note && !e.progress && !Object.keys(e.episodes || {}).length;
   }
 
-  const isShow = (e) => e && e.type === "series";
+  // Anime (Sakura) is episodic too: ticked by episode, never "a watched film".
+  const isShow = (e) => e && (e.type === "series" || e.type === "anime");
   const isWatched = (e) => !!(e && !isShow(e) && (e.seen || e.watches.length));
 
   /* Watching a film takes it off the watchlist; adding a watched film back (to rewatch) is allowed. */
@@ -206,7 +207,9 @@
       const episodes = Object.keys(e.episodes || {}).length;
       return { watched: isWatched(e), listed: e.listed, fav: e.fav, rating: e.rating, count: e.watches.length, episodes, watching: episodes > 0 };
     },
-    entries: () => Object.values(lib.films),
+    // Iris's films and shows; Sakura's anime share the library (and Relay) but have their own lists.
+    entries: () => Object.values(lib.films).filter((e) => e.type !== "anime"),
+    animeEntries: () => Object.values(lib.films).filter((e) => e.type === "anime"),
 
     toggleList(film) {
       return update(film, (e) => { e.listed = !e.listed; e.listedAt = e.listed ? Date.now() : 0; }, "list");
@@ -445,6 +448,10 @@
             id, imdbId: /^tt/.test(id) ? id : src.imdbId || "", type: src.type, title: String(src.title),
             year: +src.year || 0, genres: Array.isArray(src.genres) ? src.genres : [], lang: src.lang,
           });
+        }
+        // Sakura's anime aren't in Iris's catalogue: the backup's own name and year are enough.
+        if (!film && /^(an\d+|zr-[a-z0-9-]+)$/.test(id) && src.type === "anime" && src.title) {
+          film = { id, type: "anime", title: String(src.title), year: +src.year || 0, genres: Array.isArray(src.genres) ? src.genres : [], lang: "Japanese" };
         }
         if (!film) return;
         const base = blank(film);

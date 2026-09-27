@@ -24,6 +24,7 @@
     { id: "settings", label: "Settings, storage & backup", icon: "sliders", run: () => settings() },
     { id: "export", label: "Export backup (.json)", icon: "download", run: () => exportJSON() },
     { id: "shortcuts", label: "Keyboard shortcuts", icon: "keyboard", keys: "?", run: () => shortcuts() },
+    { id: "sakura anime", label: "Switch to Sakura · anime", icon: "spark", run: () => go((FL.app && FL.app.lastHash("sakura")) || "#/anime") },
   ];
 
   function go(hash) { location.hash = hash; }
@@ -33,6 +34,7 @@
   let paletteOpen = null;
 
   function palette(initial) {
+    if (FL.theme.app() === "sakura" && FL.sakura) { FL.sakura.search(initial); return; } // Sakura searches anime
     if (paletteOpen) { $("input", paletteOpen.el).focus(); return; }
     const m = modal(
       '<div class="palette">' +
@@ -434,6 +436,8 @@
     const m = modal(
       '<div class="modal-pad settings">' +
         '<h2 class="h2">Settings</h2>' +
+        // Iris or Sakura (the anime app); the logo switches too.
+        (FL.sakura ? '<section data-sec="app" class="apps"><h3 class="label">App</h3>' + FL.sakura.appTiles() + "</section>" : "") +
         '<section data-sec="relay"><h3 class="label">Relay</h3>' + syncRow() + "</section>" +
         '<section data-sec="player"><h3 class="label">Player</h3><div data-playerset>' + playerHtml() + "</div></section>" +
         '<section data-sec="appearance"><h3 class="label">Appearance</h3><div data-appearance>' + appearanceHtml() + "</div></section>" +

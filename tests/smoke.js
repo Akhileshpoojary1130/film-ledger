@@ -21,6 +21,8 @@
     "#/library/watchlist", "#/library/watched", "#/library/favorites", "#/library/shows",
     "#/diary", "#/stats", "#/collections", cols[0] ? "#/collection/" + cols[0].id : "",
     "#/person/" + encodeURIComponent("Christopher Nolan") + "?as=crew", "#/move", "#/match", "#/no-such-page",
+    // Sakura, the anime app
+    "#/anime", "#/anime/seasons", "#/anime/explore?genre=Action", "#/anime/az/a", "#/anime/library", "#/anime/an154587", "#/anime/zr-naruto",
   ].filter(Boolean);
 
   // Anything poking out sideways that isn't inside something meant to scroll or clip.

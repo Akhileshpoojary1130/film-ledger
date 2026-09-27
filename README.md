@@ -1,8 +1,9 @@
 # Iris
 
 A film and TV diary: go through cinema **year by year** (1970 → next year), tick off what you've seen, follow
-reality and talent shows episode by episode, and get told what to watch next. Static site plus one
-small function (Vega lookups), no account.
+reality and talent shows episode by episode, and get told what to watch next. **Sakura**, its anime app, lives in
+the same place (tap the logo to switch). Static site plus a few small functions (Vega and Zoro TV lookups, sync,
+where to watch), no account.
 
 Live: https://film-ledger-mocha.vercel.app/
 
@@ -168,6 +169,32 @@ Hindi-dubbed titles.
 - **Up Next** in the player — at an episode's credits the next one is announced with a 10-second countdown (Play now
   / Cancel); Settings → Player → Autoplay next episode turns it off.
 
+## Sakura — anime
+
+Two apps in one: **Iris** for films and web series, **Sakura** for anime. Tap the logo (*Iris ⌄* / *Sakura ⌄*) or
+Settings → App to switch; each returns to where you were in it, and each device opens the one you used last. Sakura
+keeps Iris's design and adds its own colour (cherry-blossom pink), its own mark (a five-petal blossom built like the
+aperture, with the same pupil and catchlight; it blinks and turns the same way), bars and search. One library for
+both, so Relay syncs your anime too; Iris's lists and stats leave anime out.
+
+- **Home** — Up Next (where you stopped, else the next episode that's out), **Spotlight** (the week's most talked
+  about, as wide artwork cards), **Just out** (the newest episodes on Zoro TV), **This season** with each show's
+  countdown to its next episode, Trending, Plan to watch, Coming next season, genres, All-time favourites, Top rated
+  and Films.
+- **Seasons** (Winter / Spring / Summer / Fall of any year, TV / films / ONA), **Explore** (by genre; popular, top
+  rated, trending or newest; TV or films), **A–Z** (Zoro TV's list of about 900 series, by letter and type) and
+  **Library** (Watching, Plan to watch, Completed, Favourites).
+- **A title** — its banner, English, romaji and Japanese names, AniList score, the next episode's countdown, trailer,
+  characters with their Japanese voices, every episode with its name and still (in hundreds for long runs like One
+  Piece), episodes and ranges to tick, **The story so far** (prequels, sequels and side stories in release order),
+  More like this, your rating, and links to AniList, MyAnimeList and Zoro TV. A title from Zoro TV opens its AniList
+  page when AniList has it.
+- **Player** — MegaPlay (by AniList id; it reports playback, so resume, auto-ticking and Up Next work), **Zoro**
+  (Zoro TV's own player for the episode) and Videasy, with a **Sub / Dub** switch that's remembered. All three refuse
+  to play sandboxed, so they run behind the "Leave site?" guard.
+- **Where it comes from** — AniList's public API (all of Home in one request, answers cached; it allows about 30
+  requests a minute) and Zoro TV through `api/anime.js`. `node tools/build-zoro.mjs` refreshes the A–Z list.
+
 ## Found on search
 
 `index.html` carries a description, Open Graph / Twitter cards (`assets/og.png`), structured data, a web manifest
@@ -193,10 +220,13 @@ movie.html            redirect for old links
 api/vega.js           Vercel Edge function: finds a title on Vega and returns its player and download links
 api/sync.js           Vercel Edge function: keeps each synced library (ciphertext) in the project's Upstash Redis
 api/where.js          Vercel Edge function: streaming services for a title in India (JustWatch)
+api/anime.js          Vercel Edge function: Zoro TV's search, newest episodes, a series' episodes and each episode's players
 tests/                unit tests (node --test), live server check, in-browser page sweep
 tools/build-series.mjs  builds data/series.js from Wikidata (about a minute)
 tools/build-vega.mjs  builds data/vega.js: Vega's catalogue (Hindi dubbed, web series, Bollywood, Hollywood, South,
                       Punjabi) trimmed to what the bundle lacks, gently, one page at a time (about ten minutes)
+tools/build-zoro.mjs  builds data/zoro.js: Zoro TV's A–Z list, gently (about a minute)
+data/zoro.js          Zoro TV's ~900 series (name, type, episodes, poster), loaded only in Sakura
 data/vega.js          ~3,600 films and ~680 web series from Vega, and "Hindi dubbed" marks for 1,700 bundled films;
                       loaded after the first screen, so start-up isn't slower
 data/catalogue.js     the bundled vault (window.FILM_STATIC_CATALOGUE, schema 2)
@@ -206,7 +236,7 @@ assets/js/
   util.js             helpers, safe storage, fetch with timeout, limiter
   catalogue.js        normalisation, search + autocorrect, browse, series detection, recommendations
   store.js            library, episodes, prefs, recent searches, migration, backup
-  theme.js            styles, palettes, glass, motion, accents, the aperture mark
+  theme.js            styles, palettes, glass, motion, accents, the aperture mark and Sakura's blossom
   voice.js            time-of-day lines, mood typefaces
   ambient.js          Lights (canvas) and Aurora backgrounds
   meta.js             IMDb resolution, Cinemeta details, poster chain
@@ -216,11 +246,12 @@ assets/js/
   ui.js               icons, cards, rails, rating, reveal & tilt motion, toasts, modals
   share.js            packing, QR codes (qrcode-generator), camera scanner (BarcodeDetector / jsQR), share links
   sync.js             sync: encryption, merging (newer wins, removals remembered), when to pull and push
-  player.js           theatre player, server choice (fixed hosts + Vega's per-title links), auto-logging
+  anime.js            Sakura's data: AniList (cached, one request at a time), Zoro TV, episodes, title matching
+  player.js           theatre player, server choice (fixed hosts + Vega's per-title links; anime hosts, Sub / Dub), auto-logging
   pet.js              Pause Pals: break reminders, the companions and their moves, the sitting timer
   palette.js          ⌘K palette, surprise me, settings, shortcuts
   views/              home, years (dial), browse, film, shows, person, library + collections + diary, insights (stats),
-                      together (Sync, one-time copy and Movie night)
+                      together (Sync, one-time copy and Movie night), anime (Sakura's pages, search and the app switch)
   app.js              router, chrome, page transitions
 ```
 
@@ -233,7 +264,7 @@ python3 -m http.server 8000
 ```
 
 Open http://localhost:8000. Vercel serves the repo root as-is — no build step — and runs `api/` as functions.
-A local static server has no `/api`, so a copy on localhost asks the deployed function for Vega's links.
+A local static server has no `/api`, so a copy on localhost asks the deployed functions for Vega's and Zoro TV's links.
 
 ## Tests
 
@@ -243,7 +274,8 @@ node --test tests/*.test.mjs
 
 Unit tests for the Vega lookup (reading Vega's titles, matching names written differently — K.G.F / KGF — search
 spellings, episode labels, link clean-up, dead-link detection, download buttons), the sync store (setup detection,
-revisions, two devices writing at once, against an in-memory Redis) and the icon font subset. No network.
+revisions, two devices writing at once, against an in-memory Redis), Zoro TV's pages (cards, sub and dub players,
+episode lists, newest episodes) and the icon font subset. No network.
 
 ```bash
 node tests/servers.mjs

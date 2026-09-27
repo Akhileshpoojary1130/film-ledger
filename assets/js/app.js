@@ -21,9 +21,21 @@
     [/^\/move(?:\/(.+))?$/, "move"],
     [/^\/sync\/([A-Za-z0-9_-]{43})$/, "sync"],
     [/^\/match(?:\/(.+))?$/, "match"],
+    // Sakura, the anime app.
+    [/^\/anime\/?$/, "animeHome"],
+    [/^\/anime\/seasons(?:\/(\d{4})\/(winter|spring|summer|fall))?$/, "animeSeasons"],
+    [/^\/anime\/explore$/, "animeExplore"],
+    [/^\/anime\/az(?:\/([a-z0]))?$/, "animeAz"],
+    [/^\/anime\/library(?:\/(\w+))?$/, "animeLibrary"],
+    [/^\/anime\/watch\/(.+)$/, "animeWatch"],
+    [/^\/anime\/((?:an\d+|zr-[a-z0-9-]+))$/, "animeTitle"],
   ];
 
-  const NAV_FOR = { home: "home", years: "years", browse: "browse", shows: "shows", show: "shows", film: "", library: "library", collection: "collections", collections: "collections", diary: "library", stats: "stats", person: "", move: "", match: "library" };
+  const NAV_FOR = { home: "home", years: "years", browse: "browse", shows: "shows", show: "shows", film: "", library: "library", collection: "collections", collections: "collections", diary: "library", stats: "stats", person: "", move: "", match: "library",
+    animeHome: "a-home", animeSeasons: "a-seasons", animeExplore: "a-explore", animeAz: "a-az", animeLibrary: "a-library", animeTitle: "" };
+  const appOf = (name) => (/^anime/.test(name) ? "sakura" : "iris");
+  const LAST_KEY = "film_ledger_app_last"; // the page you were on in each app, for this visit
+  const APP_KEY = "film_ledger_app"; // the app last used on this device
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
 
   let viewEl = null;
@@ -33,13 +45,17 @@
 
   /* ---------- chrome ---------- */
 
+  /* The logo is also the switch between the two apps: Iris (films & web series) and Sakura (anime). */
   function brand() {
-    return '<a class="brand" href="#/" aria-label="Iris home">' + FL.theme.mark({ size: 26, blink: true, cls: "brand-mark" }) + '<span class="brand-word">Iris</span></a>';
+    const name = FL.theme.app() === "sakura" ? "Sakura" : "Iris";
+    return '<button type="button" class="brand brand-switch" data-open="apps" aria-haspopup="dialog" aria-label="' + name + ': switch app" title="Switch app · Iris or Sakura">' +
+      FL.theme.mark({ size: 26, blink: true, cls: "brand-mark" }) + '<span class="brand-word">' + name + "</span>" + FL.ui.icon("chevron-down", "brand-chev") + "</button>";
   }
 
   function chromeHtml() {
     const mod = FL.palette.isMac() ? "⌘K" : "Ctrl K";
     const { icon } = FL.ui;
+    if (FL.theme.app() === "sakura") return sakuraChrome(mod, icon);
     return {
       top: '<header class="topbar"><div class="container topbar-inner">' + brand() +
         '<nav class="nav" aria-label="Primary">' +
@@ -69,6 +85,32 @@
     };
   }
 
+  function sakuraChrome(mod, icon) {
+    return {
+      top: '<header class="topbar"><div class="container topbar-inner">' + brand() +
+        '<nav class="nav" aria-label="Primary">' +
+          '<a href="#/anime" data-nav="a-home">Home</a><a href="#/anime/seasons" data-nav="a-seasons">Seasons</a><a href="#/anime/explore" data-nav="a-explore">Explore</a>' +
+          '<a href="#/anime/az/a" data-nav="a-az">A–Z</a><a href="#/anime/library" data-nav="a-library">Library</a>' +
+        "</nav>" +
+        '<div class="topbar-actions">' +
+          '<button type="button" class="search-trigger" data-open="palette" aria-label="Search anime (' + mod + ')">' + icon("search") + "<span>Search</span><kbd>" + mod + "</kbd></button>" +
+          '<button type="button" class="icon-btn" data-open="pick" aria-label="Spin: let Sakura pick" title="Spin (R)">' + icon("shuffle") + "</button>" +
+          '<button type="button" class="icon-btn" data-open="settings" aria-label="Settings" title="Settings, theme & storage">' + icon("sliders") + "</button>" +
+          '<button type="button" class="search-float" data-open="palette" aria-label="Search" title="Search">' + icon("search") + "</button>" +
+        "</div></div></header>",
+      bottom: '<footer class="site-foot"><div class="container">' +
+          '<a class="foot-sign" href="#/anime">' + FL.theme.mark({ size: 18, cls: "foot-mark" }) + '<span class="brand-word">Sakura</span></a>' +
+        "</div></footer>" +
+        '<nav class="tabbar" aria-label="Primary">' +
+          '<a href="#/anime" data-nav="a-home">' + icon("home") + "<span>Home</span></a>" +
+          '<a href="#/anime/seasons" data-nav="a-seasons">' + icon("calendar") + "<span>Seasons</span></a>" +
+          '<a href="#/anime/explore" class="tab-browse" data-nav="a-explore" aria-label="Explore" title="Explore">' + icon("compass") + "</a>" +
+          '<a href="#/anime/az/a" data-nav="a-az">' + icon("list") + "<span>A–Z</span></a>" +
+          '<a href="#/anime/library" data-nav="a-library">' + icon("layers") + "<span>Library</span></a>" +
+        "</nav>",
+    };
+  }
+
   function paintChrome() {
     $$(".topbar, .site-foot, .tabbar").forEach((el) => el.remove());
     const html = chromeHtml();
@@ -89,7 +131,8 @@
       if (b) {
         const what = b.dataset.open;
         if (what === "palette") FL.palette.open();
-        else if (what === "pick") FL.palette.pick();
+        else if (what === "apps") FL.sakura.switcher();
+        else if (what === "pick") (FL.theme.app() === "sakura" ? FL.sakura.spin() : FL.palette.pick());
         else if (what === "settings") FL.palette.settings();
         else if (what === "shortcuts") FL.palette.shortcuts();
         return;
@@ -183,10 +226,26 @@
     },
   };
 
+  /* Iris ⇄ Sakura: the app follows the page. Changing app changes the colour, the logo and the bars. */
+  function setApp(app) {
+    const root = document.documentElement;
+    // This device's, not synced: each device opens the app last used on it.
+    if (FL.util.storage.get(APP_KEY, "") !== app) FL.util.storage.set(APP_KEY, app);
+    if (root.dataset.app === app) return;
+    root.dataset.app = app;
+    FL.theme.apply();
+    paintChrome();
+  }
+
   function doMount(name, params, query) {
     if (current.handle && current.handle.destroy) current.handle.destroy();
     const view = FL.views[name] || notFound;
-    document.title = (view.title ? view.title + " · " : "") + "Iris";
+    const app = appOf(name);
+    setApp(app);
+    const last = FL.util.session.get(LAST_KEY, {});
+    last[app] = location.hash;
+    FL.util.session.set(LAST_KEY, last);
+    document.title = (view.title ? view.title + " · " : "") + (app === "sakura" ? "Sakura" : "Iris");
     window.scrollTo(0, 0);
     viewEl.innerHTML = "";
     current = { name, handle: {}, hash: location.hash };
@@ -237,7 +296,7 @@
       viewEl.classList.add("enter");
       return;
     }
-    const from = lastArt && document.contains(lastArt) && (name === "film" || name === "show") ? lastArt : null;
+    const from = lastArt && document.contains(lastArt) && (name === "film" || name === "show" || name === "animeTitle") ? lastArt : null;
     lastArt = null;
     if (from) from.style.viewTransitionName = "poster";
     let to = null;
@@ -276,6 +335,28 @@
       return;
     }
 
+    if (name === "animeWatch") {
+      const id = decodeURIComponent(params[0]);
+      FL.ui.closeModals();
+      const fromApp = depth > 1;
+      const start = (a) => {
+        if (!a) { location.replace("#/anime"); return; }
+        if (!current.name) mount("animeTitle", [a.id], query); // deep link: a page to return to
+        FL.player.open(a, {
+          s: 1, e: query.get("e"),
+          onClose() {
+            if (!parse().path.startsWith("/anime/watch/")) return;
+            if (fromApp) history.back();
+            else location.replace("#/anime/" + encodeURIComponent(a.id));
+          },
+        });
+      };
+      const known = FL.anime.get(id);
+      if (known) start(known);
+      else FL.anime.load(id).then((d) => start(d.anime), () => start(null));
+      return;
+    }
+
     if (FL.player && FL.player.isOpen()) FL.player.close();
     FL.ui.closeModals();
     // Back from the player lands on the page that was already mounted underneath: keep it as is.
@@ -307,6 +388,7 @@
 
   let gPending = 0;
   const GO = { h: "#/", y: "#/years", b: "#/browse", t: "#/shows", w: "#/library/watchlist", l: "#/library/watched", d: "#/diary", s: "#/stats" };
+  const GO_SAKURA = { h: "#/anime", s: "#/anime/seasons", e: "#/anime/explore", a: "#/anime/az/a", l: "#/anime/library" };
 
   function gridNav(e) {
     const link = e.target.closest(".card-link, .row-title");
@@ -347,7 +429,7 @@
     if (gPending) {
       clearTimeout(gPending);
       gPending = 0;
-      const dest = GO[k.toLowerCase()];
+      const dest = (FL.theme.app() === "sakura" ? GO_SAKURA : GO)[k.toLowerCase()];
       if (dest) { e.preventDefault(); location.hash = dest; }
       return;
     }
@@ -361,7 +443,7 @@
     } else if (k === "?") {
       FL.palette.shortcuts();
     } else if (k === "r" || k === "R") {
-      FL.palette.pick();
+      if (FL.theme.app() === "sakura") FL.sakura.spin(); else FL.palette.pick();
     } else if (current.handle.key && current.handle.key(k.toLowerCase())) {
       e.preventDefault();
     }
@@ -371,6 +453,8 @@
 
   FL.app = {
     watchSearch: () => watchPageSearch(),
+    /* Where you were in an app this visit (the app switcher returns you there). */
+    lastHash: (app) => FL.util.session.get(LAST_KEY, {})[app] || "",
     refresh() {
       const { path, query } = parse();
       const { name, params } = match(path);
@@ -385,6 +469,10 @@
 
   window.addEventListener("hashchange", () => { depth++; route(); });
   depth = 1;
+  // Opening Iris without a page goes back to the app you used last.
+  if (!location.hash && FL.util.storage.get(APP_KEY, "iris") === "sakura") history.replaceState(null, "", "#/anime");
+  document.documentElement.dataset.app = appOf(match(parse().path).name);
+  FL.theme.apply();
   try {
     chrome();
     route();

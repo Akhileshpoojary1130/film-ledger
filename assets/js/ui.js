@@ -110,8 +110,11 @@
     return Math.max(1, Math.ceil(x * 10));
   }
 
+  // A rated title: Iris's catalogue, or one of Sakura's anime.
+  const ratable = (id) => FL.catalogue.get(id) || (FL.anime && FL.anime.get(id)) || null;
+
   function commitRating(el, v10) {
-    const film = FL.catalogue.get(el.dataset.rate);
+    const film = ratable(el.dataset.rate);
     if (!film) return;
     const current = FL.store.state(film.id).rating;
     const next = v10 === current ? 0 : v10;
@@ -140,7 +143,8 @@
     if (v === null) return;
     e.preventDefault();
     if (v === cur) return;
-    const film = FL.catalogue.get(el.dataset.rate);
+    const film = ratable(el.dataset.rate);
+    if (!film) return;
     FL.store.setRating(film, v);
     el.setAttribute("aria-valuenow", v / 2);
     setRateVisual(el, v);

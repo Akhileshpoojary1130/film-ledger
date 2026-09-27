@@ -30,12 +30,13 @@
       },
     },
     {
-      id: "videasy", name: "Videasy", origin: "https://player.videasy.net", resume: true, signals: true,
+      // player.videasy.net now redirects here; its progress messages come from this origin, so it has to be the .to one.
+      id: "videasy", name: "Videasy", origin: "https://player.videasy.to", resume: true, signals: true,
       url: ({ imdb, tmdb, start, tv, s, e }) => {
         const id = tmdb || imdb;
         if (!id || (tv && !tmdb) || (tv && e > 100)) return null;
         const q = "?color=" + hex() + (start ? "&progress=" + start : "");
-        return tv ? "https://player.videasy.net/tv/" + tmdb + "/" + s + "/" + e + q : "https://player.videasy.net/movie/" + id + q;
+        return tv ? "https://player.videasy.to/tv/" + tmdb + "/" + s + "/" + e + q : "https://player.videasy.to/movie/" + id + q;
       },
     },
     {
@@ -52,6 +53,26 @@
       url: ({ imdb, tv }) => (imdb && !tv ? "https://slast430did.com/play/" + imdb : null),
     },
   ];
+
+  /* Sakura's anime: hosts that take an AniList id and an episode, sub or dub, plus Zoro TV's own player for the
+     episode (found by api/anime.js). None of them plays in a sandboxed frame, so all run behind the "Leave site?" guard. */
+  const ANIME = [
+    {
+      // Posts its playback time to the page (resume, Up Next and auto-ticking work), and has both sub and dub.
+      id: "megaplay", name: "MegaPlay", origin: "https://megaplay.buzz", signals: true,
+      url: ({ anilist, mal, e, dub }) => (anilist || mal ? "https://megaplay.buzz/stream/" + (anilist ? "ani/" + anilist : "mal/" + mal) + "/" + e + "/" + (dub ? "dub" : "sub") : null),
+    },
+    {
+      id: "zoro", name: "Zoro", origin: "https://gogoanime.com.by",
+      url: ({ zoro, dub }) => (zoro && zoro[dub ? "dub" : "sub"]) || null,
+    },
+    {
+      id: "videasy-anime", name: "Videasy", origin: "https://player.videasy.to", resume: true, signals: true,
+      url: ({ anilist, e, dub, start }) => (anilist ? "https://player.videasy.to/anime/" + anilist + "/" + e + "?color=" + hex() + (dub ? "&dub=true" : "") + (start ? "&progress=" + start : "") : null),
+    },
+  ];
+  const isAnime = (film) => !!(film && film.type === "anime");
+  const audio = () => ((FL.store.prefs().anime || {}).audio === "dub" ? "dub" : "sub");
 
   /* ---------- Vega's own players ---------- */
 
@@ -144,12 +165,19 @@
     return { id, name, label: link.label, origin: "https://" + host, url: () => link.url, sandbox: /(^|\.)hubstream\.art$/.test(host) };
   }
 
-  const allServers = () => (state.extra.length ? SERVERS.concat(state.extra) : SERVERS);
+  const fixed = () => (isAnime(state.film) ? ANIME : SERVERS);
+  const allServers = () => (state.extra.length ? fixed().concat(state.extra) : fixed());
   const nameOf = (s) => (s.short ? s.name + " " + s.short : s.name); // "Vega Super" in messages, "Super" on its button
 
   /* Film and show pages call this while you read: server checks, Vega's links for this title (or the episode you're
      up to) and an early connection to the likeliest server, so Play starts without waiting on any of it. */
   function prefetch(film, ep) {
+    if (isAnime(film)) {
+      ANIME.forEach((s) => probe(s));
+      preconnect(ANIME[0].origin);
+      if (ep && FL.anime) FL.anime.zoroServers(film, ep.e);
+      return;
+    }
     probeAll();
     if (!film) return;
     vegaLinks(film, ep || null).then((links) => {
@@ -206,12 +234,12 @@
     return p;
   }
 
-  const probeAll = (force) => Promise.all(SERVERS.map((s) => probe(s, force)));
+  const probeAll = (force) => Promise.all(fixed().map((s) => probe(s, force)));
 
   /* Availability differs by catalogue (a host strong on Hollywood may lack Hindi titles), so outcomes are
      remembered per language bucket as well as globally. */
   function serverStats() { return FL.store.prefs().servers || {}; }
-  const bucketOf = (film) => (film ? (film.type === "series" ? "tv" : film.lang) : "");
+  const bucketOf = (film) => (film ? (film.type === "series" ? "tv" : film.type === "anime" ? "anime" : film.lang) : "");
 
   function bumpStat(id, field, film) {
     const stats = Object.assign({}, serverStats());
@@ -278,8 +306,10 @@
   let onClose = null;
 
   function icon(name) { return FL.ui.icon(name); }
-  const params = () => Object.assign({}, state.ids, state.ep ? { tv: true, s: state.ep.s, e: state.ep.e } : {});
-  const epLabel = (ep) => "S" + ep.s + (ep.e > 100 ? " · Bonus " + (ep.e - 100) : " · E" + ep.e); // Vega's bonus n is episode 100 + n
+  const params = () => Object.assign({}, state.ids, state.ep ? { tv: true, s: state.ep.s, e: state.ep.e } : {}, isAnime(state.film) ? { dub: audio() === "dub", zoro: state.zoro || null } : {});
+  // Vega's bonus n is episode 100 + n; anime count episodes without seasons.
+  const epLabel = (ep) => (isAnime(state.film) ? "Episode " + ep.e : "S" + ep.s + (ep.e > 100 ? " · Bonus " + (ep.e - 100) : " · E" + ep.e));
+  const watchHash = (film, ep) => (isAnime(film) ? "#/anime/watch/" + encodeURIComponent(film.id) + "?e=" + ep.e : "#/watch/" + encodeURIComponent(film.id) + "?s=" + ep.s + "&e=" + ep.e);
 
   function build() {
     root = document.createElement("div");
@@ -304,6 +334,7 @@
       '<div class="player-notice" hidden></div>' +
       '<div class="player-dl" data-dl hidden></div>' +
       '<footer class="player-bar">' +
+        '<div class="player-audio" hidden>' + FL.ui.segmented("audio", [["sub", "Sub"], ["dub", "Dub"]], "sub") + "</div>" +
         '<span class="label">Server</span>' +
         '<div class="player-servers" role="radiogroup" aria-label="Stream server"></div>' +
         '<button type="button" class="btn btn-sm" data-pl="next">Next server <kbd>N</kbd></button>' +
@@ -332,6 +363,16 @@
       if (panel.hidden || e.target.closest('[data-pl="download"]')) return;
       if (e.target.closest(".player-dl-link") || !e.target.closest("[data-dl]")) toggleDownloads(false);
     });
+    // Anime: subtitles or dubbed audio, remembered; the playing server switches over if it has the other one.
+    FL.util.on(root, "click", "[data-seg=audio]", (e, el) => {
+      const v = el.dataset.value === "dub" ? "dub" : "sub";
+      if (v === audio()) return;
+      FL.store.patchPref("anime", { audio: v });
+      paintAudio();
+      if (!state.ids) return;
+      if (state.server && state.server.url(params())) load(state.server);
+      else next();
+    });
     FL.util.on(root, "click", "[data-srv]", (e, el) => {
       const s = allServers().find((x) => x.id === el.dataset.srv);
       if (s) switchTo(s);
@@ -345,6 +386,12 @@
   }
 
   function frame() { return root.querySelector(".player-frame"); }
+
+  function paintAudio() {
+    const box = root.querySelector(".player-audio");
+    box.hidden = !isAnime(state.film);
+    box.querySelectorAll(".seg-btn").forEach((b) => { const on = b.dataset.value === audio(); b.classList.toggle("is-on", on); b.setAttribute("aria-checked", String(on)); });
+  }
 
   /* Download: the title's download pages from Vega, when it has any (the button stays hidden otherwise). */
   function paintDownloads() {
@@ -382,8 +429,9 @@
       const h = health[s.id];
       const usable = !!(state.ids && s.url(p));
       const status = state.ids && !usable ? "na" : !h ? "wait" : h.ok ? "ok" : "down";
+      const na = isAnime(state.film) ? (p.dub ? "No dub here for this episode" : "Doesn't have this episode") : state.ep ? "Doesn't carry shows" : "Needs an id this title doesn't have";
       const label = (s.label ? "Vega · " + s.label + " · " : "") +
-        { na: state.ep ? "Doesn't carry shows" : "Needs an id this title doesn't have", wait: "Checking…", ok: h && h.ms + " ms", down: "Unreachable from your network" }[status];
+        { na, wait: "Checking…", ok: h && h.ms + " ms", down: "Unreachable from your network" }[status];
       const active = state.server && state.server.id === s.id;
       return (s.id === "vega" ? '<span class="label srv-sep">Vega</span>' : "") +
         '<button type="button" role="radio" aria-checked="' + active + '" class="srv srv-' + status + (active ? " is-active" : "") +
@@ -427,7 +475,7 @@
     root.hidden = false;
     document.documentElement.classList.add("has-player");
     hideNotice();
-    start(film, film.type === "series" ? { s: +o.s || 1, e: +o.e || 1 } : null);
+    start(film, film.type === "series" || isAnime(film) ? { s: +o.s || 1, e: +o.e || 1 } : null);
     setTimeout(() => root.querySelector('[data-pl="close"]').focus(), 30);
   }
 
@@ -447,7 +495,10 @@
     state.logged = false;
     state.runtime = 0;
     state.openedAt = Date.now();
+    state.zoro = undefined; // anime: Zoro TV's { sub, dub } once looked up, false when it hasn't this episode
     root.querySelector(".player-servers").scrollLeft = 0; // a new title starts at the first server
+    if (isAnime(film)) state.show = { episodes: film._eps || FL.anime.episodes(film, {}, []) };
+    paintAudio();
     setTitle();
     renderServers();
     status(FL.ui.loader(44, "Loading") + "<p>Finding " + (ep ? "this episode" : "this film") + " on the stream servers…</p>");
@@ -455,7 +506,9 @@
     const probes = probeAll();
     const settled = Promise.race([probes, new Promise((r) => setTimeout(r, 1600))]);
 
-    const ids = ep
+    const ids = isAnime(film)
+      ? Promise.resolve({ anilist: film.anilist || 0, mal: film.mal || 0 }).then((x) => { state.runtime = film.duration || 24; return x; })
+      : ep
       ? FL.remote.show(film.imdbId || film.id).then((show) => {
         state.show = show;
         state.runtime = show.runtime || 0;
@@ -472,9 +525,17 @@
 
     state.dl = [];
     paintDownloads();
-    downloads(film, ep).then((list) => { if (token === state.token) { state.dl = list; paintDownloads(); } });
+    if (!isAnime(film)) downloads(film, ep).then((list) => { if (token === state.token) { state.dl = list; paintDownloads(); } });
 
-    const vega = vegaLinks(film, ep)
+    // Anime: Zoro TV's player for this episode joins when found (the only server for a title AniList doesn't have).
+    const vega = isAnime(film)
+      ? FL.anime.zoroServers(film, ep.e).then((z) => {
+        if (token !== state.token) return;
+        state.zoro = z || false;
+        renderServers();
+        if (state.ids && !state.server) begin(state.ids);
+      })
+      : vegaLinks(film, ep)
       .then((links) => {
         if (token !== state.token) return;
         const taken = {};
@@ -500,6 +561,10 @@
       const sameEp = !ep || (p && p.s === ep.s && p.e === ep.e);
       state.start = p && sameEp && !p.approx && p.d && p.t > 90 && p.t / p.d < 0.92 ? Math.floor(p.t) : 0;
       const pick = ranked(film, entry).find((s) => s.url(params())) || null;
+      if (!pick && isAnime(film) && state.zoro === undefined) {
+        status(FL.ui.loader(44, "Loading") + "<p>Looking for this episode on Zoro TV…</p>");
+        return; // Zoro TV's answer calls begin() again
+      }
       if (!pick) { needId(film); return; }
       load(pick);
     }
@@ -519,6 +584,11 @@
 
   function needId(film) {
     renderServers();
+    if (isAnime(film)) {
+      status("<h3>This episode isn’t on the servers yet.</h3><p>New episodes usually arrive within a few hours of airing." +
+        (audio() === "dub" ? " Dubs come later: try <strong>Sub</strong> below." : "") + "</p>");
+      return;
+    }
     if (!navigator.onLine) {
       status("<h3>You're offline.</h3><p>Reconnect and reopen the player. Your library still works offline.</p>");
       return;
@@ -676,7 +746,7 @@
   function nextEpisode() {
     const n = nextEp();
     if (!n) return;
-    history.replaceState(null, "", "#/watch/" + encodeURIComponent(state.film.id) + "?s=" + n.s + "&e=" + n.e);
+    history.replaceState(null, "", watchHash(state.film, n));
     start(state.film, { s: n.s, e: n.e });
   }
 
