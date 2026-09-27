@@ -2,7 +2,7 @@
 
 A film and TV diary: go through cinema **year by year** (1970 → next year), tick off what you've seen, follow
 reality and talent shows episode by episode, and get told what to watch next. **Sakura**, its anime app, lives in
-the same place (tap the logo to switch). Static site plus a few small functions (Vega and Zoro TV lookups, sync,
+the same place (tap its blossom in the logo to switch). Static site plus a few small functions (Vega and Zoro TV lookups, sync,
 where to watch), no account.
 
 Live: https://film-ledger-mocha.vercel.app/
@@ -18,7 +18,7 @@ Live: https://film-ledger-mocha.vercel.app/
   forgets where you stopped, with Undo), **Tonight's Trio** — three wide artwork cards, one from your taste, one you
   saved, one must-watch, each saying why — **Up next in your series** (KGF 1 → KGF 2, the MCU in order), **For
   you**, *More from* the directors you like, **New episodes** in shows you follow, a daily **Throwback** year, and
-  Indian and world discovery rows.
+  Indian and world discovery rows. The tab bar on phones is icons only.
 - **Vega's catalogue** — about 20,000 titles in all: Vega's Hindi dubbed films (Browse → *Hindi dubbed*, and
   *Hindi dubbed, just in* on Home), its web series (Shows → *New web series*), Bollywood, Hollywood, South and Punjabi
   uploads, each with Vega's name, year, language, IMDb rating and genres.
@@ -171,8 +171,9 @@ Hindi-dubbed titles.
 
 ## Sakura — anime
 
-Two apps in one: **Iris** for films and web series, **Sakura** for anime. Tap the logo (*Iris ⌄* / *Sakura ⌄*) or
-Settings → App to switch; each returns to where you were in it, and each device opens the one you used last. Sakura
+Two apps in one: **Iris** for films and web series, **Sakura** for anime. The logo is the switch: a capsule with
+both marks, the current one named; tap the other mark and the capsule morphs over to it (Settings → App works too).
+Each app returns to where you were in it, and each device opens the one you used last. Sakura
 keeps Iris's design and adds its own colour (cherry-blossom pink), its own mark (a five-petal blossom built like the
 aperture, with the same pupil and catchlight; it blinks and turns the same way), bars and search. One library for
 both, so Relay syncs your anime too; Iris's lists and stats leave anime out.

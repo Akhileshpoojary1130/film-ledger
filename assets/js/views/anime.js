@@ -165,7 +165,7 @@
     const picks = list.filter((a) => a.banner).slice(0, 3);
     if (!picks.length) return "";
     return '<section class="tonight-row" aria-label="Spotlight">' +
-      '<header class="section-head tonight-head"><div><p class="eyebrow">Trending this week</p><h2 class="h2">Spotlight</h2></div></header>' +
+      '<header class="section-head tonight-head"><div><h2 class="h2">Spotlight</h2></div></header>' +
       '<ol class="tn-list">' + picks.map((a, i) => {
         const facts = [AN().formatLabel(a), AN().seasonLabel(a.season, a.year), a.score ? "★ " + (a.score / 10).toFixed(1) : ""].filter(Boolean).map(esc).join(" · ");
         const why = AN().airingIn(a) || (a.genres.slice(0, 2).join(" · ")) || "#" + (i + 1) + " this week";
@@ -185,7 +185,7 @@
   }
 
   function genreChips() {
-    return '<section class="rail sakura-genres"><header class="section-head"><div><h2 class="h2">Browse by genre</h2></div></header><div class="chip-row">' +
+    return '<section class="rail sakura-genres"><header class="section-head"><div><h2 class="h2">Genres</h2></div></header><div class="chip-row">' +
       AN().GENRES.map((g) => '<a class="chip" href="#/anime/explore?genre=' + encodeURIComponent(g) + '">' + esc(g) + "</a>").join("") + "</div></section>";
   }
 
@@ -198,14 +198,12 @@
         if (!alive) return;
         const shown = new Set(d.trending.filter((a) => a.banner).slice(0, 3).map((a) => a.id));
         const mine = AN().entries().filter((e) => e.listed).sort((x, y) => y.listedAt - x.listedAt).map(fromEntry);
-        const now = AN().seasonLabel(d.now.season, d.now.year);
-        const nxt = AN().seasonLabel(d.next.season, d.next.year);
         el.innerHTML = '<div class="container page sakura-home">' + hero() + upNextRail() + spotlight(d.trending) +
           '<section class="rail" data-rail-id="latest"></section>' +
-          rail("This season", d.season, { eyebrow: esc(now), more: "#/anime/seasons/" + d.now.year + "/" + d.now.season.toLowerCase(), caption: (a) => esc(AN().airingIn(a)) }) +
+          rail("This season", d.season, { more: "#/anime/seasons/" + d.now.year + "/" + d.now.season.toLowerCase(), caption: (a) => esc(AN().airingIn(a)) }) +
           rail("Trending now", d.trending.filter((a) => !shown.has(a.id))) +
           (mine.length ? rail("Plan to watch", mine.slice(0, 24), { more: "#/anime/library/plan" }) : "") +
-          rail("Coming next season", d.upcoming, { eyebrow: esc(nxt), more: "#/anime/seasons/" + d.next.year + "/" + d.next.season.toLowerCase() }) +
+          rail("Next season", d.upcoming, { more: "#/anime/seasons/" + d.next.year + "/" + d.next.season.toLowerCase() }) +
           genreChips() +
           rail("All-time favourites", d.popular, { more: "#/anime/explore?sort=popular" }) +
           rail("Top rated", d.top, { more: "#/anime/explore?sort=top" }) +
@@ -222,7 +220,7 @@
           const box = alive && $('[data-rail-id="latest"]', el);
           if (!box || !list.length) return;
           const items = list.slice(0, 20).map((r) => Object.assign(AN().zoroItem(r), { _ep: r.ep }));
-          box.outerHTML = rail("Just out", items, { eyebrow: "New episodes on Zoro TV", noQuick: true, caption: (a) => "Episode " + a._ep });
+          box.outerHTML = rail("Just out", items, { noQuick: true, caption: (a) => "Episode " + a._ep });
         });
       }
       if (h.cached) paint(h.cached);
@@ -291,8 +289,7 @@
         ({ WINTER: "❄︎ ", SPRING: "✿ ", SUMMER: "☀︎ ", FALL: "❦ " })[s] + s.charAt(0) + s.slice(1).toLowerCase() + "</a>").join("") + "</div>" +
         '<div class="seg" role="radiogroup" aria-label="Format">' + FORMATS.slice(0, 4).map(([v, l]) =>
           '<a role="radio" class="seg-btn' + (v === format ? " is-on" : "") + '" aria-checked="' + (v === format) + '" href="' + go(year, season || "WINTER", v) + '">' + l + "</a>").join("") + "</div></div>";
-      const head = '<header class="page-head"><div><p class="eyebrow">Seasons</p><h1 class="h1">' + esc(AN().seasonLabel(season, year)) + "</h1>" +
-        '<p class="sub">' + (year === now.year && season === now.season ? "Airing now, most popular first" : "Most popular first") + "</p></div></header>";
+      const head = '<header class="page-head"><div><h1 class="h1">' + esc(AN().seasonLabel(season, year)) + "</h1></div></header>";
       const h = listPage(el, head, { season, year, format, sort: "popular" }, strip + seasons);
       const on = $(".sakura-years .is-on", el);
       if (on) on.scrollIntoView({ inline: "center", block: "nearest" });
@@ -316,8 +313,7 @@
             '<a role="radio" class="seg-btn' + (v === sort ? " is-on" : "") + '" aria-checked="' + (v === sort) + '" href="' + q(genre, v, format) + '">' + l + "</a>").join("") + "</div>" +
           '<div class="seg" role="radiogroup" aria-label="Format">' + FORMATS.slice(0, 3).map(([v, l]) =>
             '<a role="radio" class="seg-btn' + (v === format ? " is-on" : "") + '" aria-checked="' + (v === format) + '" href="' + q(genre, sort, v) + '">' + l + "</a>").join("") + "</div></div>";
-      const head = '<header class="page-head"><div><p class="eyebrow">Explore</p><h1 class="h1">' + esc(genre || (format === "MOVIE" ? "Anime films" : "All anime")) + "</h1>" +
-        '<p class="sub">' + esc({ popular: "Most popular first", top: "Highest rated first", trending: "Most talked about this week", new: "Newest first" }[sort] || "") + "</p></div></header>";
+      const head = '<header class="page-head"><div><h1 class="h1">' + esc(genre || (format === "MOVIE" ? "Anime films" : "Explore")) + "</h1></div></header>";
       const h = listPage(el, head, { genre, sort, format }, controls);
       if (FL.app) FL.app.watchSearch();
       return h;
@@ -335,7 +331,7 @@
       const letters = ["0"].concat("abcdefghijklmnopqrstuvwxyz".split(""));
       const go = (l, t) => "#/anime/az/" + l + (t ? "?type=" + t : "");
       el.innerHTML = '<div class="container page">' +
-        '<header class="page-head"><div><p class="eyebrow">Zoro TV · A–Z</p><h1 class="h1">' + (letter === "0" ? "#" : letter.toUpperCase()) + '</h1><p class="sub" data-count></p></div></header>' +
+        '<header class="page-head"><div><h1 class="h1">A–Z</h1><p class="sub" data-count></p></div></header>' +
         '<nav class="az-strip" aria-label="Letter">' + letters.map((l) =>
           '<a class="az-letter' + (l === letter ? " is-on" : "") + '" href="' + go(l, type) + '"' + (l === letter ? ' aria-current="true"' : "") + ">" + (l === "0" ? "#" : l.toUpperCase()) + "</a>").join("") + "</nav>" +
         '<div class="sakura-controls"><div class="seg" role="radiogroup" aria-label="Type">' +
@@ -345,7 +341,7 @@
       AN().zoroList().then((rows) => {
         if (!alive) return;
         const list = rows.filter((r) => (letter === "0" ? !/^[a-z]/i.test(r.title) : r.title.charAt(0).toLowerCase() === letter) && (!type || r.type === type));
-        $("[data-count]", el).textContent = plural(list.length, "series", "series") + (rows.length ? " of " + rows.length.toLocaleString() + " on Zoro TV" : "");
+        $("[data-count]", el).textContent = plural(list.length, "series", "series");
         $("[data-results]", el).innerHTML = list.length ? grid(list.map(AN().zoroItem), { noQuick: true })
           : FL.ui.empty(rows.length ? "Nothing under this letter." : "The A–Z list didn’t load.", rows.length ? "Try another letter or type." : "Check your connection and reload.");
       });
@@ -389,8 +385,7 @@
           favorites: ["No favourites yet.", "Tap the heart on a title’s page."],
         }[tab];
         el.innerHTML = '<div class="container page">' +
-          '<header class="page-head"><div><p class="eyebrow">Sakura</p><h1 class="h1">Your anime</h1>' +
-          '<p class="sub">Synced with Relay, like the rest of your library</p></div></header>' +
+          '<header class="page-head"><div><h1 class="h1">Library</h1></div></header>' +
           '<nav class="seg lib-tabs" aria-label="Lists">' + TABS.map(([t, l]) =>
             '<a class="seg-btn' + (t === tab ? " is-on" : "") + '" href="#/anime/library/' + t + '"' + (t === tab ? ' aria-current="page"' : "") + ">" + l +
             ' <small class="muted">' + lists[t].length + "</small></a>").join("") + "</nav>" +
@@ -492,7 +487,7 @@
       function relationsHtml() {
         const order = ["PREQUEL", "PARENT", "SEQUEL", "SIDE_STORY", "SPIN_OFF", "ALTERNATIVE", "SUMMARY", "COMPILATION", "CONTAINS", "OTHER", "CHARACTER"];
         const rel = d.relations.slice().sort((x, y) => (x.anime.year || 9999) - (y.anime.year || 9999) || order.indexOf(x.rel) - order.indexOf(y.rel));
-        return rail("The story so far", rel.map((r) => Object.assign(r.anime, { _rel: REL[r.rel] || "Related" })), { sub: "Prequels, sequels and side stories, in release order", caption: (a) => esc(a._rel) });
+        return rail("The story so far", rel.map((r) => Object.assign(r.anime, { _rel: REL[r.rel] || "Related" })), { caption: (a) => esc(a._rel) });
       }
 
       function linksHtml(a) {
@@ -514,7 +509,7 @@
               '<p class="ext-links">' + linksHtml(a) + "</p>" +
             "</aside>" +
           "</div>" +
-          '<div class="container">' + relationsHtml() + rail("More like this", d.recs, { sub: "Recommended by AniList’s community" }) + "</div>" +
+          '<div class="container">' + relationsHtml() + rail("More like this", d.recs) + "</div>" +
           "</article>";
         const bg = a.banner;
         FL.ambient.art(bg || a.cover);
@@ -726,7 +721,7 @@
 
   /* ---------- switching apps ---------- */
 
-  /* The two apps as tiles: the switcher on the logo, and the top of Settings. */
+  /* The two apps as tiles, at the top of Settings (the logo switches too). */
   function appTiles() {
     const cur = FL.theme.app();
     const tile = (app, name, what, href) => '<a class="app-tile' + (cur === app ? " is-on" : "") + '" href="' + href + '" data-app-go="' + app + '"' + (cur === app ? ' aria-current="true"' : "") + ">" +
@@ -737,14 +732,5 @@
       tile("sakura", "Sakura", "Anime", FL.app.lastHash("sakura") || "#/anime") + "</div>";
   }
 
-  function switcher() {
-    const m = FL.ui.modal(
-      '<div class="modal-pad apps"><p class="eyebrow">Switch app</p>' + appTiles() +
-        '<p class="footnote">One library for both: your lists, episodes and ratings sync together with Relay.</p></div>',
-      { cls: "modal-sm modal-apps", label: "Switch app" }
-    );
-    m.el.addEventListener("click", (e) => { if (e.target.closest("[data-app-go]")) m.close(); });
-  }
-
-  FL.sakura = { search, spin, switcher, appTiles, card, rail };
+  FL.sakura = { search, spin, appTiles, card, rail };
 })(window.FL = window.FL || {});

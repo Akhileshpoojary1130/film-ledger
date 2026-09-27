@@ -930,7 +930,7 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 }
 .rail-track::-webkit-scrollbar { display: none; }
 .rail-track > * { scroll-snap-align: start; }
-.rail-wide { grid-auto-columns: clamp(240px, 26vw, 320px); }
+.rail-wide { grid-auto-columns: clamp(200px, 20vw, 260px); }
 .rail .empty { padding: 32px 16px; }
 .rail .grid { margin-top: 4px; }
 @media (hover: none) { .rail-btn { display: none; } }
@@ -2033,15 +2033,15 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
   .tabbar {
     --isz: 22px;
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: grid; grid-template-columns: repeat(5, 1fr); align-items: center;
-    height: calc(62px + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px);
+    height: calc(56px + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px);
     background: var(--glass-2); -webkit-backdrop-filter: saturate(160%) blur(18px); backdrop-filter: saturate(160%) blur(18px); border-top: 1px solid var(--line);
     view-transition-name: tabbar;
   }
-  .tabbar a:not(.tab-browse) { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 0; font-size: 10.5px; font-weight: 500; color: var(--text-3); transition: color 0.15s; }
+  .tabbar a:not(.tab-browse) { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 0; color: var(--text-3); transition: color 0.15s; }
   .tabbar a.is-on:not(.tab-browse) { color: var(--text); }
   .tabbar a.is-on:not(.tab-browse) .i { color: var(--accent); }
   .tabbar a { position: relative; z-index: 1; }
-  .tabbar .nav-pill { border-radius: 0; background: linear-gradient(var(--accent), var(--accent)) no-repeat 50% 0 / 22px 3px; }
+  .tabbar .nav-pill { border-radius: 0; background: linear-gradient(var(--accent), var(--accent)) no-repeat 50% 100% / 18px 3px; }
   [data-theme="material"] .tabbar .nav-pill { display: none; }
   /* Browse: the big button in the middle, set apart from the other tabs; a ring shows when you're on it. */
   .tab-browse { justify-self: center; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); box-shadow: 0 6px 18px color-mix(in oklab, var(--accent) 35%, transparent); transition: transform 0.15s, box-shadow 0.25s; }
@@ -2049,13 +2049,12 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
   .tab-browse .i { stroke-width: 2; }
   .tab-browse.is-on { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--accent), 0 6px 18px color-mix(in oklab, var(--accent) 35%, transparent); }
   [data-theme="material"] .tab-browse.is-on .i { font-variation-settings: "FILL" 1, "wght" 500, "GRAD" 0, "opsz" 24; }
-  [data-theme="material"] .tabbar { height: calc(72px + env(safe-area-inset-bottom, 0px)); background: var(--s2); border-top: 0; -webkit-backdrop-filter: none; backdrop-filter: none; }
-  [data-theme="material"] .tabbar a:not(.tab-browse) { gap: 4px; font-size: 11.5px; }
+  [data-theme="material"] .tabbar { height: calc(60px + env(safe-area-inset-bottom, 0px)); background: var(--s2); border-top: 0; -webkit-backdrop-filter: none; backdrop-filter: none; }
   [data-theme="material"] .tabbar a:not(.tab-browse) .i { width: 58px; height: 30px; border-radius: 15px; transition: background 0.2s; }
   [data-theme="material"] .tabbar a.is-on:not(.tab-browse) .i { color: var(--text); background: color-mix(in oklab, var(--accent) 26%, transparent); font-variation-settings: "FILL" 1, "wght" 500, "GRAD" 0, "opsz" 24; }
-  [data-theme="material"] .tab-browse { width: 52px; height: 52px; border-radius: 16px; }
-  body { padding-bottom: calc(62px + env(safe-area-inset-bottom, 0px)); }
-  [data-theme="material"] body { padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+  [data-theme="material"] .tab-browse { width: 46px; height: 46px; border-radius: 15px; }
+  body { padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)); }
+  [data-theme="material"] body { padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
   .toasts { bottom: calc(78px + env(safe-area-inset-bottom, 0px)); }
   .page { padding-block: 22px 48px; }
   .rail { margin-top: 36px; }
@@ -2168,7 +2167,7 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 @media (max-width: 520px) {
   .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 10px; }
   .rail-track { grid-auto-columns: 112px; gap: 12px; }
-  .rail-wide { grid-auto-columns: 78vw; }
+  .rail-wide { grid-auto-columns: 56vw; }
   .card-body { padding-top: 7px; }
   .card-title { font-size: 12.5px; }
   .card-meta { font-size: 11px; }
@@ -2649,7 +2648,7 @@ html.has-page-search:not(.search-docked) [data-page-search] { view-transition-na
 .tonight-row .tonight-more { margin-right: 0; }
 .tn-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 0; padding: 0; list-style: none; }
 .tn-card {
-  position: relative; isolation: isolate; aspect-ratio: 16 / 10; overflow: hidden; border-radius: var(--r-lg);
+  position: relative; isolation: isolate; aspect-ratio: 2 / 1; overflow: hidden; border-radius: var(--r-lg);
   background: linear-gradient(145deg, var(--s3), var(--s1)); box-shadow: 0 14px 34px -18px rgba(0, 0, 0, 0.7);
   transition: transform 0.45s cubic-bezier(0.2, 0.9, 0.25, 1), box-shadow 0.45s;
 }
@@ -2666,7 +2665,7 @@ html.has-page-search:not(.search-docked) [data-page-search] { view-transition-na
 .tn-body { position: absolute; left: 16px; right: 110px; bottom: 14px; z-index: 2; display: flex; flex-direction: column; gap: 3px; pointer-events: none; }
 .is-posteronly .tn-body { right: auto; max-width: calc(100% - 120px - 16px - 12px); top: 16px; bottom: auto; }
 .tn-why { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.78); }
-.tn-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 21px; font-weight: 700; line-height: 1.15; letter-spacing: -0.015em; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.45); }
+.tn-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 18px; font-weight: 700; line-height: 1.15; letter-spacing: -0.015em; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.45); }
 .tn-facts { font-size: 12.5px; color: rgba(255, 255, 255, 0.74); }
 .tn-play {
   --isz: 18px; position: absolute; right: 14px; bottom: 14px; z-index: 3; display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 16px 0 12px;
@@ -2685,12 +2684,16 @@ html.has-page-search:not(.search-docked) [data-page-search] { view-transition-na
   .tn-list { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none;
     margin-inline: calc(-1 * var(--gutter)); padding: 2px var(--gutter) 10px; scroll-padding-inline: var(--gutter); }
   .tn-list::-webkit-scrollbar { display: none; }
-  .tn-card { flex: 0 0 62%; scroll-snap-align: start; }
+  .tn-card { flex: 0 0 48%; scroll-snap-align: start; }
 }
 @media (max-width: 640px) {
   .tonight-row { margin-top: 28px; }
-  .tn-card { flex-basis: 86%; }
-  .tn-title { font-size: 19px; }
+  .tn-card { flex-basis: 74%; aspect-ratio: 16 / 9; }
+  .tn-title { font-size: 16px; }
+  .tn-why { font-size: 10px; }
+  .tn-facts { font-size: 11.5px; }
+  .tn-body { left: 12px; right: 92px; bottom: 11px; }
+  .tn-play { right: 10px; bottom: 10px; height: 32px; padding: 0 13px 0 10px; font-size: 12.5px; }
   .is-posteronly .tn-body { max-width: calc(100% - 110px - 16px - 12px); }
 }
 
@@ -2721,13 +2724,13 @@ html.has-page-search:not(.search-docked) [data-page-search] { view-transition-na
 @media (max-width: 760px) {
   /* The tab bar floats: a glass capsule with a margin all round, like iOS. */
   [data-glass]:not([data-glass="off"]) .tabbar {
-    left: 10px; right: 10px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); height: 64px; padding-bottom: 0;
+    left: 10px; right: 10px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); height: 58px; padding-bottom: 0;
     border-radius: 30px; border: 0; background: color-mix(in oklab, var(--s1) 42%, transparent);
     -webkit-backdrop-filter: blur(26px) saturate(190%); backdrop-filter: blur(26px) saturate(190%);
     box-shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, calc(var(--rim) * 1.4));
   }
   [data-mode="light"][data-glass]:not([data-glass="off"]) .tabbar { background: color-mix(in oklab, #fff 62%, transparent); }
-  [data-glass]:not([data-glass="off"]) body { padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+  [data-glass]:not([data-glass="off"]) body { padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px)); }
   [data-glass]:not([data-glass="off"] ) .toasts { bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
 }
 
@@ -2743,16 +2746,29 @@ html.has-page-search:not(.search-docked) [data-page-search] { view-transition-na
    Iris's design language with its own colour (cherry-blossom pink, set in theme.js) and mark, plus a few parts of
    its own: the app switch on the logo, the season and letter strips, the Sub / Dub switch in the player. */
 
-/* The logo is the switch between Iris and Sakura. */
-.brand-switch { padding: 4px 8px 4px 4px; margin-left: -4px; border: 0; border-radius: 999px; background: none; color: inherit; font: inherit; cursor: pointer; transition: background 0.2s; }
-.brand-switch:hover { background: var(--s2); }
-.brand-switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.brand-chev { --isz: 14px; margin-left: -4px; color: var(--text-3); transition: transform 0.25s var(--ease-out), color 0.2s; }
-.brand-switch:hover .brand-chev { color: var(--text); transform: translateY(1px); }
-.msr.brand-chev { font-size: 18px; }
+/* The logo is the switch between Iris and Sakura: a capsule with both marks, the current one named and lit in its
+   own colour. Switching morphs the capsule (the name slides across) before the other app opens. */
+.app-switch { display: inline-flex; align-items: center; gap: 2px; margin-left: -4px; padding: 3px; border-radius: 999px; background: color-mix(in oklab, var(--text) 6%, transparent); box-shadow: inset 0 0 0 1px var(--line); }
+.app-seg {
+  display: inline-flex; align-items: center; height: 34px; padding: 0 6px; border-radius: 999px; color: var(--text);
+  transition: background 0.35s var(--ease-out), padding 0.4s cubic-bezier(0.34, 1.25, 0.45, 1), box-shadow 0.35s;
+}
+.app-seg .mark { width: 24px; height: 24px; transition: transform 0.6s var(--ease-out), opacity 0.25s, filter 0.25s; }
+.app-seg:not(.is-on) .mark { opacity: 0.72; transform: scale(0.84); }
+.app-seg:not(.is-on):hover .mark { opacity: 1; filter: none; transform: scale(0.96) rotate(36deg); }
+.app-seg.is-on { padding-right: 12px; background: color-mix(in oklab, var(--accent) 20%, var(--s2)); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25), inset 0 0 0 0.5px rgba(255, 255, 255, 0.1); }
+.app-seg-word { display: grid; grid-template-columns: 0fr; opacity: 0; transition: grid-template-columns 0.4s cubic-bezier(0.34, 1.2, 0.45, 1), opacity 0.25s, margin 0.4s; }
+.app-seg-word .brand-word { overflow: hidden; min-width: 0; font-size: 18px; white-space: nowrap; }
+.app-seg.is-on .app-seg-word { grid-template-columns: 1fr; opacity: 1; margin-left: 7px; }
+.app-seg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[data-mode="light"] .app-seg.is-on { background: color-mix(in oklab, var(--accent) 14%, #fff); }
+/* Phones with the search in the middle of the bar: just the two marks. */
+@media (max-width: 480px) {
+  :root:not([data-search="float"]) .app-seg-word { display: none; }
+  :root:not([data-search="float"]) .app-seg.is-on { padding-right: 6px; }
+}
+:root[data-motion="calm"] :is(.app-seg, .app-seg-word, .app-seg .mark) { transition: none; }
 
-.modal-apps { max-width: 460px; }
-.apps .eyebrow { margin: 0 0 14px; }
 .apps-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .app-tile {
   position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 14px; padding: 18px;
@@ -2772,7 +2788,6 @@ html.has-page-search:not(.search-docked) [data-page-search] { view-transition-na
 .app-text strong { font-family: var(--word); font-style: var(--word-style); font-weight: var(--word-weight); font-size: 22px; line-height: 1.1; }
 .app-text small { font-size: 13px; color: var(--text-2); }
 .app-check { position: absolute; top: 14px; right: 14px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); --isz: 15px; }
-.apps .footnote { margin: 14px 0 0; }
 
 /* The boot screen shows the app you're opening. */
 .mark-boot-sakura, .boot-sakura { display: none; }
@@ -2821,11 +2836,6 @@ html.has-page-search:not(.search-docked) [data-page-search] { view-transition-na
 .player-audio .seg { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.12); }
 .player-audio .seg-btn { height: 26px; color: rgba(255, 255, 255, 0.7); }
 .player-audio .seg-btn.is-on { background: var(--accent); color: var(--accent-ink); }
-/* Narrow phones: the logo gives room to the search in the middle of the bar. */
-@media (max-width: 420px) {
-  .brand-switch { gap: 7px; padding-right: 2px; }
-  [data-app="sakura"] .topbar .brand-word { font-size: calc(var(--word-size) * 0.9); }
-}
 .settings .apps .app-tile { flex-direction: row; align-items: center; padding: 12px; border-radius: 18px; }
 .settings .apps .app-icon { width: 52px; height: 52px; border-radius: 14px; }
 .settings .apps .app-icon .mark { width: 40px; height: 40px; }

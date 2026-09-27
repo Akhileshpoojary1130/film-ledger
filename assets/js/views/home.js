@@ -103,7 +103,7 @@
     const h = new Date().getHours();
     const label = h >= 5 && h < 12 ? "For later today" : h >= 12 && h < 17 ? "This afternoon" : "Tonight";
     return '<section class="tonight-row" aria-label="' + label + ': three picks">' +
-      '<header class="section-head tonight-head"><div><p class="eyebrow">Three picks, three ways</p><h2 class="h2">' + (label === "Tonight" ? "Tonight’s Trio" : "Today’s Trio") + "</h2></div>" +
+      '<header class="section-head tonight-head"><div><h2 class="h2">' + (label === "Tonight" ? "Tonight’s Trio" : "Today’s Trio") + "</h2></div>" +
       '<button type="button" class="btn btn-ghost btn-sm tonight-more" data-home="another" aria-label="Another three" title="Another three">' + icon("shuffle") + '<span class="hide-sm">Another three</span></button></header>' +
       '<ol class="tn-list">' + picks.map(({ film, reason }) => {
         const m = FL.meta.cached(film);
@@ -125,16 +125,6 @@
       }).join("") + "</ol></section>";
   }
 
-  /* What you watched (or ticked) lately, as posters, newest first. */
-  function recentDiary() {
-    const seen = new Set();
-    const rows = FL.store.diary().filter((r) => (seen.has(r.id) ? false : seen.add(r.id))).slice(0, 18);
-    const films = rows.map((r) => FL.catalogue.get(r.id)).filter(Boolean);
-    if (!films.length) return "";
-    const when = new Map(rows.map((r) => [r.id, (r.marked ? "Ticked " : "Watched ") + fmtDate(r.date, "short")]));
-    return rail("Recently watched", films, { more: "#/diary", caption: (f) => esc(when.get(f.id) || "") });
-  }
-
   /* ---------- rails ---------- */
 
   function reasonRail(title, items, opts) {
@@ -152,7 +142,7 @@
       if (!list.length) { slot.remove(); return; }
       const byId = new Map(list.map((x) => [x.film.id, x]));
       slot.outerHTML = rail("New episodes", list.map((x) => x.film), {
-        id: "newep", sub: "In the shows you're watching", dismiss: "newep",
+        id: "newep", dismiss: "newep",
         caption: (f) => { const x = byId.get(f.id); return esc("S" + x.next.s + " · E" + x.next.e + (x.count > 1 ? " · " + x.count + " new" : " is new")); },
       });
       FL.ui.watchPosters(el.querySelector('[data-rail-id="newep"]') || el);
@@ -175,16 +165,16 @@
       const films = FL.catalogue.acclaimed({ lang, minYear: year - 12, minVotes: 25000, exclude: unwatched }).slice(0, 18);
       out.push(rail("Acclaimed " + lang + ", recent years", films, { more: "#/browse?lang=" + lang + "&year=" + (Math.floor((year - 5) / 10) * 10) + "s&sort=rating" }));
     });
-    out.push('<section class="rail" data-rail-id="reality"><header class="section-head"><div><h2 class="h2">Reality &amp; talent shows</h2><p class="sub">New seasons appear as they air</p></div>' +
+    out.push('<section class="rail" data-rail-id="reality"><header class="section-head"><div><h2 class="h2">Reality &amp; talent shows</h2></div>' +
       '<div class="section-tools"><a class="link-more" href="#/shows">All shows' + icon("arrow-right") + "</a></div></header>" +
       '<div class="rail-loading">' + FL.ui.loader(28) + "</div></section>");
     const ty = throwbackYear();
     out.push('<section class="rail" data-rail-id="throwback"><header class="section-head"><div><h2 class="h2">Throwback <em>' + ty + "</em></h2>" +
-      '<p class="sub">The best-rated films of the year, a different year every day</p></div>' +
+      "</div>" +
       '<div class="section-tools"><a class="link-more" href="#/years/' + ty + '">See ' + ty + icon("arrow-right") + "</a></div></header>" +
       '<div class="rail-loading">' + FL.ui.loader(28) + "</div></section>");
     const mcu = FL.catalogue.franchises()[0];
-    if (mcu) out.push(rail(esc(mcu.name), mcu.films.slice(0, 20), { more: "#/collection/" + mcu.id, sub: "In release order" }));
+    if (mcu) out.push(rail(esc(mcu.name), mcu.films.slice(0, 20), { more: "#/collection/" + mcu.id }));
     return out.join("");
   }
 
@@ -234,8 +224,7 @@
   function peopleSlots() {
     return FL.people.favourites(2).map((p, i) =>
       '<section class="rail" data-rail-id="person-' + i + '" data-person="' + esc(p.name) + '" data-role="' + p.role + '" data-films="' + p.films + '">' +
-      '<header class="section-head"><div><h2 class="h2">' + (p.role === "Director" ? "More from " : "More with ") + esc(p.name) + "</h2>" +
-      '<p class="sub">You’ve watched ' + FL.util.plural(p.films, "film") + (p.role === "Director" ? " they directed" : " with them") + "</p></div>" +
+      '<header class="section-head"><div><h2 class="h2">' + (p.role === "Director" ? "More from " : "More with ") + esc(p.name) + "</h2></div>" +
       '<div class="section-tools"><a class="link-more" href="' + FL.people.href(p.name, p.role) + '">All' + icon("arrow-right") + "</a></div></header>" +
       '<div class="rail-loading">' + FL.ui.loader(28) + "</div></section>").join("");
   }
@@ -276,13 +265,12 @@
       hero(name, true) +
       "<div data-continue>" + continueRail() + "</div>" +
       tonight() +
-      recentDiary() +
-      reasonRail("Up next in your series", next, { sub: "The next film after the ones you’ve seen" }) +
-      reasonRail("For you", forYou, { sub: "From your ratings, favourites and what you watch" }) +
+      reasonRail("Up next in your series", next) +
+      reasonRail("For you", forYou) +
       peopleSlots() +
       (FL.store.shows().length ? '<section class="rail" data-rail-id="newep"></section>' : "") +
       yourShows() +
-      rail("Watch later", listed.slice(0, 24), { more: "#/library/watchlist", sub: listed.length ? FL.util.plural(listed.length, "title") : "", empty: FL.ui.empty("Your next favourite hasn’t been saved yet.", "Tap the bookmark on any poster.") }) +
+      rail("Watch later", listed.slice(0, 24), { more: "#/library/watchlist", empty: FL.ui.empty("Your next favourite hasn’t been saved yet.", "Tap the bookmark on any poster.") }) +
       (favs.length ? rail("Films that stayed with you", favs.slice(0, 24), { more: "#/library/favorites" }) : "") +
       '<section class="rail" data-rail-id="dubbed"></section>' +
       discovery() +
@@ -303,7 +291,7 @@
       const slot = el.querySelector('[data-rail-id="dubbed"]');
       if (!slot) return;
       if (!films.length) { slot.remove(); return; }
-      slot.outerHTML = rail("Hindi dubbed, just in", films, { id: "dubbed", more: "#/browse?lang=Dubbed&sort=newest", sub: "New on Vega: Hollywood and South films in Hindi" });
+      slot.outerHTML = rail("Hindi dubbed, just in", films, { id: "dubbed", more: "#/browse?lang=Dubbed&sort=newest" });
       FL.ui.watchPosters(el.querySelector('[data-rail-id="dubbed"]') || el);
     });
   }

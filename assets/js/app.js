@@ -45,11 +45,19 @@
 
   /* ---------- chrome ---------- */
 
-  /* The logo is also the switch between the two apps: Iris (films & web series) and Sakura (anime). */
+  const lastHash = (app) => FL.util.session.get(LAST_KEY, {})[app] || "";
+
+  /* The logo is the switch between the two apps, Iris (films & web series) and Sakura (anime): both marks in one
+     capsule, the current one named. Tap the other and the capsule morphs over to it; tap the current one for its home. */
   function brand() {
-    const name = FL.theme.app() === "sakura" ? "Sakura" : "Iris";
-    return '<button type="button" class="brand brand-switch" data-open="apps" aria-haspopup="dialog" aria-label="' + name + ': switch app" title="Switch app · Iris or Sakura">' +
-      FL.theme.mark({ size: 26, blink: true, cls: "brand-mark" }) + '<span class="brand-word">' + name + "</span>" + FL.ui.icon("chevron-down", "brand-chev") + "</button>";
+    const cur = FL.theme.app();
+    const seg = (app, name, what, home) => {
+      const on = app === cur;
+      return '<a class="app-seg' + (on ? " is-on" : "") + '" href="' + (on ? home : lastHash(app) || home) + '" data-app-go="' + app + '" role="radio" aria-checked="' + on +
+        '" aria-label="' + name + ", " + what + '" title="' + name + " · " + what + '" style="--accent:' + FL.theme.accent(app) + '">' +
+        FL.theme.mark({ kind: app, size: 24, blink: on, cls: on ? "brand-mark" : "" }) + '<span class="app-seg-word"><span class="brand-word">' + name + "</span></span></a>";
+    };
+    return '<div class="brand app-switch" role="radiogroup" aria-label="App">' + seg("iris", "Iris", "Movies & web series", "#/") + seg("sakura", "Sakura", "Anime", "#/anime") + "</div>";
   }
 
   function chromeHtml() {
@@ -75,12 +83,12 @@
           '<a class="foot-sign" href="#/">' + FL.theme.mark({ size: 18, cls: "foot-mark" }) + '<span class="brand-word">Iris</span></a>' +
         "</div></footer>" +
         '<nav class="tabbar" aria-label="Primary">' +
-          '<a href="#/" data-nav="home">' + icon("home") + "<span>Home</span></a>" +
-          '<a href="#/years" data-nav="years">' + icon("years") + "<span>Years</span></a>" +
+          '<a href="#/" data-nav="home" aria-label="Home" title="Home">' + icon("home") + "</a>" +
+          '<a href="#/years" data-nav="years" aria-label="Years" title="Years">' + icon("years") + "</a>" +
           // Search lives in the top bar on every page, so the tab bar's big middle button is Browse.
           '<a href="#/browse" class="tab-browse" data-nav="browse" aria-label="Browse" title="Browse">' + icon("compass") + "</a>" +
-          '<a href="#/shows" data-nav="shows">' + icon("tv") + "<span>Shows</span></a>" +
-          '<a href="#/library/watchlist" data-nav="library">' + icon("layers") + "<span>Library</span></a>" +
+          '<a href="#/shows" data-nav="shows" aria-label="Shows" title="Shows">' + icon("tv") + "</a>" +
+          '<a href="#/library/watchlist" data-nav="library" aria-label="Library" title="Library">' + icon("layers") + "</a>" +
         "</nav>",
     };
   }
@@ -102,11 +110,11 @@
           '<a class="foot-sign" href="#/anime">' + FL.theme.mark({ size: 18, cls: "foot-mark" }) + '<span class="brand-word">Sakura</span></a>' +
         "</div></footer>" +
         '<nav class="tabbar" aria-label="Primary">' +
-          '<a href="#/anime" data-nav="a-home">' + icon("home") + "<span>Home</span></a>" +
-          '<a href="#/anime/seasons" data-nav="a-seasons">' + icon("calendar") + "<span>Seasons</span></a>" +
+          '<a href="#/anime" data-nav="a-home" aria-label="Home" title="Home">' + icon("home") + "</a>" +
+          '<a href="#/anime/seasons" data-nav="a-seasons" aria-label="Seasons" title="Seasons">' + icon("calendar") + "</a>" +
           '<a href="#/anime/explore" class="tab-browse" data-nav="a-explore" aria-label="Explore" title="Explore">' + icon("compass") + "</a>" +
-          '<a href="#/anime/az/a" data-nav="a-az">' + icon("list") + "<span>A–Z</span></a>" +
-          '<a href="#/anime/library" data-nav="a-library">' + icon("layers") + "<span>Library</span></a>" +
+          '<a href="#/anime/az/a" data-nav="a-az" aria-label="A–Z" title="A–Z">' + icon("list") + "</a>" +
+          '<a href="#/anime/library" data-nav="a-library" aria-label="Library" title="Library">' + icon("layers") + "</a>" +
         "</nav>",
     };
   }
@@ -125,13 +133,21 @@
     paintChrome();
 
     document.addEventListener("click", (e) => {
+      // Switching app: the capsule morphs to the other app first, then its page opens.
+      const other = e.target.closest(".app-switch [data-app-go]:not(.is-on)");
+      if (other && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
+        e.preventDefault();
+        other.parentElement.querySelectorAll(".app-seg").forEach((x) => { const on = x === other; x.classList.toggle("is-on", on); x.setAttribute("aria-checked", String(on)); });
+        const href = other.getAttribute("href");
+        setTimeout(() => { location.hash = href; }, FL.theme.calm() ? 0 : 260);
+        return;
+      }
       const link = e.target.closest(".card-link, .tonight-art");
       if (link) lastArt = link.querySelector(".art");
       const b = e.target.closest("[data-open]");
       if (b) {
         const what = b.dataset.open;
         if (what === "palette") FL.palette.open();
-        else if (what === "apps") FL.sakura.switcher();
         else if (what === "pick") (FL.theme.app() === "sakura" ? FL.sakura.spin() : FL.palette.pick());
         else if (what === "settings") FL.palette.settings();
         else if (what === "shortcuts") FL.palette.shortcuts();
@@ -453,8 +469,8 @@
 
   FL.app = {
     watchSearch: () => watchPageSearch(),
-    /* Where you were in an app this visit (the app switcher returns you there). */
-    lastHash: (app) => FL.util.session.get(LAST_KEY, {})[app] || "",
+    /* Where you were in an app this visit (switching back returns you there). */
+    lastHash,
     refresh() {
       const { path, query } = parse();
       const { name, params } = match(path);

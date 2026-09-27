@@ -303,7 +303,7 @@
     const tk = tokens(palette(), m);
     TOKEN_NAMES.forEach((k) => { if (tk) root.style.setProperty(k, tk[k]); else root.style.removeProperty(k); });
     root.style.setProperty("--accent", a);
-    root.style.setProperty("--iris-accent", accent("iris")); // the mode switcher shows each app in its own colour
+    root.style.setProperty("--iris-accent", accent("iris")); // so the boot screen can paint Iris in its own colour
     root.style.setProperty("--accent-ink", ink(a));
     root.style.colorScheme = m;
     loadFonts(t);
