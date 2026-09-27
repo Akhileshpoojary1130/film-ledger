@@ -644,9 +644,12 @@
   /* ---------- outcomes: learning which server works, and logging what you watched ---------- */
 
   /* Hosts without player events (2Embed, Vega) count as working once someone has watched for a while. */
-  function settleServer() {
+  /* How a server did, when you move off it. Switching servers soon after it started counts against it; closing the
+     player within 20 seconds says nothing either way (a peek, or the wrong title), so it counts as neither. */
+  function settleServer(closing) {
     if (!state.server || !state.film || state.confirmed) return;
     const dwell = Date.now() - state.openedAt;
+    if (closing && dwell < 20e3) return;
     if (dwell > 5 * 60e3) bumpStat(state.server.id, "ok", state.film);
     else if (dwell < 90e3) bumpStat(state.server.id, "fail", state.film);
   }
@@ -680,7 +683,7 @@
      ≥70% of the runtime counts as watched; ≥8 minutes goes into Continue watching. */
   function settle() {
     if (!state.film || !state.server) return;
-    settleServer();
+    settleServer(true);
     if (state.confirmed || state.logged) return;
     const minutes = (Date.now() - state.openedAt) / 60e3;
     const runtime = state.runtime || (state.ep ? 45 : 120);

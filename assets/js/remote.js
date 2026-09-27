@@ -105,6 +105,17 @@
 
   function restore() {
     let dropped = 0;
+    // Shows renamed by an old bug (their details were looked up as a film, and Cinemeta answers that with some other
+    // title — The Family Man became "CantaJuego 1"): back to the name they were found under, with that film's genres,
+    // rating and blurb cleared for the show's own to fill in.
+    Object.keys(saved).forEach((id) => {
+      const s = saved[id];
+      const m = s.ty === "series" && s.w && s.w !== s.t && FL.meta.rawMeta(id);
+      if (!m || m.kind || m.name !== s.t) return;
+      Object.assign(s, { t: s.w, g: [], r: 0, c: "", d: "", rd: "" });
+      FL.meta.forgetMeta(id);
+      dropped++;
+    });
     Object.keys(saved).forEach((id) => {
       const s = saved[id];
       // A web copy of a film the bundle turned out to have (matching got smarter since it was saved): fold it in.
@@ -338,7 +349,7 @@
     const f = FL.catalogue.get(tt) || (type !== "series" && FL.catalogue.byImdb(tt));
     if (f) return Promise.resolve(f);
     if (type === "series") return show(tt).then((s) => s.film).catch(() => null);
-    return FL.meta.fetchMeta(tt).then((m) => (m ? FL.catalogue.addRemote({
+    return FL.meta.fetchMeta(tt, "movie").then((m) => (m ? FL.catalogue.addRemote({
       imdbId: tt, type: "movie", title: m.name, year: m.year, genres: m.genres, rating: m.rating, country: m.country,
       poster: FL.meta.sized(m.poster), desc: m.desc, released: m.released,
     }) : null));

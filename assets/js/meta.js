@@ -161,7 +161,7 @@
 
   /* ---------- details ---------- */
 
-  function compact(m) {
+  function compact(m, kind) {
     const trailer = (m.trailerStreams && m.trailerStreams[0] && m.trailerStreams[0].ytId) ||
       (m.trailers && m.trailers[0] && m.trailers[0].source) || "";
     return {
@@ -181,33 +181,43 @@
       country: m.country || "",
       awards: m.awards || "",
       released: m.released ? String(m.released).slice(0, 10) : "",
+      kind,
       at: Date.now(),
     };
   }
 
+  /* Details are looked up as a film or as a series, never mixed: Cinemeta answers a series' IMDb id asked as a film
+     with some unrelated film (The Family Man came back as "CantaJuego 1"). Entries saved before this carry no kind
+     and count as films. */
+  const kindOf = (film) => (film && film.type === "series" ? "series" : "movie");
+  const fits = (m, kind) => !!m && (m.kind || "movie") === kind;
+
   function cached(film) {
     const tt = idFor(film);
-    return tt ? metaCache[tt] || null : null;
+    const m = tt ? metaCache[tt] : null;
+    return fits(m, kindOf(film)) ? m : null;
   }
 
   const inflightMeta = new Map();
 
-  function fetchMeta(tt) {
-    const hit = metaCache[tt];
+  function fetchMeta(tt, type) {
+    const kind = type === "series" ? "series" : "movie";
+    const hit = fits(metaCache[tt], kind) ? metaCache[tt] : null;
     if (hit && Date.now() - hit.at < META_TTL) return Promise.resolve(hit);
-    if (inflightMeta.has(tt)) return inflightMeta.get(tt);
-    const p = bgQueue(() => fetchJSON(CINEMETA + "/meta/movie/" + tt + ".json"))
+    const key = kind + ":" + tt;
+    if (inflightMeta.has(key)) return inflightMeta.get(key);
+    const p = bgQueue(() => fetchJSON(CINEMETA + "/meta/" + kind + "/" + tt + ".json"))
       .then((d) => {
         if (!d || !d.meta) return hit || null;
-        const m = compact(d.meta);
+        const m = compact(d.meta, kind);
         metaCache[tt] = m;
         if (Object.keys(metaCache).length > META_CAP) trimCaches();
         saveMeta();
         return m;
       })
       .catch(() => hit || null)
-      .finally(() => inflightMeta.delete(tt));
-    inflightMeta.set(tt, p);
+      .finally(() => inflightMeta.delete(key));
+    inflightMeta.set(key, p);
     return p;
   }
 
@@ -215,7 +225,8 @@
     FL.store.setDetails(film.id, { runtime: m.runtime, directors: m.directors, imdbId: tt });
     FL.catalogue.setRating(film, m.rating);
     if (film.remote && (!film.genres.length || !film.rating || !film.country)) {
-      FL.catalogue.updateRemote(film, { title: m.name, year: m.year, genres: m.genres, rating: m.rating, country: m.country, desc: m.desc, released: m.released });
+      // Details fill a web title in; its name stays the one it was found under.
+      FL.catalogue.updateRemote(film, { title: film.title ? "" : m.name, year: m.year, genres: m.genres, rating: m.rating, country: m.country, desc: m.desc, released: m.released });
       if (FL.remote) FL.remote.touch(film);
     }
   }
@@ -224,7 +235,7 @@
   function details(film) {
     return resolveImdb(film).then((tt) => {
       if (!tt) return null;
-      return fetchMeta(tt).then((m) => {
+      return fetchMeta(tt, film.type).then((m) => {
         if (m) applyDetails(film, m, tt);
         return m;
       });
@@ -373,6 +384,8 @@
 
   FL.meta = {
     idFor, setImdb, resolveImdb, details, fetchMeta, cached, cinemetaSearch, sized,
+    rawMeta: (tt) => metaCache[tt] || null,
+    forgetMeta(tt) { if (metaCache[tt]) { delete metaCache[tt]; saveMeta(); } },
     posterCandidates, backdrop, requestPoster, wantsLookup, notePoster,
     onPoster(fn) { posterListeners.add(fn); return () => posterListeners.delete(fn); },
     trimCaches,

@@ -5,17 +5,26 @@
   const { esc, fmtDate, fmtRuntime, fmtClock, compact, todayISO, $ } = FL.util;
   const { icon, art, stars, ratingWidget, rail, row } = FL.ui;
 
-  /* Download pages found for a title this visit (from the player's Vega lookup), shown once known. */
+  /* Download pages found for a title this visit (from the player's Vega lookup): a Download button once known. One page
+     opens straight away; several open a short list. */
   const dlKnown = new Map();
   function downloadButton(film) {
     const list = dlKnown.get(film.id) || [];
     if (!list.length) return "";
-    const link = (d, cls) => '<a class="' + cls + '" href="' + esc(d.url) + '" target="_blank" rel="noopener noreferrer nofollow" title="Opens the download page in a new tab">' +
-      icon("download") + (cls === "btn btn-lg" ? "Download" : "<span>" + esc(d.label) + "</span>" + icon("external")) + "</a>";
-    if (list.length === 1) return link(list[0], "btn btn-lg");
-    return '<details class="dl-menu"><summary class="btn btn-lg">' + icon("download") + "Download</summary>" +
-      '<div class="dl-list">' + list.map((d) => link(d, "dl-link")).join("") +
-      '<p class="dl-note">Each opens its download page in a new tab.</p></div></details>';
+    if (list.length === 1) {
+      return '<a class="btn btn-lg" href="' + esc(list[0].url) + '" target="_blank" rel="noopener noreferrer nofollow" title="Opens the download page in a new tab">' +
+        icon("download") + "Download</a>";
+    }
+    return '<button type="button" class="btn btn-lg" data-fa="download" aria-haspopup="dialog">' + icon("download") + "Download</button>";
+  }
+  function downloadSheet(film) {
+    const list = dlKnown.get(film.id) || [];
+    const m = FL.ui.modal('<div class="modal-pad dl-sheet"><p class="eyebrow">Download</p><h2 class="h3">' + esc(film.title) + "</h2>" +
+      '<div class="dl-list">' + list.map((d) => '<a class="dl-link" href="' + esc(d.url) + '" target="_blank" rel="noopener noreferrer nofollow">' +
+        icon("download") + "<span>" + esc(d.label) + "</span>" + icon("external") + "</a>").join("") + "</div>" +
+      '<p class="dl-note">Each opens its download page in a new tab. It may ask you to confirm you’re human before the file starts.</p></div>',
+      { label: "Download " + film.title, cls: "modal-dl" });
+    m.el.addEventListener("click", (e) => { if (e.target.closest(".dl-link")) setTimeout(m.close, 150); });
   }
 
   function actionButtons(film) {
@@ -373,7 +382,8 @@
       const b = ev.target.closest("[data-fa]");
       if (!b) return;
       const a = b.dataset.fa;
-      if (a === "unlog") FL.store.removeWatch(film, +b.dataset.i);
+      if (a === "download") downloadSheet(film);
+      else if (a === "unlog") FL.store.removeWatch(film, +b.dataset.i);
       else if (a === "add-date") { const f = $("[data-log]", el); if (f) { f.hidden = false; f.querySelector("input").focus(); } b.remove(); }
       else act(a);
     }
