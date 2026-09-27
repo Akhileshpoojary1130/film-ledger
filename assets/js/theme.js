@@ -22,6 +22,8 @@
   ];
 
   /* h = hue, c = how much of it tints the surfaces; accents are [dark, light]. */
+  /* A dozen palettes that each look clearly different: the style's own, high contrast, true black, the cool greys
+     and blues, a green, a warm sand, sunset, rose, lavender and Nord. */
   const PALETTES = [
     { id: "default", name: "Style default" },
     { id: "noir", name: "Noir", h: 0, c: 0, acc: ["#EDEDED", "#1A1A1A"] },
@@ -30,42 +32,12 @@
     { id: "graphite", name: "Graphite", h: 250, c: 0.008, acc: ["#9DB4FF", "#3552C8"] },
     { id: "midnight", name: "Midnight", h: 262, c: 0.035, acc: ["#7AA2FF", "#2F5BEA"] },
     { id: "ocean", name: "Ocean", h: 228, c: 0.035, acc: ["#3BA6FF", "#0B6BCB"] },
-    { id: "lagoon", name: "Lagoon", h: 195, c: 0.03, acc: ["#2CD3C4", "#0B8578"] },
-    { id: "mint", name: "Mint", h: 165, c: 0.022, acc: ["#3EE6A8", "#0F8A5F"] },
     { id: "forest", name: "Forest", h: 150, c: 0.03, acc: ["#5FD08F", "#2E7D4F"] },
-    { id: "olive", name: "Olive", h: 118, c: 0.025, acc: ["#B7CF5E", "#5E7A12"] },
     { id: "sand", name: "Sand", h: 80, c: 0.02, acc: ["#E6C07B", "#8C6420"] },
-    { id: "cinema-gold", name: "Gold", h: 78, c: 0.012, acc: ["#D6A75D", "#A8742A"] },
-    { id: "marigold", name: "Marigold", h: 62, c: 0.03, acc: ["#FFB020", "#B86E00"] },
-    { id: "coffee", name: "Coffee", h: 55, c: 0.03, acc: ["#D2A679", "#7E5230"] },
     { id: "sunset", name: "Sunset", h: 40, c: 0.035, acc: ["#FF8A5B", "#C2461B"] },
-    { id: "crimson", name: "Crimson", h: 22, c: 0.035, acc: ["#FF5A60", "#C21F2A"] },
     { id: "rose", name: "Rose", h: 5, c: 0.03, acc: ["#FF7AA8", "#C2185B"] },
-    { id: "sakura", name: "Sakura", h: 350, c: 0.02, acc: ["#F9A8D4", "#B83280"] },
-    { id: "grape", name: "Grape", h: 315, c: 0.035, acc: ["#D08CFF", "#8E24AA"] },
     { id: "lavender", name: "Lavender", h: 295, c: 0.025, acc: ["#B7A2FF", "#6A4FD8"] },
-    { id: "indigo", name: "Indigo", h: 272, c: 0.045, acc: ["#8C96FF", "#3F4AE0"] },
     { id: "nord", name: "Nord", h: 240, c: 0.025, acc: ["#88C0D0", "#3B7B8F"] },
-    { id: "dracula", name: "Dracula", h: 285, c: 0.04, acc: ["#BD93F9", "#7C4DDB"] },
-    { id: "tokyo", name: "Tokyo Night", h: 268, c: 0.05, acc: ["#7AA2F7", "#3D59C9"] },
-    { id: "catppuccin", name: "Catppuccin", h: 290, c: 0.03, acc: ["#CBA6F7", "#8839EF"] },
-    { id: "gruvbox", name: "Gruvbox", h: 70, c: 0.035, acc: ["#FABD2F", "#B57614"] },
-    { id: "solar", name: "Solarized", h: 215, c: 0.05, acc: ["#2AA2E0", "#1F6FAE"] },
-    { id: "slate", name: "Slate", h: 235, c: 0.015, acc: ["#94A3B8", "#475569"] },
-    { id: "steel", name: "Steel", h: 210, c: 0.02, acc: ["#7DB3E8", "#2E6DA4"] },
-    { id: "arctic", name: "Arctic", h: 205, c: 0.025, acc: ["#9BE7FF", "#0A7CA8"] },
-    { id: "aqua", name: "Aqua", h: 185, c: 0.04, acc: ["#3DE0E0", "#08807F"] },
-    { id: "emerald", name: "Emerald", h: 158, c: 0.04, acc: ["#34D399", "#047857"] },
-    { id: "sage", name: "Sage", h: 140, c: 0.018, acc: ["#A7C4A0", "#4E6E48"] },
-    { id: "matrix", name: "Matrix", h: 145, c: 0.05, acc: ["#39FF88", "#0B8A3E"] },
-    { id: "vintage", name: "Vintage", h: 75, c: 0.03, acc: ["#E3C58E", "#8A6A2F"] },
-    { id: "rust", name: "Rust", h: 45, c: 0.04, acc: ["#E8764A", "#A3401C"] },
-    { id: "ember", name: "Ember", h: 30, c: 0.045, acc: ["#FF6B3D", "#C23A12"] },
-    { id: "berry", name: "Berry", h: 350, c: 0.04, acc: ["#FF4F8B", "#B3134F"] },
-    { id: "bollywood", name: "Bollywood", h: 335, c: 0.045, acc: ["#FFB020", "#B3006B"] },
-    { id: "plum", name: "Plum", h: 320, c: 0.03, acc: ["#E07BE0", "#8E2F8E"] },
-    { id: "cyberpunk", name: "Cyberpunk", h: 300, c: 0.06, acc: ["#00F0FF", "#C2008C"] },
-    { id: "royal", name: "Royal", h: 275, c: 0.035, acc: ["#FFD166", "#5B3CC4"] },
   ];
 
   /* One-tap combinations, including the two animated ("dynamic") looks. */

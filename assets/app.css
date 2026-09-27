@@ -1993,7 +1993,8 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 [data-motion="calm"] .aurora i, [data-motion="calm"] .film-backdrop.is-in img, [data-motion="calm"] .view.enter > *,
 [data-motion="calm"] .boot-inner, [data-motion="calm"] .boot-word { animation: none !important; }
 [data-motion="calm"] .card-link .art { transform: none !important; }
-:root[data-motion="calm"]::view-transition-old(root), :root[data-motion="calm"]::view-transition-new(root),
+/* Calm: no movement, but pages still crossfade (a quick dissolve, as Apple's Reduce Motion does). */
+:root[data-motion="calm"]::view-transition-old(root), :root[data-motion="calm"]::view-transition-new(root) { animation-duration: 0.18s !important; }
 :root[data-motion="calm"]::view-transition-group(poster) { animation-duration: 0.01ms !important; }
 
 /* ---------- responsive ---------- */
@@ -2007,7 +2008,7 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 
 @media (max-width: 1000px) {
   .film-body { grid-template-columns: minmax(0, 1fr); gap: 36px; }
-  .film-record { position: static; }
+  .film-record { position: relative; top: auto; }
   .home-split { grid-template-columns: minmax(0, 1fr); }
   .stat-hero { grid-template-columns: minmax(0, 1fr); gap: 20px; }
 }
@@ -2144,15 +2145,21 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
   .filter-more { animation: enter 0.3s var(--ease-out) both; }
   .year-summary { margin: -4px 0 16px; gap: 8px 14px; }
   .year-count strong { font-size: 17px; }
-  /* Phones: cast as a vertical list, four to start. */
-  .people { flex-direction: column; flex-wrap: nowrap; gap: 2px; }
-  .person { width: 100%; gap: 12px; padding: 6px 8px; border-radius: 12px; background: transparent; border-color: transparent; }
-  .person:hover { background: var(--s1); border-color: transparent; }
-  .person .avatar { --sz: 40px !important; }
-  .person-text b { font-size: 14px; }
-  .person-text small { font-size: 12px; }
-  .people.is-collapsed > .person:nth-child(n+5) { display: none; }
+  /* Phones: cast as small tiles, two or three to a row (by width), one row to start. */
+  .people { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .person { flex-direction: column; justify-content: flex-start; gap: 6px; min-width: 0; padding: 12px 6px 10px; border-radius: 18px; text-align: center; }
+  .person .avatar { --sz: 52px !important; }
+  .person-text { align-items: center; width: 100%; }
+  .person-text b { width: 100%; font-size: 12.5px; }
+  .person-text small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 11px; }
+  .people.is-collapsed > .person:nth-child(n+3) { display: none; }
   .people-more:not(.is-many) { display: inline-flex; }
+  .film-record { gap: 12px; padding: 14px 16px; }
+  .film-record .h3 { margin: 0; font-size: 15px; }
+  .film-record .rate { gap: 10px; }
+  .film-record .rate-glyphs { font-size: 26px; letter-spacing: 2px; }
+  .film-record .ext-links { margin: 0; }
+  .film-record .footnote { display: none; }
   .person-head { gap: 16px; }
 
 }
@@ -2228,6 +2235,20 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 .pet-iris i:last-of-type { right: 19px; }
 @keyframes blink { 0%, 44%, 52%, 100% { transform: scaleY(1); } 48% { transform: scaleY(0.1); } }
 @keyframes petBlink { 0%, 90%, 100% { transform: scaleY(1); } 94% { transform: scaleY(0.1); } }
+/* Actions, matched to what the companion says. */
+.pet.act-hop .pet-svg, .pet.act-hop .pet-iris { animation: petHop 0.7s 0.4s cubic-bezier(0.3, 1.5, 0.5, 1) 3; }
+.pet.act-stretch .pet-svg, .pet.act-stretch .pet-iris { transform-origin: 50% 100%; animation: petStretch 1.6s 0.4s ease-in-out 2; }
+.pet.act-blink .pet-eyes { animation: petSlowBlink 2.4s 0.5s ease-in-out 2; }
+.pet.act-wave .pet-paw:last-of-type { transform-origin: 44px 50px; animation: petWave 0.45s 0.4s ease-in-out 6 alternate; }
+.pet.act-sleep .pet-eyes { transform: scaleY(0.12); animation: none; }
+.pet.act-sleep .pet-face::after { content: "z z"; position: absolute; top: -6px; right: -4px; font: 700 11px/1 system-ui, sans-serif; color: var(--text-2); animation: petZ 2.2s ease-in-out infinite; }
+.pet-face { position: relative; }
+@keyframes petHop { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-9px); } }
+@keyframes petStretch { 0%, 100% { transform: scale(1, 1); } 45% { transform: scale(0.94, 1.12); } }
+@keyframes petSlowBlink { 0%, 100% { transform: scaleY(1); } 40%, 60% { transform: scaleY(0.1); } }
+@keyframes petWave { from { transform: rotate(0); } to { transform: rotate(-35deg) translateY(-3px); } }
+@keyframes petZ { 0% { opacity: 0; transform: translate(0, 4px); } 40% { opacity: 1; } 100% { opacity: 0; transform: translate(6px, -8px); } }
+:root[data-motion="calm"] .pet[class*="act-"] :is(.pet-svg, .pet-iris, .pet-eyes, .pet-paw) { animation: none; }
 @keyframes petTilt { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(-8deg); } 62% { transform: rotate(5deg); } }
 @keyframes petTail { from { transform: rotate(-14deg); } to { transform: rotate(18deg); } }
 @keyframes petEar { 0%, 86%, 100% { transform: rotate(0); } 91% { transform: rotate(-12deg); } 96% { transform: rotate(7deg); } }
@@ -2295,6 +2316,7 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 .player.is-fs.is-idle .player-bar { opacity: 0; transform: translateY(100%); pointer-events: none; }
 .player.is-fs .player-hot { display: block; position: absolute; left: 0; right: 0; z-index: 5; height: 10px; }
 .player.is-fs:not(.is-idle) .player-hot { pointer-events: none; }
+@media (pointer: coarse) { .player.is-fs .player-hot { height: 44px; } } /* a finger-sized strip at each edge */
 .player-hot-top { top: 0; }
 .player-hot-bottom { bottom: 0; }
 .player.is-fs .player-notice { top: 70px; bottom: auto; }
@@ -2560,6 +2582,11 @@ html.has-page-search:not(.search-docked) [data-page-search] { view-transition-na
 }
 
 @media (max-width: 350px) { .tabs .tab { font-size: 12.5px; } }
+@media (min-width: 400px) and (max-width: 640px) {
+  .people { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .people.is-collapsed > .person:nth-child(3) { display: flex; }
+  .people-more.is-three { display: none; }
+}
 
 /* Touch screens have no keyboard: no shortcut chips ("g h", "esc", "⌘K", "R") in search, buttons or bars.
    Hints inside sentences ("press N") stay, since hiding them would leave a gap in the text. */
@@ -2666,3 +2693,48 @@ html.has-page-search:not(.search-docked) [data-page-search] { view-transition-na
   .tn-title { font-size: 19px; }
   .is-posteronly .tn-body { max-width: calc(100% - 110px - 16px - 12px); }
 }
+
+/* ---------- Liquid glass (Apple style) ----------
+   On top of the frosted fill: a specular rim that catches the light at the top left and fades round the edge (a
+   gradient ring drawn with a mask, so it follows any corner radius), a deeper blur with more colour, and on phones a
+   tab bar that floats as a capsule above the page. Off when glass is off (and Pop / Retro, which are flat by design). */
+/* No weight of its own (:where), so the tab bar, toasts and sticky panels keep their fixed / sticky positions. */
+:where([data-glass]:not([data-glass="off"]) :is(.search-trigger, .hero-search, .modal, .toast, .panel, .seg, .chip, .tabbar, .search-float, .tn-play)) { position: relative; isolation: isolate; }
+[data-glass]:not([data-glass="off"]) :is(.search-trigger, .hero-search, .modal, .toast, .panel, .seg, .chip, .tabbar, .search-float)::before {
+  content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: inherit; padding: 1px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, calc(var(--rim) * 2.6)) 0%, rgba(255, 255, 255, calc(var(--rim) * 0.6)) 28%,
+    rgba(255, 255, 255, 0.02) 55%, rgba(255, 255, 255, calc(var(--rim) * 1.2)) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+[data-mode="light"][data-glass]:not([data-glass="off"]) :is(.search-trigger, .hero-search, .modal, .toast, .panel, .seg, .chip, .tabbar, .search-float)::before {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.35) 30%, rgba(0, 0, 0, 0.06) 60%, rgba(255, 255, 255, 0.7));
+}
+[data-glass="clear"] :is(.search-trigger, .hero-search, .search-float) {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03)), color-mix(in oklab, var(--s2) 30%, transparent);
+  -webkit-backdrop-filter: blur(22px) saturate(190%) brightness(1.08); backdrop-filter: blur(22px) saturate(190%) brightness(1.08);
+  border-color: transparent;
+}
+[data-mode="light"][data-glass="clear"] :is(.search-trigger, .hero-search, .search-float) {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.42));
+}
+@media (max-width: 760px) {
+  /* The tab bar floats: a glass capsule with a margin all round, like iOS. */
+  [data-glass]:not([data-glass="off"]) .tabbar {
+    left: 10px; right: 10px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); height: 64px; padding-bottom: 0;
+    border-radius: 30px; border: 0; background: color-mix(in oklab, var(--s1) 42%, transparent);
+    -webkit-backdrop-filter: blur(26px) saturate(190%); backdrop-filter: blur(26px) saturate(190%);
+    box-shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, calc(var(--rim) * 1.4));
+  }
+  [data-mode="light"][data-glass]:not([data-glass="off"]) .tabbar { background: color-mix(in oklab, #fff 62%, transparent); }
+  [data-glass]:not([data-glass="off"]) body { padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+  [data-glass]:not([data-glass="off"] ) .toasts { bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* ---------- Motion that answers you ----------
+   A press gives way a touch (both motion settings: it's feedback, not movement); with full motion, a chosen tab's icon
+   springs and sheets rise with a little overshoot. */
+:is(.btn, .icon-btn, .qa, .card-link, .tn-card, .resume-card, .seg-btn, .chip, .srv, .tab-browse, .tabbar a):active { transform: scale(0.965); transition: transform 0.08s ease-out; }
+:root[data-motion="full"] .tabbar a.is-on .i { animation: tabSpring 0.5s cubic-bezier(0.3, 1.6, 0.4, 1); }
+@keyframes tabSpring { 0% { transform: scale(0.82); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
+:root[data-motion="full"] .modal { transition: transform 0.42s cubic-bezier(0.22, 1.25, 0.36, 1); }

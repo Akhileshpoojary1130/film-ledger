@@ -1,6 +1,7 @@
-/* Iris — a small companion for long sessions. A cat (or a dog, bunny, panda, fox, penguin, owl, the Iris aperture,
-   or a different one each time) drops in at the top right,
-   says one line — water, a stretch, rest your eyes, it's late — and leaves after five seconds.
+/* Iris — Pause Pals: a small companion for long sessions. A cat (or a dog, bunny, panda, fox, penguin, owl, koala,
+   chick, the Iris eye, or a different one each time) drops in at the top right, says one line — sit up, water, rest
+   your eyes, a stretch, a light snack, three episodes in a row, it's late — acts it out (a hop, a stretch, a slow
+   blink, a snooze) and leaves after five seconds.
    Time counts across the whole app: a minute counts while something plays or you did something in the last three.
    Twenty minutes away starts a new sitting. Settings → Home picks the companion, or turns it off. */
 (function (FL) {
@@ -13,10 +14,13 @@
 
   /* Minutes into a sitting → what to say. After the list runs out it repeats every hour from the last one. */
   const PLAN = [
+    [25, "posture"],
     [45, "water"],
-    [90, "stretch"],
-    [135, "eyes"],
-    [180, "water"],
+    [70, "eyes"],
+    [95, "stretch"],
+    [120, "snack"],
+    [150, "water"],
+    [180, "break"],
     [240, "break"],
   ];
   const LINES = {
@@ -25,8 +29,13 @@
     eyes: ["Look at something far away for 20 seconds.", "Blink slowly a few times. Eyes like a nap too.", "Rest your eyes on the farthest thing you can see."],
     break: ["Four hours in! A proper break?", "Marathon mode. Walk around for five minutes?"],
     late: ["It's getting late. This one could finish tomorrow.", "Past midnight! Sleep is the best sequel."],
+    posture: ["Sit back, shoulders down. Comfy?", "Quick posture check: back straight, screen at eye level.", "Unclench your jaw. Better?"],
+    snack: ["Snack time? Fruit or nuts beat another packet of chips.", "Hungry? Grab something light, the scene will keep."],
+    binge: ["Three episodes in a row! Stand up before the next?", "Binge mode on. A two-minute walk, then back?"],
   };
-  const EMOJI = { water: "💧", stretch: "🙆", eyes: "👀", break: "🚶", late: "🌙" };
+  const EMOJI = { water: "💧", stretch: "🙆", eyes: "👀", break: "🚶", late: "🌙", posture: "🪑", snack: "🍎", binge: "📺" };
+  /* What the companion does while it talks: hop for water, stretch, a slow blink for the eyes, snooze at night. */
+  const ACTION = { water: "hop", stretch: "stretch", eyes: "blink", break: "hop", late: "sleep", posture: "stretch", snack: "hop", binge: "wave", hello: "wave" };
 
   /* ---------- the companions (inline SVG, animated with CSS) ---------- */
 
@@ -139,21 +148,51 @@
         "</g>" +
         '<path class="pet-paw" d="M14 44c-3 4-3 9 0 12 3-2 5-6 5-11z" fill="#6E452A"/><path class="pet-paw" d="M50 44c3 4 3 9 0 12-3-2-5-6-5-11z" fill="#6E452A"/>' +
       "</svg>",
+    koala:
+      '<svg class="pet-svg" viewBox="0 0 64 64" aria-hidden="true">' +
+        '<ellipse cx="32" cy="58" rx="16" ry="8" fill="#9AA3AD"/>' +
+        '<g class="pet-head">' +
+          '<circle class="pet-ear pet-ear-l" cx="13" cy="22" r="10" fill="#9AA3AD"/><circle cx="13" cy="22" r="5.5" fill="#E9D8D2"/>' +
+          '<circle class="pet-ear pet-ear-r" cx="51" cy="22" r="10" fill="#9AA3AD"/><circle cx="51" cy="22" r="5.5" fill="#E9D8D2"/>' +
+          '<circle cx="32" cy="33" r="18" fill="#AEB6BF"/>' +
+          '<g class="pet-eyes"><circle cx="25" cy="30" r="3" fill="#2A2320"/><circle cx="39" cy="30" r="3" fill="#2A2320"/>' +
+            '<circle cx="26" cy="29" r="1" fill="#fff"/><circle cx="40" cy="29" r="1" fill="#fff"/></g>' +
+          '<ellipse cx="32" cy="38" rx="5.5" ry="7" fill="#3A3F46"/><ellipse cx="30.5" cy="35" rx="1.6" ry="1" fill="#fff" opacity=".35"/>' +
+          '<circle cx="21" cy="39" r="2.6" fill="#F7A0B0" opacity=".4"/><circle cx="43" cy="39" r="2.6" fill="#F7A0B0" opacity=".4"/>' +
+        "</g>" +
+        '<ellipse class="pet-paw" cx="24" cy="55" rx="5" ry="3.4" fill="#C9CFD5"/><ellipse class="pet-paw" cx="40" cy="55" rx="5" ry="3.4" fill="#C9CFD5"/>' +
+      "</svg>",
+    chick:
+      '<svg class="pet-svg" viewBox="0 0 64 64" aria-hidden="true">' +
+        '<ellipse cx="32" cy="60" rx="13" ry="3" fill="#000" opacity=".12"/>' +
+        '<g class="pet-head">' +
+          '<path d="M30 12c1-5 6-6 7-2-3 0-4 1-5 3" fill="#F7C548"/>' +
+          '<circle cx="32" cy="36" r="21" fill="#FFD84D"/>' +
+          '<g class="pet-eyes"><circle cx="25" cy="32" r="3" fill="#2A2320"/><circle cx="39" cy="32" r="3" fill="#2A2320"/>' +
+            '<circle cx="26" cy="31" r="1" fill="#fff"/><circle cx="40" cy="31" r="1" fill="#fff"/></g>' +
+          '<path d="M28 38h8l-4 5z" fill="#F28C28"/>' +
+          '<circle cx="20" cy="40" r="2.6" fill="#F7A0B0" opacity=".5"/><circle cx="44" cy="40" r="2.6" fill="#F7A0B0" opacity=".5"/>' +
+        "</g>" +
+        '<path class="pet-paw" d="M11 38c-4 3-4 9 1 11 2-3 3-7 2-11z" fill="#F7C548"/><path class="pet-paw" d="M53 38c4 3 4 9-1 11-2-3-3-7-2-11z" fill="#F7C548"/>' +
+        '<path d="M26 56v4M24 60h4M38 56v4M36 60h4" stroke="#F28C28" stroke-width="1.8" stroke-linecap="round"/>' +
+      "</svg>",
   };
 
   function face(kind) {
     if (FACES[kind]) return FACES[kind];
-    // The Iris character: the aperture with two blinking eyes.
-    return '<span class="pet-iris">' + FL.theme.mark({ size: 44, open: 0.75 }) + "<i></i><i></i></span>";
+    // The Iris character: the mark itself, an eye that blinks.
+    return '<span class="pet-iris">' + FL.theme.mark({ size: 44, open: 0.75 }) + "</span>";
   }
 
   /* Settings' choices, in order. "mix" sends a different friend each time. */
-  const PETS = [["cat", "Cat"], ["dog", "Dog"], ["bunny", "Bunny"], ["panda", "Panda"], ["fox", "Fox"], ["penguin", "Penguin"], ["owl", "Owl"], ["iris", "Iris"], ["mix", "Mix"], ["off", "Off"]];
+  const PETS = [["cat", "Cat"], ["dog", "Dog"], ["bunny", "Bunny"], ["panda", "Panda"], ["fox", "Fox"], ["penguin", "Penguin"], ["owl", "Owl"],
+    ["koala", "Koala"], ["chick", "Chick"], ["iris", "Iris"], ["mix", "Mix"], ["off", "Off"]];
   const HELLO = {
     cat: ["Meow! I'll remind you to take breaks.", "🐾"], dog: ["Woof! I'll remind you to take breaks.", "🐾"],
     bunny: ["Hop hop! I'll nudge you to rest.", "🥕"], panda: ["Hi! Snack, stretch, repeat. I'll remind you.", "🎋"],
     fox: ["Psst. I'll tell you when it's break time.", "🦊"], penguin: ["Waddle break reminders, on duty.", "🐧"],
     owl: ["Hoo! I'll keep an eye on the clock.", "🌙"], iris: ["Hi! I'll check in on long sessions.", "✨"],
+    koala: ["G'day! I'll tell you when to stretch.", "🌿"], chick: ["Peep! Water, stretch, rest. I've got you.", "🐣"],
   };
   const choice = () => {
     const p = (FL.store.prefs().care || {}).pet;
@@ -174,7 +213,7 @@
 
   const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement || null;
 
-  function show(text, emoji, kind) {
+  function show(text, emoji, kind, act) {
     const chosen = kind || choice();
     if (chosen === "off") return;
     const pet = resolvePet(chosen);
@@ -182,7 +221,7 @@
     if (fs && fs.tagName === "IFRAME") { waiting = [text, emoji, kind, Date.now()]; return; }
     if (current) current.remove();
     const el = document.createElement("div");
-    el.className = "pet pet-" + pet;
+    el.className = "pet pet-" + pet + (act ? " act-" + act : "");
     el.setAttribute("role", "status");
     el.innerHTML = '<span class="pet-face">' + face(pet) + "</span>" +
       '<span class="pet-bubble">' + esc(text) + (emoji ? ' <span class="pet-emoji">' + emoji + "</span>" : "") + "</span>";
@@ -234,10 +273,10 @@
     const d = due(s.min, s.shown);
     if (d) {
       s.shown.push(d[0]);
-      show(pick(d[1]), EMOJI[d[1]]);
+      show(pick(d[1]), EMOJI[d[1]], null, ACTION[d[1]]);
     } else if (h < 4 && (h > 0 || new Date().getMinutes() >= 30) && s.min >= 20 && !s.late) {
       s.late = true;
-      show(pick("late"), EMOJI.late);
+      show(pick("late"), EMOJI.late, null, ACTION.late);
     }
     session.set(KEY, s);
   }
@@ -260,7 +299,14 @@
     hello(kind) {
       const pet = resolvePet(kind);
       const [text, emoji] = HELLO[pet] || HELLO.cat;
-      show(text, emoji, pet);
+      show(text, emoji, pet, "wave");
+    },
+    /* The player, after each episode it logs: three in a row in one sitting, and the companion suggests a break. */
+    onEpisode() {
+      const s = state();
+      s.eps = (s.eps || 0) + 1;
+      session.set(KEY, s);
+      if (s.eps % 3 === 0) setTimeout(() => show(pick("binge"), EMOJI.binge, null, ACTION.binge), 4000);
     },
     choice,
     PETS,

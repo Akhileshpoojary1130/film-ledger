@@ -237,7 +237,7 @@
           '<aside class="film-record panel" aria-label="Your record">' +
             '<h2 class="h3">Your record</h2>' +
             '<div data-slot="record">' + record(film) + "</div>" +
-            '<p class="footnote">Saved on this device. See Settings → Storage to keep a copy that survives clearing browser data.</p>' +
+            '<p class="footnote">Saved on this device. Turn on Relay in Settings to keep it on all your devices.</p>' +
           "</aside>" +
         "</div>" +
         '<div class="container" data-slot="series">' + seriesRail(film) + "</div>" +

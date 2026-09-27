@@ -224,7 +224,7 @@ async function lookup({ title, year, imdb, s, e }) {
         const url = urls[i];
         if (!url || /\/play\/tt\d+/.test(url)) return; // /play/tt… is the Vega server Iris already has
         if (wanted.indexOf(o) !== -1) { add(o.label, url); return; }
-        const episode = tv && episodeLink(url, s, e);
+        const episode = tv && e < 100 && episodeLink(url, s, e); // bonus footage has no episode number elsewhere
         if (episode) add(o.label, episode);
       });
       const dead = await Promise.all(servers.map((x) => gone(x.url)));

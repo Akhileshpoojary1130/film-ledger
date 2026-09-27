@@ -54,7 +54,9 @@ Live: https://film-ledger-mocha.vercel.app/
 - **Film page** — live IMDb score, the **trailer inline** (a still that plays in place), the **full cast** with the
   parts they play (Wikidata adds everyone after Cinemeta's leads), director, writers, music and camera, with photos
   (tap one for their full filmography), the series in order, *More from* the director, similar films, rating, watch
-  dates, *Where to watch*. Shows get their full cast too. A bundled film Cinemeta can't match by title is found
+  dates, *Where to watch*. Shows get their full **cast & hosts**: hosts and presenters (Wikidata, TVmaze), the cast,
+  creators and the guests named in episode titles ("Guest · S2 E3"). On a phone people sit two or three to a row,
+  with *Show all*. A bundled film Cinemeta can't match by title is found
   through its Wikipedia article (Wikipedia → Wikidata → IMDb id), so its details and servers still work.
 - **For you** — scored on your taste (genres, languages, decades) and quality, lifted for films closest to the ones
   you rated highest, lowered for ones like those you rated 1–2, a little for new releases; varied so a row isn't one
@@ -64,10 +66,12 @@ Live: https://film-ledger-mocha.vercel.app/
 - **Diary** — films you tick appear on the day you ticked them; films you play fill the calendar.
 - **Stats** — films, hours, genres, languages, decades, ratings vs IMDb, **faces you watch most**, directors, **time
   of day** and **day of the week** you watch, records.
-- **Break reminders** — on long sittings (anywhere in Iris, not only while watching) a little friend drops in at the
-  top right for five seconds: water at 45 minutes, a stretch at 1½ hours, rest your eyes, and a nudge if it's past
-  midnight. A cat by default, or a dog, bunny, panda, fox, penguin, owl, the Iris aperture, or *Mix* for a different
-  one each time (Settings → Home, or Off). Tap it to send it away. It shows in Iris's fullscreen player too.
+- **Pause Pals** (break reminders) — on long sittings (anywhere in Iris, not only while watching) a little friend
+  drops in at the top right for five seconds, and acts it out: sit up straight at 25 minutes (it stretches), water at
+  45 (it hops), rest your eyes (a slow blink), a stretch, a snack, a proper break at 3 and 4 hours, and a sleepy
+  "z z" past midnight. Three episodes in a row and it waves for a break. A cat by default, or a dog, bunny, panda,
+  fox, penguin, owl, koala, chick, the Iris mark, or *Mix* for a different one each time (Settings → Home, or Off).
+  Tap it to send it away. It shows in Iris's fullscreen player too; Calm motion keeps it still.
 - **Movie night** — send a friend a link to your Watch later (Library → Movie night). When they open it, Iris shows
   the films you've both saved (best three first, ready to play), what they want to watch that you don't (one tap on
   the bookmark moves it to the shared list), and what you've already seen. They can send theirs back; recent movie
@@ -85,9 +89,12 @@ Appearance, in order:
    in), **Neon** (night city: glowing edges, magenta-to-cyan) or **Retro** (80s VHS: warm dusk, pixel type,
    scanlines): type, shapes and controls. The active tab's highlight glides between tabs; pages change with a gentle
    zoom from the centre.
-2. **Glass & background** — liquid glass (off → clear), a background (*Lights* drifting dimly behind frosted glass,
-   or *Aurora*), and motion (Full / Calm).
-3. **Colour** — dark / light / auto, 44 palettes (scroll the strip), any accent colour.
+2. **Glass & background** — liquid glass (off → clear): frosted, colour-rich panels with a specular rim that catches
+   the light at the top left, and on a phone a tab bar that floats as a glass capsule. A background (*Lights*
+   drifting dimly behind the glass, *Aurora*, or *Artwork*), and motion (Full: buttons that give under your finger,
+   springy tabs and sheets; Calm: quick fades only).
+3. **Colour** — dark / light / auto, 13 palettes (the style's own, Noir, AMOLED, High contrast, Graphite, Midnight, Ocean,
+   Forest, Sand, Sunset, Rose, Lavender, Nord), any accent colour.
 
 ## Where your data lives
 
@@ -143,16 +150,20 @@ Hindi-dubbed titles.
 - **Next server** goes to the best-ranked server not tried yet for this title, then rounds the list. Hindi and Indian
   titles start on Vega (its Super Player is what Vega's own site uses) until your own history says otherwise.
 - **Fullscreen** takes the whole player, not just the video's frame, so break reminders and toasts still show; the
-  bars fade after a few still seconds and come back at the top or bottom edge.
+  bars fade after a few still seconds and come back at the top or bottom edge. On a phone it turns to landscape, and
+  a tap along the top or bottom edge brings the bars back.
+- **Episodes Vega has first** — a new episode Vega already carries shows up before Cinemeta lists it ("Out now on
+  Vega") and starts on Vega's players; bonus episodes and extra footage (*Bonus 1*, *Bonus 2*…) play there too.
 - Titles no server carries (many Indian reality shows) have *Where to watch*. Keys: `N` next server, `1`–`9` pick,
   `F` fullscreen, `Esc` close.
 - **Download** — when Vega or Vega Hot (vega-hot.com) has download pages for a title, the player's top bar and the
   film page get a *Download* list, labelled by quality, codec and size ("720p x265 HEVC · 780MB"); an episode gets that
-  episode's pages and whole-season packs. Each opens in a new tab; the host's own steps, including its "are you
+  episode's pages and whole-season packs; a show page has a download button on each episode and a *Season* pack
+  link. Each opens in a new tab; the host's own steps, including its "are you
   human" check, happen there. Iris doesn't go around that check.
-- **Clear Play** (Settings → Player) — Vega's Super Player plays in a sandboxed frame, so it can't open ad tabs.
-  The other hosts refuse to play sandboxed (2Embed says "Sandbox not allowed"), so for them Iris asks "Leave site?"
-  if the player tries to send the page elsewhere. MixDrop (adult ads) is tried last; for Indian series and shows
+- **Clear Play** (Settings → Player) — Vega's Super Player and HubStream play in a sandboxed frame, so they can't
+  open ad tabs or redirect. The other hosts refuse to play sandboxed (2Embed says "Sandbox not allowed"), so for them
+  Iris asks "Leave site?" if the player tries to send the page elsewhere. MixDrop (adult ads) is tried last; for Indian series and shows
   2Embed and Videasy lead, since VidLink often has the wrong show.
 - **Up Next** in the player — at an episode's credits the next one is announced with a 10-second countdown (Play now
   / Cancel); Settings → Player → Autoplay next episode turns it off.
@@ -206,7 +217,7 @@ assets/js/
   share.js            packing, QR codes (qrcode-generator), camera scanner (BarcodeDetector / jsQR), share links
   sync.js             sync: encryption, merging (newer wins, removals remembered), when to pull and push
   player.js           theatre player, server choice (fixed hosts + Vega's per-title links), auto-logging
-  pet.js              break reminders: the cat / dog / Iris companion and the sitting timer
+  pet.js              Pause Pals: break reminders, the companions and their moves, the sitting timer
   palette.js          ⌘K palette, surprise me, settings, shortcuts
   views/              home, years (dial), browse, film, shows, person, library + collections + diary, insights (stats),
                       together (Sync, one-time copy and Movie night)

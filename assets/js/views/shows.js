@@ -162,7 +162,7 @@
                 '<span class="ep-fallback" aria-hidden="true"><b>' + (v.s ? "S" + v.s + " · " : "") + "E" + v.e + "</b></span>" +
                 (v.thumb ? '<img src="' + esc(v.thumb) + '" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.remove()">' : "") +
                 (v.aired ? '<span class="ep-play">' + icon("play") + "</span>" : "") + "</a>" +
-              '<div class="ep-main"><div class="ep-title"><span class="ep-num">' + (v.bonus ? "Bonus" : "E" + v.e) + "</span>" + esc(v.bonus ? "Extra footage" : title) + "</div>" +
+              '<div class="ep-main"><div class="ep-title"><span class="ep-num">' + (v.bonus ? "Bonus " + (v.e - 100) : "E" + v.e) + "</span>" + esc(v.bonus ? "Extra footage" : title) + "</div>" +
                 '<div class="ep-date">' + (v.early ? "Out now on Vega" : v.bonus ? "On Vega" : v.date ? (v.date > today ? "Airs " : "") + fmtDate(v.date) : "Date to be announced") + "</div>" +
                 (v.overview ? '<p class="ep-overview">' + esc(FL.util.prose(v.overview)) + "</p>" : "") + "</div>" +
               '<div class="ep-actions">' +
@@ -177,22 +177,37 @@
         return FL.ui.segmented("season", order.map((x) => [x, x === 0 ? "Specials" : "S" + x]), season);
       }
 
-      /* Cinemeta's cast first, then the rest Wikidata lists (best known first), with the parts they play. */
+      /* Everyone on the show: hosts first (Wikidata's presenters, TVmaze), then the cast (Cinemeta, Wikidata, best known
+         first, with their parts), creators, and the guests named in episode titles ("EP1 ft. Alia Bhatt, Sharvari"). */
       let wdCast = null;
+      let tvCast = null;
       function castNames() {
         const out = [];
         const seen = new Set();
         const norm = FL.util.normalize;
-        const cast = (wdCast || []).filter((x) => x.role === "Cast");
+        const wd = wdCast || [];
+        const push = (n, label) => { const k = norm(n); if (n && k && !seen.has(k)) { seen.add(k); out.push([n, label || ""]); } };
+        const part = (ch) => { const p = String(ch || "").split(/,|\s[–—-]\s|\(/)[0].trim(); return p ? "as " + p : ""; };
+        wd.filter((x) => x.role === "Host").forEach((x) => push(x.name, "Host"));
+        (tvCast || []).filter((x) => /host|presenter|anchor|judge/i.test(x.character)).forEach((x) => push(x.name, x.character));
+        const cast = wd.filter((x) => x.role === "Cast");
         const played = new Map(cast.filter((x) => x.character).map((x) => [norm(x.name), x.character]));
-        const push = (n, ch) => { if (!seen.has(norm(n))) { seen.add(norm(n)); out.push([n, ch || ""]); } };
-        data.cast.slice(0, 10).forEach((n) => push(n, played.get(norm(n))));
-        cast.sort((a, b) => b.links - a.links).forEach((x) => { if (out.length < 24) push(x.name, x.character); });
-        return out;
+        data.cast.forEach((n) => push(n, part(played.get(norm(n)))));
+        cast.sort((a, b) => b.links - a.links).forEach((x) => push(x.name, part(x.character)));
+        (tvCast || []).forEach((x) => push(x.name, part(x.character)));
+        wd.filter((x) => x.role === "Creator").forEach((x) => push(x.name, "Creator"));
+        // Guests from episode titles, newest season first: "EP3 ft. Raghu Ram, Vishal Dadlani, Tanmay Bhat".
+        data.episodes.slice().sort((a, b) => b.s - a.s || a.e - b.e).forEach((v) => {
+          const m = String(v.title || "").match(/\b(?:ft|feat|featuring|with)\.?\s+(.+)$/i);
+          if (!m) return;
+          m[1].split(/,|&|\band\b/).map((x) => x.trim()).filter((x) => /^[A-Z][\w.'-]*(\s[A-Z][\w.'-]*){0,3}$/.test(x))
+            .forEach((n) => push(n, "Guest · S" + v.s + " E" + v.e));
+        });
+        return out.slice(0, 80);
       }
       function castHtml() {
         const list = castNames();
-        return FL.people.block("Cast &amp; hosts", list.map(([n, ch]) => { const part = ch.split(/,|\s[–—-]\s|\(/)[0].trim(); return FL.people.chip(n, part ? "as " + part : ""); }));
+        return FL.people.block("Cast &amp; hosts", list.map(([n, label]) => FL.people.chip(n, label)));
       }
       function paintCast() {
         const box = $(".show-cast", el);
@@ -231,6 +246,10 @@
         if (!wdCast) {
           wdCast = [];
           FL.people.credits(show.imdbId || show.id).then((list) => { if (alive && list.length) { wdCast = list; paintCast(); } });
+        }
+        if (!tvCast) {
+          tvCast = [];
+          FL.people.tvmazeCast(show.imdbId || show.id).then((list) => { if (alive && list.length) { tvCast = list; paintCast(); } });
         }
         const on = el.querySelector(".season-nav .is-on");
         if (on) on.scrollIntoView({ inline: "center", block: "nearest" });

@@ -225,7 +225,7 @@
 
   /* ---------- full credits ---------- */
 
-  const CREDITS_KEY = "film_ledger_credits_v1";
+  const CREDITS_KEY = "film_ledger_credits_v2"; // v2: hosts and creators too
   const creditCache = storage.get(CREDITS_KEY, {}); // tt -> { at, c: [[name, role, character, image, links]] }
   const creditJobs = new Map();
 
@@ -241,6 +241,7 @@
       '{ ?f p:P161 ?st . ?st ps:P161 ?p . BIND("Cast" AS ?role) OPTIONAL { ?st pq:P453 ?c . ?c rdfs:label ?char FILTER(lang(?char) = "en") } OPTIONAL { ?st pq:P4633 ?char } } ' +
       'UNION { ?f wdt:P57 ?p . BIND("Director" AS ?role) } UNION { ?f wdt:P58 ?p . BIND("Writer" AS ?role) } ' +
       'UNION { ?f wdt:P86 ?p . BIND("Music" AS ?role) } UNION { ?f wdt:P344 ?p . BIND("Cinematography" AS ?role) } ' +
+      'UNION { ?f wdt:P371 ?p . BIND("Host" AS ?role) } UNION { ?f wdt:P170 ?p . BIND("Creator" AS ?role) } ' +
       'OPTIONAL { ?p wdt:P18 ?img } OPTIONAL { ?p wikibase:sitelinks ?links } SERVICE wikibase:label { bd:serviceParam wikibase:language "en,hi". } }';
     const job = fetchJSON("https://query.wikidata.org/sparql?format=json&query=" + encodeURIComponent(sparql), { timeout: 15000 }).then((d) => {
       const rows = new Map();
@@ -301,11 +302,12 @@
       .map((n) => ({ name: n, role: seen[n].role, films: seen[n].films }));
   }
 
-  /* A cast list that starts short — 4 on a phone (a vertical list), 12 elsewhere — with "Show all" for the rest. */
+  /* A cast list that starts short — one row on a phone (two or three faces, by width), 12 elsewhere — with
+     "Show all" for the rest. */
   function block(label, chips) {
     if (!chips.length) return "";
     return '<h2 class="label">' + label + '</h2><div class="people is-collapsed">' + chips.join("") + "</div>" +
-      (chips.length > 4 ? '<button type="button" class="btn btn-sm btn-ghost people-more' + (chips.length > 12 ? " is-many" : "") +
+      (chips.length > 2 ? '<button type="button" class="btn btn-sm btn-ghost people-more' + (chips.length > 12 ? " is-many" : "") + (chips.length === 3 ? " is-three" : "") +
         '" data-people-more aria-expanded="false">Show all ' + chips.length + "</button>" : "");
   }
   document.addEventListener("click", (e) => {
@@ -318,5 +320,21 @@
     b.textContent = open ? "Show fewer" : "Show all " + list.children.length;
   });
 
-  FL.people = { photos, info, face, chip, paint, href, filmography, favourites, credits, block };
+  /* A show's hosts and regulars from TVmaze (free, no key), for the reality shows Wikidata knows little about. */
+  const tvmazeJobs = new Map();
+  function tvmazeCast(tt) {
+    if (!/^tt\d+$/.test(tt || "")) return Promise.resolve([]);
+    if (!tvmazeJobs.has(tt)) {
+      tvmazeJobs.set(tt, fetchJSON("https://api.tvmaze.com/lookup/shows?imdb=" + tt, { timeout: 8000 })
+        .then((show) => (show && show.id ? fetchJSON("https://api.tvmaze.com/shows/" + show.id + "/cast", { timeout: 8000 }) : []))
+        .then((list) => (Array.isArray(list) ? list : []).map((x) => ({
+          name: x.person && x.person.name, character: (x.character && x.character.name) || "",
+          image: x.person && x.person.image && x.person.image.medium ? x.person.image.medium.replace(/^http:/, "https:") : "",
+        })).filter((x) => x.name))
+        .catch(() => []));
+    }
+    return tvmazeJobs.get(tt);
+  }
+
+  FL.people = { photos, info, face, chip, paint, href, filmography, favourites, credits, block, tvmazeCast };
 })(window.FL = window.FL || {});

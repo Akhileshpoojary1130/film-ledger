@@ -15,7 +15,7 @@
       id: "vidlink", name: "VidLink", origin: "https://vidlink.pro", resume: true, signals: true,
       url: ({ imdb, tmdb, start, tv, s, e }) => {
         const id = tmdb || imdb;
-        if (!id || (tv && !tmdb)) return null;
+        if (!id || (tv && !tmdb) || (tv && e > 100)) return null; // e > 100: a bonus episode only Vega has
         const q = "?primaryColor=" + hex() + "&secondaryColor=3A3A40&iconColor=F5F5F2&title=false&poster=true&autoplay=false" + (start ? "&startAt=" + start : "");
         return tv ? "https://vidlink.pro/tv/" + tmdb + "/" + s + "/" + e + q + "&nextbutton=false" : "https://vidlink.pro/movie/" + id + q;
       },
@@ -25,7 +25,7 @@
       id: "2embed", name: "2Embed", origin: "https://www.2embed.cc",
       url: ({ imdb, tmdb, tv, s, e }) => {
         const id = imdb || tmdb;
-        if (!id) return null;
+        if (!id || (tv && e > 100)) return null;
         return tv ? "https://www.2embed.cc/embedtv/" + id + "&s=" + s + "&e=" + e : "https://www.2embed.cc/embed/" + id;
       },
     },
@@ -33,7 +33,7 @@
       id: "videasy", name: "Videasy", origin: "https://player.videasy.net", resume: true, signals: true,
       url: ({ imdb, tmdb, start, tv, s, e }) => {
         const id = tmdb || imdb;
-        if (!id || (tv && !tmdb)) return null;
+        if (!id || (tv && !tmdb) || (tv && e > 100)) return null;
         const q = "?color=" + hex() + (start ? "&progress=" + start : "");
         return tv ? "https://player.videasy.net/tv/" + tmdb + "/" + s + "/" + e + q : "https://player.videasy.net/movie/" + id + q;
       },
@@ -42,7 +42,7 @@
       id: "vidsrc", name: "VidSrc", origin: "https://vidsrc.me",
       url: ({ imdb, tmdb, tv, s, e }) => {
         const key = imdb ? "imdb=" + imdb : tmdb ? "tmdb=" + tmdb : "";
-        if (!key) return null;
+        if (!key || (tv && e > 100)) return null;
         return tv ? "https://vidsrc.me/embed/tv?" + key + "&season=" + s + "&episode=" + e : "https://vidsrc.me/embed/movie?" + key;
       },
     },
@@ -140,7 +140,8 @@
     let name = base;
     for (let n = 2; taken[id]; n++) { id = "vg-" + key + "-" + n; name = base + " " + n; }
     taken[id] = true;
-    return { id, name, label: link.label, origin: "https://" + host, url: () => link.url };
+    // Of Vega's hosts only HubStream plays in the shield's sandbox (MixDrop, VSEmbed, Minochinos, MoreNcius refuse).
+    return { id, name, label: link.label, origin: "https://" + host, url: () => link.url, sandbox: /(^|\.)hubstream\.art$/.test(host) };
   }
 
   const allServers = () => (state.extra.length ? SERVERS.concat(state.extra) : SERVERS);
@@ -253,6 +254,9 @@
       // Vega is built for Hindi and Indian films (its Super Player is what Vega's own site plays Pushpa on); until
       // your own history says otherwise, its servers lead for them.
       if (film && (film.lang === "Hindi" || film.lang === "OtherIndian") && (s.id === "vega" || /^vg-/.test(s.id))) score += 22;
+      // An episode out on Vega before the usual sources list it (India's Got Latent's newest): Vega's hosts first.
+      if (state.ep && state.show && /^vg-/.test(s.id) &&
+        !state.show.episodes.some((x) => x.s === state.ep.s && x.e === state.ep.e && x.aired)) score += 60;
       // MixDrop fronts its player with adult ads: last resort.
       if (/^vg-mxdrop/.test(s.id)) score -= 40;
       // Indian series and shows: 2Embed and Videasy carry most of them (Bigg Boss, KBC, Panchayat, Kota Factory…);
@@ -307,6 +311,8 @@
     document.body.appendChild(root);
     // In fullscreen, moving over Iris's own parts (the bars, the edges) brings the bars back.
     root.addEventListener("pointermove", () => { if (root.classList.contains("is-fs")) wake(); });
+    // Touch: taps on the video go to the host's player, so the edge strips (or anywhere outside the frame) bring the bars back.
+    root.addEventListener("pointerdown", () => { if (root.classList.contains("is-fs")) wake(); });
 
     FL.util.on(root, "click", "[data-pl]", (e, el) => {
       const act = el.dataset.pl;
@@ -684,7 +690,9 @@
     if (!target) return;
     const req = target.requestFullscreen || target.webkitRequestFullscreen;
     const p = req && req.call(target);
-    if (p && p.catch) p.catch(() => {});
+    // Phones turn to landscape for the film (where the browser allows it: Android, installed apps).
+    const landscape = () => { try { if (screen.orientation && screen.orientation.lock && matchMedia("(pointer: coarse)").matches) screen.orientation.lock("landscape").catch(() => {}); } catch (e) { /* not allowed here */ } };
+    if (p && p.then) p.then(landscape).catch(() => {}); else landscape();
   }
 
   let idleTimer = 0;
@@ -697,7 +705,11 @@
     if (!root) return;
     const fs = (document.fullscreenElement || document.webkitFullscreenElement) === root;
     root.classList.toggle("is-fs", fs);
-    if (fs) wake(); else { clearTimeout(idleTimer); root.classList.remove("is-idle"); }
+    if (fs) wake(); else {
+      clearTimeout(idleTimer);
+      root.classList.remove("is-idle");
+      try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) { /* nothing locked */ }
+    }
   }
   document.addEventListener("fullscreenchange", onFullscreen);
   document.addEventListener("webkitfullscreenchange", onFullscreen);
@@ -723,6 +735,7 @@
       const ep = state.ep;
       FL.store.toggleEpisode(film, ep.s, ep.e, true);
       FL.store.clearProgress(film.id);
+      if (FL.pet && FL.pet.onEpisode) FL.pet.onEpisode();
       const n = nextEp();
       const auto = n && state.open && (FL.store.prefs().player || {}).autoNext !== false;
       if (auto) upNext(n);
