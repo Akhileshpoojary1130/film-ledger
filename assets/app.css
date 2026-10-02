@@ -1927,18 +1927,18 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 
 [data-glass="subtle"] { --gb: 16px; --gm: 76%; --gm2: 64%; --gm3: 88%; --rim: 0.1; --rim2: 0.05; }
 [data-glass="balanced"] { --gb: 24px; --gm: 58%; --gm2: 42%; --gm3: 80%; --rim: 0.16; --rim2: 0.07; }
-[data-glass="clear"] { --gb: 40px; --gm: 36%; --gm2: 20%; --gm3: 70%; --rim: 0.22; --rim2: 0.09; }
+[data-glass="clear"] { --gb: 34px; --gm: 36%; --gm2: 20%; --gm3: 70%; --rim: 0.22; --rim2: 0.09; }
 [data-mode="light"][data-glass="subtle"] { --rim: 0.7; --rim2: 0.35; }
 [data-mode="light"][data-glass="balanced"] { --rim: 0.8; --rim2: 0.45; }
 [data-mode="light"][data-glass="clear"] { --rim: 0.9; --rim2: 0.55; }
 
+/* Panels, chips and cards on the page: glass made of a translucent fill and a lit rim, with no live blur. What's
+   behind them (the background) is already soft, and a live blur on every panel and chip is what makes scrolling
+   stutter, so the real blur is kept for things that float over moving content (the bars, sheets, toasts). */
 [data-glass]:not([data-glass="off"]) :is(.panel, .tonight, .empty, .glance-item, .tile, .theme-card, .file-status, .franchise, .coll, .hero-search, .search-trigger, .did-you-mean, .person, .dial-step, .chip, .seg) {
   background:
-    var(--grain),
     radial-gradient(120% 90% at 0% 0%, rgba(255, 255, 255, var(--rim2)), transparent 55%),
-    linear-gradient(160deg, color-mix(in oklab, var(--s2) var(--gm), transparent), color-mix(in oklab, var(--s1) var(--gm2), transparent));
-  -webkit-backdrop-filter: blur(var(--gb)) saturate(175%);
-  backdrop-filter: blur(var(--gb)) saturate(175%);
+    linear-gradient(160deg, color-mix(in oklab, var(--s2) calc(var(--gm) + 14%), transparent), color-mix(in oklab, var(--s1) calc(var(--gm2) + 14%), transparent));
   border-color: rgba(255, 255, 255, var(--rim2));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, var(--rim)), inset 0 -1px 0 rgba(0, 0, 0, 0.06), 0 12px 32px -14px rgba(0, 0, 0, 0.45);
 }
@@ -1968,7 +1968,7 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 /* ---------- ambient backgrounds ---------- */
 
 .ambient { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
-.ambient canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; filter: blur(28px); }
+.ambient canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
 /* Artwork: the title's picture, blurred to a wash of its colours; it drifts slowly unless motion is calm. */
 .ambient-art { position: absolute; inset: 0; }
 .ambient-art img { position: absolute; inset: -12%; width: 124%; height: 124%; object-fit: cover; opacity: 0; filter: blur(72px) saturate(1.15) brightness(0.62);
@@ -1988,7 +1988,7 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
 }
 [data-ambient]:not([data-ambient="off"]) body { background: transparent; }
-.aurora { position: absolute; inset: -20%; opacity: 0.12; filter: blur(20px); }
+.aurora { position: absolute; inset: -20%; opacity: 0.12; }
 [data-mode="light"] .aurora { opacity: 0.14; }
 .aurora i { position: absolute; width: 70%; height: 60%; border-radius: 50%; will-change: transform; animation: auroraA 40s ease-in-out infinite alternate; }
 .aurora i:nth-child(1) { left: 0; top: 5%; background: radial-gradient(closest-side, var(--a1), transparent); }
@@ -2564,9 +2564,11 @@ html.has-page-search:not(.search-docked) [data-page-search] { view-transition-na
    A live backdrop blur re-blurs whatever is behind it on every scroll frame, and a page holds dozens (two buttons on
    every poster, badges, tags, each glass card). On touch screens only the bars and sheets keep the real blur; cards
    keep the glass tint and rim, and the small poster buttons get a solid translucent fill. */
+/* The small buttons and badges on every poster: a solid translucent fill everywhere (a live blur per poster button
+   is dozens of blurs per page). */
+.qa, .badge, .tag-must, .resume-play .i, .player-starting { -webkit-backdrop-filter: none; backdrop-filter: none; }
+.qa:where(:not(.on)), .badge:where(:not(.badge-seen)) { background: rgba(12, 12, 14, 0.72); } /* watched and saved stay in the accent */
 @media (hover: none) and (pointer: coarse) {
-  .qa, .badge, .tag-must, .resume-play .i, .player-starting { -webkit-backdrop-filter: none; backdrop-filter: none; }
-  .qa:where(:not(.on)), .badge:where(:not(.badge-seen)) { background: rgba(12, 12, 14, 0.72); } /* watched and saved stay in the accent */
   [data-glass]:not([data-glass="off"]) :is(.panel, .tonight, .empty, .glance-item, .tile, .theme-card, .file-status, .franchise, .coll, .hero-search, .search-trigger, .did-you-mean, .person, .dial-step, .chip, .seg) {
     -webkit-backdrop-filter: none; backdrop-filter: none;
     background:
@@ -2736,10 +2738,12 @@ html.has-page-search:not(.search-docked) [data-page-search] { view-transition-na
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.35) 30%, rgba(0, 0, 0, 0.06) 60%, rgba(255, 255, 255, 0.7));
 }
 [data-glass="clear"] :is(.search-trigger, .hero-search, .search-float) {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03)), color-mix(in oklab, var(--s2) 30%, transparent);
-  -webkit-backdrop-filter: blur(22px) saturate(190%) brightness(1.08); backdrop-filter: blur(22px) saturate(190%) brightness(1.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03)), color-mix(in oklab, var(--s2) 46%, transparent);
   border-color: transparent;
 }
+/* Only the floating button needs its own live blur: the bar's pill sits on the already-blurred bar, and Home's
+   big search sits on the soft background. */
+[data-glass="clear"] .search-float { -webkit-backdrop-filter: blur(22px) saturate(190%) brightness(1.08); backdrop-filter: blur(22px) saturate(190%) brightness(1.08); }
 [data-mode="light"][data-glass="clear"] :is(.search-trigger, .hero-search, .search-float) {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.42));
 }
@@ -2906,12 +2910,6 @@ html.lenis, html.lenis body { height: auto; }
     }
     :root[data-motion="full"] .resume-art > img { position: absolute; left: 0; width: 100%; }
     @keyframes cardDrift { from { translate: 0 -6%; } to { translate: 0 6%; } }
-    /* Posters shift slightly inside their frames. */
-    :root[data-motion="full"] .card .art img.is-in {
-      height: 108%; top: -4%;
-      animation: posterDrift linear both; animation-timeline: view();
-    }
-    @keyframes posterDrift { from { translate: 0 -3.5%; } to { translate: 0 3.5%; } }
   }
 }
 /* Rows dragged with the mouse: the grabbing hand, and no snapping or smooth scrolling fighting the drag. */

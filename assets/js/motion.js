@@ -38,8 +38,9 @@
     load().then(() => {
       if (lenis || !glide() || !window.Lenis) return;
       lenis = new window.Lenis({
-        duration: 1.05,
-        easing: (t) => 1 - Math.pow(1 - t, 4),
+        // Lenis's own follow-the-wheel smoothing: each frame closes a tenth of the gap, so the page stays tied to the
+        // wheel or trackpad instead of finishing a long glide of its own (which reads as lag and jitter).
+        lerp: 0.1,
         smoothWheel: true,
         // Sheets, the player and rows that scroll on their own keep their own scrolling.
         prevent: (node) => !!(node.closest && node.closest(".modal-backdrop, .player, .palette-list, .rail-track, .tn-list, .sakura-years, .az-strip, .tabs, .seg, .chip-row, [data-lenis-prevent]")),
@@ -61,11 +62,15 @@
     lenis = null;
   }
 
-  // A sheet or the player holds the page still underneath.
+  // A sheet or the player holds the page still underneath. Only a change matters: Lenis flips its own classes on the
+  // page root all through a scroll, and those mustn't poke it.
+  let held = null;
   function hold() {
-    if (!lenis) return;
-    if (root.classList.contains("has-modal") || root.classList.contains("has-player")) lenis.stop();
-    else lenis.start();
+    if (!lenis) { held = null; return; }
+    const busy = root.classList.contains("has-modal") || root.classList.contains("has-player");
+    if (busy === held) return;
+    held = busy;
+    if (busy) lenis.stop(); else lenis.start();
   }
 
   // A new page starts where the router puts it, not where a glide was heading.
@@ -187,7 +192,7 @@
   /* ---------- follow the settings ---------- */
 
   function sync() {
-    if (glide()) startScroll(); else stopScroll();
+    if (glide()) { if (!lenis) startScroll(); } else stopScroll();
     hold();
   }
   new MutationObserver(sync).observe(root, { attributes: true, attributeFilter: ["class", "data-motion"] });

@@ -95,14 +95,16 @@
     ctx.globalCompositeOperation = light ? "source-over" : "lighter";
     lamps.slice().sort((a, b) => b.z - a.z).forEach((p) => {
       // Near the glass: smaller, brighter, a firmer core. Far: wider, dimmer, fully scattered.
-      const spread = p.r * (0.75 + p.z * 1.5) * unit;
+      const spread = p.r * (1.2 + p.z * 1.6) * unit; // wide and soft: a glow, never a ball
       const glow = (light ? 0.12 : 0.13) * (1 - p.z * 0.5);
       const core = 0.2 * (1 - p.z);
       const [hue, sat] = palette[p.c];
       const col = (a) => "hsla(" + hue.toFixed(0) + ", " + (sat * 100).toFixed(0) + "%, " + (light ? 62 : 48) + "%, " + a.toFixed(3) + ")";
       const g = ctx.createRadialGradient(p.x * w, p.y * h, 0, p.x * w, p.y * h, spread);
       g.addColorStop(0, col(glow));
-      g.addColorStop(Math.max(0.01, core), col(glow * 0.7));
+      g.addColorStop(Math.max(0.01, core), col(glow * 0.75));
+      g.addColorStop(0.45, col(glow * 0.35));
+      g.addColorStop(0.75, col(glow * 0.1));
       g.addColorStop(1, col(0));
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, w, h);
@@ -111,7 +113,7 @@
 
   function frame(t) {
     raf = requestAnimationFrame(frame);
-    if (t - last < 33) return; // ~30 fps is plenty for something this slow
+    if (t - last < 48) return; // ~20 fps is plenty for lights this slow, and spares the GPU while you scroll
     const dt = Math.min(0.1, (t - last) / 1000) * (still ? 0 : 1);
     last = t;
     step(dt);
