@@ -351,15 +351,15 @@
       '<label class="swatch swatch-custom" title="Custom colour" style="--sw:' + current + '"><input type="color" value="' + current + '" data-accent-custom aria-label="Custom accent colour"></label>';
     // Colour (mode, accent, palette), then glass and motion. The style has its own section above.
     return '<div class="set-group">' +
-        '<div class="setting-row"><span>Mode</span>' + FL.ui.segmented("mode", [["dark", "Dark"], ["light", "Light"], ["system", "Auto"]], a.mode) + "</div>" +
-        '<div class="setting-row setting-stack"><span>Accent</span><div class="swatches swatches-line">' + swatches + "</div></div>" +
+        '<div class="setting-row"><span>Mode<small>Dark, light, or follow your device</small></span>' + FL.ui.segmented("mode", [["dark", "Dark"], ["light", "Light"], ["system", "Auto"]], a.mode) + "</div>" +
+        '<div class="setting-row setting-stack"><span>Accent<small>The colour of buttons, links and highlights</small></span><div class="swatches swatches-line">' + swatches + "</div></div>" +
         // All thirteen at once, in a grid: nothing to scroll, nothing cut off.
-        '<div class="setting-row setting-stack"><span>Palette</span><div class="palette-grid">' + palettes + "</div></div>" +
+        '<div class="setting-row setting-stack"><span>Palette<small>The colours of the background and panels</small></span><div class="palette-grid">' + palettes + "</div></div>" +
       "</div>" +
       '<div class="set-group">' +
-        '<div class="setting-row"><span>Liquid glass</span>' + FL.ui.segmented("glass", T.GLASS, T.glass()) + "</div>" +
-        '<div class="setting-row"><span>Background</span>' + FL.ui.segmented("ambient", T.AMBIENT, T.ambient()) + "</div>" +
-        '<div class="setting-row"><span>Motion</span>' + FL.ui.segmented("motion", [["full", "Full"], ["calm", "Calm"]], a.motion === "calm" ? "calm" : "full") + "</div>" +
+        '<div class="setting-row"><span>Liquid glass<small>How see-through bars, panels and sheets are</small></span>' + FL.ui.segmented("glass", T.GLASS, T.glass()) + "</div>" +
+        '<div class="setting-row"><span>Background<small>What glows softly behind the page</small></span>' + FL.ui.segmented("ambient", T.AMBIENT, T.ambient()) + "</div>" +
+        '<div class="setting-row"><span>Motion<small>Full adds parallax and springy effects; Calm keeps things still</small></span>' + FL.ui.segmented("motion", [["full", "Full"], ["calm", "Calm"]], a.motion === "calm" ? "calm" : "full") + "</div>" +
       "</div>";
   }
 
@@ -371,13 +371,13 @@
     const picker = FL.store.prefs().years.picker || "dial";
     return '<div class="setting-row"><span>Moodline<small>Headline follows your taste</small></span>' +
         FL.ui.segmented("moodtype", [["on", "On"], ["off", "Off"]], a.moodType === false ? "off" : "on") + "</div>" +
-      '<div class="setting-row"><span>Up Next</span>' + FL.ui.segmented("cwmax", [["1", "1"], ["2", "2"], ["3", "3"]], String(home.continueMax || 3)) + "</div>" +
+      '<div class="setting-row"><span>Up Next<small>How many unfinished titles Home shows</small></span>' + FL.ui.segmented("cwmax", [["1", "1"], ["2", "2"], ["3", "3"]], String(home.continueMax || 3)) + "</div>" +
       '<div class="setting-row"><span>Glance<small>Your numbers under the headline</small></span>' +
         FL.ui.segmented("glance", [["on", "Show"], ["off", "Hide"]], home.glance ? "on" : "off") + "</div>" +
-      '<div class="setting-row"><span>Year picker</span>' + FL.ui.segmented("picker", [["dial", "Dial"], ["wheel", "Wheel"], ["ruler", "Ruler"], ["chips", "Chips"]], picker) + "</div>" +
-      (phone() ? '<div class="setting-row"><span>Search button</span>' +
+      '<div class="setting-row"><span>Year picker<small>How you choose a year on the Years page</small></span>' + FL.ui.segmented("picker", [["dial", "Dial"], ["wheel", "Wheel"], ["ruler", "Ruler"], ["chips", "Chips"]], picker) + "</div>" +
+      (phone() ? '<div class="setting-row"><span>Search button<small>In the top bar, or floating under Settings</small></span>' +
         FL.ui.segmented("searchspot", [["center", "Top"], ["float", "Floating"]], a.searchSpot === "float" ? "float" : "center") + "</div>" : "") +
-      (mouse() ? '<div class="setting-row"><span>Trailer on hover</span>' +
+      (mouse() ? '<div class="setting-row"><span>Trailer on hover<small>Rest on a poster for 3 seconds to preview it</small></span>' +
         FL.ui.segmented("hovertrailer", [["on", "On"], ["off", "Off"]], a.hoverTrailer === false ? "off" : "on") + "</div>" : "");
   }
 
@@ -421,7 +421,7 @@
   function playerHtml() {
     const pp = FL.store.prefs().player || {};
     const shield = pp.shield !== false;
-    return '<div class="setting-row"><span>Autoplay next episode</span>' +
+    return '<div class="setting-row"><span>Autoplay next episode<small>Starts after a 10-second countdown at the credits</small></span>' +
       FL.ui.segmented("autonext", [["on", "On"], ["off", "Off"]], pp.autoNext === false ? "off" : "on") + "</div>" +
       '<div class="setting-row"><span>Clear Play<small>Blocks pop-ups and redirects</small></span>' +
       FL.ui.segmented("shield", [["on", "On"], ["off", "Off"]], shield ? "on" : "off") + "</div>" +
@@ -446,14 +446,14 @@
         '<div class="set-me"><span class="set-avatar" aria-hidden="true">' + esc((prefs.name || "").trim().charAt(0).toUpperCase() || "☺") + "</span>" +
           '<input class="input" id="set-name" maxlength="40" placeholder="Your name" aria-label="Your name" autocomplete="nickname" value="' + esc(prefs.name || "") + '"></div>' +
         '<section data-sec="relay"><h3 class="label">Relay</h3><div class="set-group">' + syncRow() + "</div></section>" +
-        (FL.sakura ? '<section data-sec="app" class="apps"><h3 class="label">App</h3>' + FL.sakura.appTiles() + "</section>" : "") +
-        '<section data-sec="style"><h3 class="label">Style</h3><div data-style>' + styleHtml() + "</div></section>" +
+        (FL.sakura ? '<section data-sec="app" class="apps"><h3 class="label">App</h3><p class="set-note">Iris for films and web series, Sakura for anime</p>' + FL.sakura.appTiles() + "</section>" : "") +
+        '<section data-sec="style"><h3 class="label">Style</h3><p class="set-note">The fonts, shapes and buttons of the whole app</p><div data-style>' + styleHtml() + "</div></section>" +
         '<section data-sec="appearance"><h3 class="label">Appearance</h3><div data-appearance>' + appearanceHtml() + "</div></section>" +
         '<section data-sec="home"><h3 class="label">Home &amp; pages</h3><div class="set-group" data-homeset>' + homeHtml() + "</div></section>" +
         '<section data-sec="player"><h3 class="label">Player</h3><div class="set-group" data-playerset>' + playerHtml() + "</div></section>" +
-        (FL.pet ? '<section data-sec="pals"><h3 class="label">Pause Pals</h3><div data-petset>' + petHtml() + "</div></section>" : "") +
+        (FL.pet ? '<section data-sec="pals"><h3 class="label">Pause Pals</h3><p class="set-note">A friend who reminds you to drink water, stretch and rest your eyes</p><div data-petset>' + petHtml() + "</div></section>" : "") +
         '<section data-sec="storage"><h3 class="label">Backup</h3><div data-storage>' + storageHtml(FL.persist.status(), false) + "</div></section>" +
-        '<section data-sec="maintenance"><h3 class="label">Maintenance</h3><div class="btn-row">' +
+        '<section data-sec="maintenance"><h3 class="label">Maintenance</h3><p class="set-note">Reload missing posters, or start your library over</p><div class="btn-row">' +
           '<button type="button" class="btn btn-ghost" data-set="clear-cache">Clear artwork cache</button>' +
           '<button type="button" class="btn btn-danger-ghost" data-set="reset">Erase library…</button></div></section>' +
       "</div>",

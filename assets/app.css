@@ -2923,3 +2923,5 @@ html.lenis, html.lenis body { height: auto; }
 /* A stacked setting (label above, control below) spans the row's full width. */
 .setting-row.setting-stack { justify-content: stretch; }
 .setting-stack > :not(span):not(label) { min-width: 0; }
+/* Settings: one short line under a section's name, saying what it's for. */
+.set-note { margin: -4px 0 12px; font-size: 12px; color: var(--text-3); }
