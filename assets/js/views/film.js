@@ -91,14 +91,23 @@
     return '<dl class="details">' + rows.map(([k, v]) => "<dt>" + k + "</dt><dd>" + esc(v) + "</dd>").join("") + "</dl>";
   }
 
-  /* Cast & crew as small portrait chips; each opens that person's films. Cinemeta names the leads; Wikidata (`wd`)
-     adds the rest of the billed cast, best known first, with the characters they play, plus music and camera. */
-  const CAST_MAX = 24;
-  function people(m, wd) {
+  /* Cast & crew as small portrait chips; each opens that person's films. Cinemeta names the leads; the film's
+     Wikipedia cast list (`wp`) adds everyone else in billing order with their parts; Wikidata (`wd`) adds anyone
+     still missing, best known first, plus music and camera. */
+  const CAST_MAX = 40;
+  function people(m, wd, wp) {
     const byKey = new Map();
+    // The same person can be spelled differently by each source ("R. Madhavan" / "Madhavan").
+    const keyOf = (name) => {
+      const k = FL.util.normalize(name);
+      if (byKey.has(k)) return k;
+      for (const [other, p] of byKey) if (FL.people.samePerson(p.name, name)) return other;
+      return k;
+    };
+    const has = (name) => byKey.has(keyOf(name));
     const add = (name, role, character) => {
       if (!name) return;
-      const k = FL.util.normalize(name);
+      const k = keyOf(name);
       const cur = byKey.get(k) || { name, roles: [], character: "" };
       if (cur.roles.indexOf(role) === -1) cur.roles.push(role);
       if (character && !cur.character) cur.character = character;
@@ -107,11 +116,13 @@
     const list = wd || [];
     const from = (role) => list.filter((x) => x.role === role).sort((a, b) => b.links - a.links);
     const played = new Map(from("Cast").filter((x) => x.character).map((x) => [FL.util.normalize(x.name), x.character]));
+    (wp || []).forEach((x) => { const k = FL.util.normalize(x.name); if (x.character && !played.has(k)) played.set(k, x.character); });
     ((m && m.directors) || []).forEach((n) => add(n, "Director"));
     from("Director").forEach((x) => add(x.name, "Director"));
     let cast = 0;
     ((m && m.cast) || []).forEach((n) => { add(n, "Cast", played.get(FL.util.normalize(n))); cast++; });
-    from("Cast").forEach((x) => { if (cast < CAST_MAX && !byKey.has(FL.util.normalize(x.name))) { add(x.name, "Cast", x.character); cast++; } });
+    (wp || []).forEach((x) => { if (has(x.name)) add(x.name, "Cast", x.character); else if (cast < CAST_MAX) { add(x.name, "Cast", played.get(FL.util.normalize(x.name)) || x.character); cast++; } });
+    from("Cast").forEach((x) => { if (has(x.name)) add(x.name, "Cast", x.character); else if (cast < CAST_MAX) { add(x.name, "Cast", x.character); cast++; } });
     ((m && m.writers) || []).forEach((n) => add(n, "Writer"));
     from("Writer").forEach((x) => add(x.name, "Writer"));
     from("Music").forEach((x) => add(x.name, "Music"));
@@ -123,17 +134,17 @@
   const part = (character) => String(character || "").split(/,|\s[–—-]\s|\(/)[0].trim();
   const roleLabel = (p) => p.roles.map((r) => (r === "Cast" ? (part(p.character) ? "as " + part(p.character) : "Cast") : r)).join(" · ");
 
-  function credits(m, wd) {
-    if (!m && !wd) return '<h2 class="label">Cast &amp; crew</h2><div class="people"><span class="skeleton-line"></span></div>';
-    const list = people(m, wd);
+  function credits(m, wd, wp) {
+    if (!m && !wd && !wp) return '<h2 class="label">Cast &amp; crew</h2><div class="people"><span class="skeleton-line"></span></div>';
+    const list = people(m, wd, wp);
     if (!list.length) return "";
     return FL.people.block("Cast &amp; crew", list.map((p) => FL.people.chip(p.name, roleLabel(p))));
   }
 
-  const castNames = (m, wd) => people(m, wd).map((p) => p.name);
-  const castRoles = (m, wd) => {
+  const castNames = (m, wd, wp) => people(m, wd, wp).map((p) => p.name);
+  const castRoles = (m, wd, wp) => {
     const r = {};
-    people(m, wd).forEach((p) => { r[p.name] = p.roles.indexOf("Director") !== -1 ? "Director" : p.roles.indexOf("Writer") !== -1 ? "Writer" : "Cast"; });
+    people(m, wd, wp).forEach((p) => { r[p.name] = p.roles.indexOf("Director") !== -1 ? "Director" : p.roles.indexOf("Writer") !== -1 ? "Writer" : "Cast"; });
     return r;
   };
 
@@ -264,10 +275,11 @@
     }
 
     let wd = null; // Wikidata's full credits, once they arrive
+    let wp = null; // the Wikipedia article's cast list, once it arrives
     let wdAsked = false;
     function paintCredits() {
-      slot("credits").innerHTML = credits(m || { directors: [], writers: [], cast: [] }, wd);
-      FL.people.photos(castNames(m, wd), castRoles(m, wd)).then(() => { if (page.isConnected) FL.people.paint(slot("credits")); });
+      slot("credits").innerHTML = credits(m || { directors: [], writers: [], cast: [] }, wd, wp);
+      FL.people.photos(castNames(m, wd, wp), castRoles(m, wd, wp)).then(() => { if (page.isConnected) FL.people.paint(slot("credits")); });
     }
 
     function showMeta(meta) {
@@ -284,6 +296,11 @@
         FL.people.credits(tt).then((list) => {
           if (!page.isConnected || !list.length) return;
           wd = list;
+          paintCredits();
+        });
+        FL.people.wikiCast(tt).then((list) => {
+          if (!page.isConnected || !list.length) return;
+          wp = list;
           paintCredits();
         });
       }

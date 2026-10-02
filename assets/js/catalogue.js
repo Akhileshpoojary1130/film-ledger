@@ -841,6 +841,8 @@
     const r = {};
     const d = {};
     const dir = {};
+    const dirFilm = {}; // director → the film of theirs you loved most (for "From the director of …")
+    const recent = new Set(); // films you loved and watched in the last three weeks
     const add = (map, k, w) => { map[k] = (map[k] || 0) + w; };
     const liked = [];
     watched.forEach((e) => {
@@ -850,7 +852,9 @@
       if (e.fav) w += 1;
       if (e.watches.length > 1) w += 0.4;
       if (w > 0) w *= recency(e); // a dislike stays a dislike, however long ago
-      if (w > 0.6 && e.directors) e.directors.forEach((x) => add(dir, x, w));
+      if (w > 0.6 && e.directors) e.directors.forEach((x) => { add(dir, x, w); if (!dirFilm[x] || dirFilm[x][0] < w) dirFilm[x] = [w, f]; });
+      const lastWatch = e.watches.length ? Date.parse(e.watches[e.watches.length - 1]) : e.seenAt || 0;
+      if (w > 0.6 && lastWatch && Date.now() - lastWatch < 21 * DAY) recent.add(f.id);
       f.genres.forEach((x) => add(g, x, w / Math.sqrt(f.genres.length)));
       add(l, f.lang, w);
       if (f.region) add(r, f.region, w);
@@ -863,7 +867,8 @@
       return map;
     };
     liked.sort((a, b) => b[0] - a[0]);
-    return { g: norm(g), l: norm(l), r: norm(r), d: norm(d), dir, liked: liked.map((x) => x[1]).slice(0, 25) };
+    Object.keys(dirFilm).forEach((k) => { dirFilm[k] = dirFilm[k][1]; });
+    return { g: norm(g), l: norm(l), r: norm(r), d: norm(d), dir, dirFilm, recent, liked: liked.map((x) => x[1]).slice(0, 25) };
   }
 
   let recoCache = { v: "", items: [] };
@@ -906,6 +911,7 @@
       if (d) similar(d, 12).forEach((f) => left.add(f.id));
     });
     const scored = [];
+    const byDirector = new Map(); // film id → the film you loved by the same director
     for (let i = 0; i < films.length; i++) {
       const f = films[i];
       if (!f.year || f.year > cy || f.type === "series") continue;
@@ -932,7 +938,7 @@
       if (left.has(f.id)) s -= 0.8;
       // Directors of films you loved (where Iris knows the film's director).
       const m = FL.meta && FL.meta.cached(f);
-      if (m && m.directors) m.directors.forEach((x) => { if (p.dir[x]) s += Math.min(2.5, p.dir[x] * 1.5); });
+      if (m && m.directors) m.directors.forEach((x) => { if (p.dir[x]) { s += Math.min(2.5, p.dir[x] * 1.5); if (p.dirFilm[x] && p.dirFilm[x].id !== f.id) byDirector.set(f.id, p.dirFilm[x]); } });
       if (f.year >= cy - 2) s += 0.8; // new releases, a little
       // A little day-to-day freshness among close picks, so the row isn't the same every visit.
       s += ((FL.util.hash(today + f.id) % 1000) / 1000 - 0.5) * 0.7;
@@ -967,7 +973,12 @@
       const k = seriesKey(f) || f.id;
       if ((perSeries[k] = (perSeries[k] || 0) + 1) > 1) continue;
       let reason = nextIds.get(f.id) || "";
-      const because = (l) => { told[l.id] = (told[l.id] || 0) + 1; reason = "Because you liked " + l.title; };
+      const because = (l) => { told[l.id] = (told[l.id] || 0) + 1; reason = (p.recent.has(l.id) ? "Because you just watched " : "Because you liked ") + l.title; };
+      if (!reason && byDirector.has(f.id) && (told[byDirector.get(f.id).id] || 0) < 3) {
+        const l = byDirector.get(f.id);
+        told[l.id] = (told[l.id] || 0) + 1;
+        reason = "From the director of " + l.title;
+      }
       if (!reason && near.has(f.id)) {
         const hit = near.get(f.id).find(([, l]) => (told[l.id] || 0) < 3);
         if (hit) because(hit[1]);

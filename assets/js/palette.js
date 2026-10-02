@@ -353,9 +353,8 @@
     return '<div class="set-group">' +
         '<div class="setting-row"><span>Mode</span>' + FL.ui.segmented("mode", [["dark", "Dark"], ["light", "Light"], ["system", "Auto"]], a.mode) + "</div>" +
         '<div class="setting-row setting-stack"><span>Accent</span><div class="swatches swatches-line">' + swatches + "</div></div>" +
-        '<div class="setting-row setting-stack"><span>Palette</span><div class="pal-rail"><button type="button" class="icon-btn icon-btn-sm pal-arrow" data-palscroll="-1" aria-label="Previous palettes">' + icon("chevron-left") + "</button>" +
-          '<div class="palette-row" data-palrow>' + palettes + "</div>" +
-          '<button type="button" class="icon-btn icon-btn-sm pal-arrow" data-palscroll="1" aria-label="More palettes">' + icon("chevron-right") + "</button></div></div>" +
+        // All thirteen at once, in a grid: nothing to scroll, nothing cut off.
+        '<div class="setting-row setting-stack"><span>Palette</span><div class="palette-grid">' + palettes + "</div></div>" +
       "</div>" +
       '<div class="set-group">' +
         '<div class="setting-row"><span>Liquid glass</span>' + FL.ui.segmented("glass", T.GLASS, T.glass()) + "</div>" +
@@ -482,11 +481,6 @@
       });
     }
     FL.player.probeAll().then(paintServers);
-    requestAnimationFrame(() => {
-      const row = $("[data-palrow]", m.el);
-      const on = row && row.querySelector(".is-on");
-      if (on) row.scrollLeft = on.offsetLeft - 40;
-    });
 
     if (focus) {
       const sec = $('[data-sec="' + focus + '"]', m.el);
@@ -505,13 +499,7 @@
       const st = $("[data-style]", m.el);
       if (st) st.innerHTML = styleHtml();
       const box = $("[data-appearance]", m.el);
-      if (!box) return;
-      const row = $("[data-palrow]", box);
-      const x = row ? row.scrollLeft : null;
-      box.innerHTML = appearanceHtml();
-      const next = $("[data-palrow]", box);
-      if (next && x !== null) next.scrollLeft = x;
-      else if (next) { const on = next.querySelector(".is-on"); if (on) next.scrollLeft = on.offsetLeft - 40; }
+      if (box) box.innerHTML = appearanceHtml();
     }
 
     m.el.addEventListener("input", (e) => {
@@ -539,12 +527,6 @@
         if (seg.dataset.seg === "ambient" && seg.dataset.value !== "off" && FL.theme.glass() === "off") patch.glass = "subtle";
         FL.theme.set(patch);
         repaintAppearance();
-        return;
-      }
-      const ps = e.target.closest("[data-palscroll]");
-      if (ps) {
-        const row = $("[data-palrow]", m.el);
-        if (row) row.scrollBy({ left: +ps.dataset.palscroll * row.clientWidth * 0.8, behavior: "smooth" });
         return;
       }
       const pk = e.target.closest('[data-seg="picker"]');

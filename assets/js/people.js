@@ -266,6 +266,118 @@
     return job;
   }
 
+  /* ---------- the film's Wikipedia cast list ----------
+     Wikipedia articles list the whole cast in billing order, with parts ("Boman Irani as Dr. Viru Sahastrabuddhe"):
+     fuller than Wikidata for most Indian films. Found through Wikidata (IMDb id → English article), then the
+     article's Cast section; kept a month. */
+  const WP_KEY = "film_ledger_wikicast_v1";
+  const wpCache = storage.get(WP_KEY, {}); // tt -> { at, c: [{ name, character }] }
+  const wpJobs = new Map();
+  const WIKI_API = "https://en.wikipedia.org/w/api.php?action=parse&format=json&formatversion=2&origin=*&redirects=1&page=";
+  const CAST_SECTION = /^(cast|cast and characters|cast and roles|starring|voice cast|main cast|cast list)$/i;
+
+  function parseCast(text) {
+    const out = [];
+    const seen = new Set();
+    const strip = (s) => s.replace(/<ref[^>]*\/>/g, "").replace(/<ref[^>]*>[\s\S]*?<\/ref>/g, "").replace(/<!--[\s\S]*?-->/g, "")
+      .replace(/\{\{(?:efn|sfn|refn|r|citation needed|cn|nbsp|snd)[^{}]*\}\}/gi, " ").replace(/\{\{(?:small|nowrap|sic)\|([^{}]*)\}\}/gi, "$1");
+    const clean = (s) => strip(s).replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, "$1").replace(/'{2,3}/g, "").replace(/\{\{|\}\}/g, "")
+      .replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+    const ABBR = /\b(Dr|Mr|Mrs|Ms|Prof|Col|Lt|Capt|Gen|Sgt|Insp|St|Jr|Sr|Maj|Hon)\./g;
+    String(text || "").split("\n").forEach((raw) => {
+      const m = /^\*(?![*:])\s*(.+)$/.exec(raw.trim());
+      if (!m) return;
+      const body = strip(m[1]);
+      let name = "";
+      let rest = "";
+      // The actor is usually the line's first link: "[[Rishab Shetty]] in a dual role as Shiva …".
+      const link = /^\s*(?:'{2,3})?\[\[([^\]|#]+)(?:\|([^\]]+))?\]\](?:'{2,3})?/.exec(body);
+      if (link) { name = clean(link[2] || link[1]); rest = clean(body.slice(link[0].length)); }
+      else {
+        const flat = clean(body);
+        const plain = /^(.{2,48}?)\s+(?=as\s|–|—|-\s|:)/.exec(flat);
+        if (!plain) return;
+        name = plain[1].trim();
+        rest = flat.slice(plain[0].length);
+      }
+      name = name.replace(/\s*\(.*?\)\s*/g, " ").replace(/[,:;]$/, "").trim();
+      if (!/^[\p{L}][\p{L}\p{M}.'’ -]{1,46}$/u.test(name) || name.split(" ").length > 5 || /^(the|a|an|as|and|with|in)\b/i.test(name)) return;
+      const k = name.toLowerCase();
+      if (seen.has(k)) return;
+      seen.add(k);
+      const r = /^\s*,?\s*(?:in (?:an? )?(?:dual|double|triple|extended|special|guest) (?:roles?|appearances?)\s*|in a cameo\s*)?(?:as|–|—|-|:)\s+(.+)$/i.exec(rest);
+      let role = r ? r[1].replace(ABBR, "$1§").replace(/a\.k\.a\.?/gi, "aka")
+        .split(/\s[–—]\s|;|\.\s|, (?:a|an|the|who|whose|his|her)\b/)[0].replace(/§/g, ".").replace(/\s*\(.*?\)\s*/g, " ").trim() : "";
+      if (role.length > 70) role = role.slice(0, 70).replace(/\s\S*$/, "");
+      out.push({ name, character: role });
+    });
+    // Series often list their cast as a table instead ("Character | Portrayed by | Season 1 …"); a table that comes
+    // before the list (the main cast, usually) stays ahead of it.
+    const listed = out.splice(0);
+    const src = String(text || "");
+    const tableFirst = src.indexOf("{|") !== -1 && (src.search(/^\*/m) === -1 || src.indexOf("{|") < src.search(/^\*/m));
+    const tables = src.match(/\{\|[\s\S]*?\n\|\}/g) || [];
+    tables.forEach((t) => {
+      const rows = t.split(/\n\|-[^\n]*/).map((r) => r.split("\n").map((l) => l.trim()).filter(Boolean));
+      const head = (rows.find((r) => r.some((l) => /^!/.test(l))) || []).join("\n").replace(/^!/gm, "").split(/\n|!!/)
+        .map((h) => clean(h.replace(/^[^|]*\|(?!\|)/, (x) => (/=/.test(x) ? "" : x))).toLowerCase());
+      const ci = head.findIndex((h) => /^(character|role|name)$/.test(h));
+      const ai = head.findIndex((h) => /^(portrayed by|actor|actress|cast|played by|voiced by)$/.test(h));
+      if (ci === -1 || ai === -1) return;
+      rows.forEach((r) => {
+        if (r.some((l) => /^!/.test(l))) return;
+        const cells = r.filter((l) => /^\|(?![-}+])/.test(l)).map((l) => l.slice(1)).join("||").split("||")
+          .map((c) => c.replace(/^\s*(?:[a-z-]+\s*=\s*["“”'][^"“”']*["“”']\s*)+\|/i, ""));
+        const name = clean(cells[ai] || "").replace(/\s*\(.*?\)\s*/g, " ").trim();
+        if (!/^[\p{L}][\p{L}\p{M}.'’ -]{1,46}$/u.test(name) || name.split(" ").length > 5) return;
+        const k = name.toLowerCase();
+        if (seen.has(k)) return;
+        seen.add(k);
+        out.push({ name, character: clean(cells[ci] || "").slice(0, 70) });
+      });
+    });
+    return (tableFirst ? out.concat(listed) : listed.concat(out)).slice(0, 60);
+  }
+
+  /* One person under different spellings across sources: "R. Madhavan" / "Madhavan", "Kareena Kapoor" / "Kareena Kapoor
+     Khan". Initials are dropped; a two-word-or-longer name inside a longer one counts as the same person. */
+  const personKey = (name) => normalize(name).split(" ").filter((w) => w.length > 1).join(" ");
+  function samePerson(a, b) {
+    const x = personKey(a);
+    const y = personKey(b);
+    if (!x || !y) return false;
+    if (x === y) return true;
+    const [short, long] = x.length < y.length ? [x, y] : [y, x];
+    const words = short.split(" ");
+    return words.length >= 2 && (" " + long + " ").indexOf(" " + short + " ") !== -1;
+  }
+
+  function wikiCast(tt) {
+    if (!/^tt\d+$/.test(tt || "")) return Promise.resolve([]);
+    const hit = wpCache[tt];
+    if (hit && Date.now() - hit.at < TTL) return Promise.resolve(hit.c);
+    if (wpJobs.has(tt)) return wpJobs.get(tt);
+    const q = 'SELECT ?a WHERE { ?f wdt:P345 "' + tt + '" . ?a schema:about ?f ; schema:isPartOf <https://en.wikipedia.org/> . } LIMIT 1';
+    const job = fetchJSON("https://query.wikidata.org/sparql?format=json&query=" + encodeURIComponent(q), { timeout: 12000 }).then((d) => {
+      const b = d && d.results && d.results.bindings && d.results.bindings[0];
+      if (!b) return [];
+      const page = encodeURIComponent(decodeURIComponent(b.a.value.split("/wiki/")[1] || ""));
+      return fetchJSON(WIKI_API + page + "&prop=sections", { timeout: 12000 }).then((s) => {
+        const sec = ((s && s.parse && s.parse.sections) || []).find((x) => CAST_SECTION.test(String(x.line).replace(/<[^>]+>/g, "").trim()));
+        if (!sec) return [];
+        return fetchJSON(WIKI_API + page + "&prop=wikitext&section=" + sec.index, { timeout: 12000 }).then((w) => parseCast(w && w.parse && w.parse.wikitext));
+      });
+    }).then((c) => {
+      wpCache[tt] = { at: Date.now(), c };
+      const keys = Object.keys(wpCache);
+      if (keys.length > 300) keys.sort((a, b) => wpCache[a].at - wpCache[b].at).slice(0, keys.length - 300).forEach((x) => delete wpCache[x]);
+      storage.set(WP_KEY, wpCache);
+      return c;
+    }).catch(() => []).finally(() => wpJobs.delete(tt));
+    wpJobs.set(tt, job);
+    return job;
+  }
+
   function expand(rows) {
     let seeded = false;
     const out = rows.map(([name, role, character, image, links]) => {
@@ -336,5 +448,5 @@
     return tvmazeJobs.get(tt);
   }
 
-  FL.people = { photos, info, face, chip, paint, href, filmography, favourites, credits, block, tvmazeCast };
+  FL.people = { photos, info, face, chip, paint, href, filmography, favourites, credits, wikiCast, parseCast, samePerson, block, tvmazeCast };
 })(window.FL = window.FL || {});

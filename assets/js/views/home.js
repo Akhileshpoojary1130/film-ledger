@@ -51,11 +51,14 @@
       const ep = p.s ? "?s=" + p.s + "&e=" + p.e : "";
       const bg = FL.meta.backdrop(film);
       const left = p.approx ? "Started " + (p.s ? "S" + p.s + " · E" + p.e : "") : (p.s ? "S" + p.s + " · E" + p.e + " · " : "") + fmtClock(p.d - p.t) + " left";
-      return '<article class="resume-card tilt" data-resume="' + esc(film.id) + '"><a class="resume-link" href="#/watch/' + encodeURIComponent(film.id) + ep + '">' +
+      // The card opens the title's page (like a poster); the round button plays from where you stopped.
+      const page = "#/" + (p.s ? "show" : "film") + "/" + encodeURIComponent(film.id);
+      return '<article class="resume-card tilt" data-resume="' + esc(film.id) + '">' +
         '<div class="resume-art">' + (bg ? '<img src="' + esc(bg) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : art(film)) +
-        '<span class="resume-play">' + icon("play") + "</span>" +
+        '<a class="resume-open" href="' + page + '" tabindex="-1" aria-hidden="true"></a>' +
+        '<a class="resume-play" href="#/watch/' + encodeURIComponent(film.id) + ep + '" aria-label="Play ' + esc(film.title) + '">' + icon("play") + "</a>" +
         '<div class="card-progress"><i style="width:' + ((p.t / p.d) * 100).toFixed(1) + '%"></i></div></div>' +
-        '<div class="resume-body"><strong>' + esc(film.title) + "</strong><span>" + esc(left) + "</span></div></a>" +
+        '<a class="resume-body" href="' + page + '"><strong>' + esc(film.title) + "</strong><span>" + esc(left) + "</span></a>" +
         '<button type="button" class="resume-x" data-home="forget" aria-label="Remove ' + esc(film.title) + ' from Up Next" title="Remove from Up Next">' + icon("x") + "</button></article>";
     }).join("") + shows.map(showCard).join("");
     return '<section class="rail"><header class="section-head"><div><h2 class="h2">Up Next</h2></div>' +
@@ -69,10 +72,13 @@
     const eps = Object.keys((e && e.episodes) || {}).map((k) => k.split(":").map(Number)).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
     const last = eps[eps.length - 1];
     const bg = FL.meta.backdrop(film);
-    return '<article class="resume-card tilt" data-show="' + esc(film.id) + '"><a class="resume-link" href="#/show/' + encodeURIComponent(film.id) + '">' +
+    const page = "#/show/" + encodeURIComponent(film.id);
+    return '<article class="resume-card tilt" data-show="' + esc(film.id) + '">' +
       '<div class="resume-art">' + (bg ? '<img src="' + esc(bg) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : art(film)) +
-      '<span class="resume-play">' + icon("play") + "</span></div>" +
-      '<div class="resume-body"><strong>' + esc(film.title) + "</strong><span>" + (last ? "S" + last[0] + " · E" + last[1] + " ✓" : "Following") + "</span></div></a>" +
+      '<a class="resume-open" href="' + page + '" tabindex="-1" aria-hidden="true"></a>' +
+      // The show's page knows the next episode exactly; ?play=next starts it straight away.
+      '<a class="resume-play" href="' + page + '?play=next" aria-label="Play the next episode of ' + esc(film.title) + '">' + icon("play") + "</a></div>" +
+      '<a class="resume-body" href="' + page + '"><strong>' + esc(film.title) + "</strong><span>" + (last ? "S" + last[0] + " · E" + last[1] + " ✓" : "Following") + "</span></a>" +
       '<button type="button" class="resume-x" data-home="dropshow" aria-label="Remove ' + esc(film.title) + ' from Up Next" title="Remove from Up Next">' + icon("x") + "</button></article>";
   }
 
@@ -92,7 +98,10 @@
     };
     const taken = new Set();
     const from = (list, reason) => {
-      const pool = list.filter((x) => x.film && !taken.has(x.film.id) && fits(x.film));
+      // Shorter films are preferred at lunch and late at night, but never at the cost of an empty slot.
+      const open = list.filter((x) => x.film && !taken.has(x.film.id));
+      const brief = open.filter((x) => fits(x.film));
+      const pool = brief.length ? brief : open;
       if (!pool.length) return null;
       const x = pool[salt % Math.min(pool.length, 12)];
       taken.add(x.film.id);
@@ -100,7 +109,9 @@
     };
     const picks = [];
     const recs = FL.catalogue.forYou(40).filter((x) => (x.film.rating || 0) >= 6.5);
-    picks.push(from(recs, "Matches what you watch"));
+    // Tonight's taste pick says which of your films led to it, when one did.
+    const personal = recs.filter((x) => /^(Because you (liked|just watched)|From the director of|Next after|.* · next after)/.test(x.reason));
+    picks.push(from(personal.length >= 3 ? personal : recs, "Matches what you watch"));
     const saved = FL.store.watchlist().map((e) => ({ film: FL.catalogue.get(e.id), reason: "You saved it " + fmtDate(new Date(e.listedAt || e.added || Date.now()).toISOString().slice(0, 10), "short") }))
       .filter((x) => x.film && x.film.type !== "series");
     picks.push(from(saved, "From Watch later") || from(recs.slice(12), "Matches what you watch"));

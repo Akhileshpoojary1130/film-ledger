@@ -15,7 +15,8 @@ Live: https://film-ledger-mocha.vercel.app/
   headline (**Moodline**) follows the time of day (early bird, lunch — "Had lunch yet?", dinner, late night), changes
   every six hours with different wording each day, and follows what you've been watching: a horror streak gets a
   spooky line in an eerie typeface, comedies a cheerful one. Then **Up Next** — where you stopped (1–3, in Settings;
-  the × forgets it, with Undo), then the shows you follow, each with the last episode you ticked — **Tonight's Trio** — three wide artwork cards, one from your taste, one you
+  the × forgets it, with Undo), then the shows you follow, each with the last episode you ticked; a card opens the
+  title's page, its round button plays (a show's starts the next episode) — **Tonight's Trio** — three wide artwork cards, one from your taste, one you
   saved, one must-watch, each saying why — **Up next in your series** (KGF 1 → KGF 2, the MCU in order), **For
   you**, *More from* the directors you like, **New episodes** in shows you follow, a daily **Throwback** year, and
   Indian and world discovery rows. The tab bar on phones is icons only.
@@ -53,7 +54,8 @@ Live: https://film-ledger-mocha.vercel.app/
 - **Where to watch** — the film and show pages list the streaming services that carry the title in India, with
   what it costs ("Netflix · Stream", "Apple TV · Rent ₹129"), from JustWatch via `api/where.js`.
 - **Film page** — live IMDb score, the **trailer inline** (a still that plays in place), the **full cast** with the
-  parts they play (Wikidata adds everyone after Cinemeta's leads), director, writers, music and camera, with photos
+  parts they play (Cinemeta's leads, then the film's Wikipedia cast list in billing order — list or table — then
+  anyone else Wikidata knows; one person spelled two ways, "R. Madhavan" / "Madhavan", shows once), director, writers, music and camera, with photos
   (tap one for their full filmography), the series in order, *More from* the director, similar films, rating, watch
   dates, *Where to watch*. Shows get their full **cast & hosts**: hosts and presenters (Wikidata, TVmaze), the cast,
   creators and the guests named in episode titles ("Guest · S2 E3"). On a phone people sit two or three to a row,
@@ -62,8 +64,9 @@ Live: https://film-ledger-mocha.vercel.app/
 - **For you** — scored on your taste (genres, languages, decades, the directors of films you loved) and quality,
   with recent watches counting more than old ones (about half after a year and a half); lifted for films closest to
   the ones you rated highest, lowered for ones like those you rated 1–2 or started and left, a little for new
-  releases; varied so a row isn't one genre, a little different each day, and each "Because you liked…" is honest
-  about which film.
+  releases; varied so a row isn't one genre, a little different each day, and each reason names the film behind it
+  ("From the director of 3 Idiots", "Because you just watched Jab We Met", "Because you liked Drishyam"). Tonight's
+  Trio leads with such a pick; at lunch and late at night it prefers shorter films, but never leaves a slot empty.
 - **Trailer on hover** — rest the mouse on a poster for ~3 seconds and its trailer plays, muted, inside it
   (Settings → More to turn off).
 - **Diary** — films you tick appear on the day you ticked them; films you play fill the calendar.
@@ -96,9 +99,11 @@ Appearance, in order (Settings opens with your name, then Relay and the app swit
    the light at the top left, and on a phone a tab bar that floats as a glass capsule. A background (*Lights*
    far back behind the glass, *Aurora*, or *Artwork*: all dim washes, scattered by a fine frosted grain in the
    glass), and motion (Full: buttons that give under your finger and lean toward the mouse, springy tabs and sheets,
-   the headline arriving word by word; Calm: quick fades only). With a mouse or trackpad the page scrolls smoothly
-   (Lenis) either way, unless the system asks for reduced motion.
-3. **Colour** — dark / light / auto, 13 palettes (the style's own, Noir, AMOLED, High contrast, Graphite, Midnight, Ocean,
+   the headline arriving word by word, and parallax: hero backdrops sink as you scroll, pictures in cards and
+   posters drift inside their frames; Calm: quick fades only). With a mouse or trackpad the page scrolls smoothly
+   (Lenis) either way, unless the system asks for reduced motion; rows can be dragged and flung with the mouse, and
+   tapping the tab you're on scrolls back to the top.
+3. **Colour** — dark / light / auto, 13 palettes in a grid (the style's own, Noir, AMOLED, High contrast, Graphite, Midnight, Ocean,
    Forest, Sand, Sunset, Rose, Lavender, Nord), any accent colour.
 
 ## Where your data lives

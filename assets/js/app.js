@@ -326,7 +326,9 @@
       to = viewEl.querySelector(".film-poster .art");
       if (from && to) to.style.viewTransitionName = "poster";
     });
-    vt.finished.finally(() => { if (to) to.style.viewTransitionName = ""; });
+    // The browser may skip a transition (the tab hidden mid-way); the page still changes, so that's not an error.
+    vt.ready.catch(() => {});
+    vt.finished.catch(() => {}).finally(() => { if (to) to.style.viewTransitionName = ""; });
   }
 
   function route() {

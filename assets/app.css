@@ -1172,7 +1172,7 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 .rewatch .i { color: var(--text-3); vertical-align: -2px; }
 
 .resume-card { position: relative; display: block; min-width: 0; transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform 0.3s var(--ease-out), opacity 0.24s; }
-.resume-link { display: block; }
+.resume-open { position: absolute; inset: 0; z-index: 1; background: linear-gradient(180deg, transparent 40%, rgba(0, 0, 0, 0.55)); }
 /* Remove from Continue watching: shows on hover (always on touch screens), top right of the picture. */
 .resume-x {
   --isz: 16px; position: absolute; top: 8px; right: 8px; z-index: 3; display: grid; place-items: center; width: 30px; height: 30px;
@@ -1188,7 +1188,9 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 .resume-art > img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.6s var(--ease-out); }
 .resume-card:hover .resume-art > img { transform: scale(1.04); }
 .resume-art .art { position: absolute; inset: 0; aspect-ratio: auto; border-radius: 0; }
-.resume-play { --isz: 20px; position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; color: #fff; background: linear-gradient(180deg, transparent 40%, rgba(0, 0, 0, 0.6)); }
+/* Just the round button plays; the rest of the card opens the title's page. */
+.resume-play { --isz: 20px; position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; width: 44px; height: 44px; margin: auto; border-radius: 50%; color: #fff; }
+.resume-art .card-progress { z-index: 2; }
 .resume-play .i { box-sizing: content-box; padding: 12px; border-radius: 50%; background: rgba(10, 10, 11, 0.6); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); transition: transform 0.2s var(--ease), background 0.2s; }
 .resume-card:hover .resume-play .i { transform: scale(1.08); background: var(--accent); color: var(--accent-ink); }
 .resume-body { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 13px; }
@@ -1514,7 +1516,6 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 .settings [data-storage] { margin-top: 12px; }
 .settings .set-sub { margin: 18px 0 10px; }
 .set-group .setting-stack { gap: 6px; }
-.set-group .pal-rail { margin: 0 -6px; }
 .settings .h2 { margin-bottom: 4px; }
 .settings .sub { margin-bottom: 12px; }
 .settings label.btn { cursor: pointer; }
@@ -1893,16 +1894,6 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 .preset-art i:nth-child(1) { left: 10px; right: 10px; bottom: 10px; height: 20px; border-radius: 8px; background: var(--pv-s); opacity: 0.9; }
 .preset-art[data-glass-preview]:not([data-glass-preview="off"]) i:nth-child(1) { background: rgba(255, 255, 255, 0.14); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 .preset-art i:nth-child(2) { left: 16px; bottom: 16px; width: 26px; height: 8px; border-radius: 4px; background: var(--pv-accent); }
-.pal-rail { position: relative; display: flex; align-items: center; gap: 4px; margin: 12px 0 4px; }
-.pal-arrow { flex: none; }
-@media (hover: none) { .pal-arrow { display: none; } .set-group .pal-rail { margin: 0; } }
-.palette-row {
-  display: grid; grid-auto-flow: column; grid-auto-columns: 74px; gap: 8px; flex: 1; min-width: 0; padding: 4px 2px 6px;
-  overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; overscroll-behavior-x: contain;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
-}
-.palette-row::-webkit-scrollbar { display: none; }
 .pal-swatch {
   display: flex; flex-direction: column; gap: 4px; padding: 4px; min-width: 0; scroll-snap-align: start; font-size: 10.5px; color: var(--text-2);
   border-radius: var(--r-lg); border: 1px solid var(--line);
@@ -2890,3 +2881,45 @@ html.lenis, html.lenis body { height: auto; }
 /* Sakura collections: the title you came from is marked in the list. */
 .row.is-here { background: var(--accent-soft); }
 .coll-sub { margin: 30px 0 16px; }
+
+/* Settings → Palette: a grid of all the palettes (no scrolling row, so none is cut off or faded). */
+.palette-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px; }
+.palette-grid .pal-swatch { min-width: 0; }
+.palette-grid .pal-swatch small { overflow: hidden; max-width: 100%; white-space: nowrap; text-overflow: ellipsis; }
+
+/* ---------- parallax: pictures move a little slower than the page ----------
+   Scroll-driven animations (run by the browser off the main thread). Only with Full motion; the `translate` property
+   is used, so each picture's own zoom and hover effects keep working. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    /* The hero backdrop on film, show and anime pages sinks and fades as you scroll past it. */
+    :root[data-motion="full"] .film-backdrop.is-in img {
+      animation: drift 30s ease-in-out infinite alternate, heroSink linear both;
+      animation-timeline: auto, scroll(root);
+      animation-range: normal, 0 90vh;
+    }
+    @keyframes heroSink { to { translate: 0 22vh; opacity: 0.35; } }
+    /* Tonight's Trio, Spotlight and Up Next: the picture drifts inside its card. */
+    :root[data-motion="full"] :is(.tn-card .tn-bg, .resume-art > img) {
+      inset: -9% 0 auto; height: 118%;
+      animation: cardDrift linear both; animation-timeline: view();
+    }
+    :root[data-motion="full"] .resume-art > img { position: absolute; left: 0; width: 100%; }
+    @keyframes cardDrift { from { translate: 0 -6%; } to { translate: 0 6%; } }
+    /* Posters shift slightly inside their frames. */
+    :root[data-motion="full"] .card .art img.is-in {
+      height: 108%; top: -4%;
+      animation: posterDrift linear both; animation-timeline: view();
+    }
+    @keyframes posterDrift { from { translate: 0 -3.5%; } to { translate: 0 3.5%; } }
+  }
+}
+/* Rows dragged with the mouse: the grabbing hand, and no snapping or smooth scrolling fighting the drag. */
+@media (hover: hover) and (pointer: fine) {
+  .rail-track, .tn-list { cursor: grab; }
+  .rail-track.is-dragging, .tn-list.is-dragging { cursor: grabbing; scroll-snap-type: none; scroll-behavior: auto; user-select: none; }
+  .is-dragging a, .is-dragging img { pointer-events: none; }
+}
+/* A stacked setting (label above, control below) spans the row's full width. */
+.setting-row.setting-stack { justify-content: stretch; }
+.setting-stack > :not(span):not(label) { min-width: 0; }

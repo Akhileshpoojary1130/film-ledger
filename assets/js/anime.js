@@ -202,7 +202,7 @@
     const n = +String(id).replace(/^an/, "");
     if (!n) return Promise.reject(new Error("bad id"));
     const q = "query($id:Int){Media(id:$id,type:ANIME){" + MEDIA + " description(asHtml:false) studios(isMain:true){nodes{name}} trailer{id site}" +
-      " characters(sort:[ROLE,RELEVANCE,ID],perPage:24){edges{role node{name{full} image{large}} voiceActors(language:JAPANESE,sort:[RELEVANCE,ID]){name{full} image{large}}}}" +
+      " characters(sort:[ROLE,RELEVANCE,ID],perPage:50){edges{role node{name{full} image{large}} voiceActors(language:JAPANESE,sort:[RELEVANCE,ID]){name{full} image{large}}}}" +
       " relations{edges{relationType(version:2) node{" + SMALL + "}}}" +
       " recommendations(perPage:14,sort:RATING_DESC){nodes{mediaRecommendation{" + SMALL + "}}}" +
       " streamingEpisodes{title thumbnail}}}";

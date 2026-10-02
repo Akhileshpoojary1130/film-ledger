@@ -126,11 +126,12 @@
     return '<section class="rail"><header class="section-head"><div><h2 class="h2">Up Next</h2></div></header><div class="rail-track rail-wide">' +
       list.map(({ a, e, p }) => {
         const left = p ? "E" + e + " · " + FL.util.fmtClock(p.d - p.t) + " left" : "Episode " + e;
-        return '<article class="resume-card tilt" data-resume="' + esc(a.id) + '"><a class="resume-link" href="' + watchHref(a, e) + '">' +
+        return '<article class="resume-card tilt" data-resume="' + esc(a.id) + '">' +
           '<div class="resume-art">' + (a.banner ? '<img src="' + esc(a.banner) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : art(a)) +
-          '<span class="resume-play">' + icon("play") + "</span>" +
+          '<a class="resume-open" href="' + hrefOf(a) + '" tabindex="-1" aria-hidden="true"></a>' +
+          '<a class="resume-play" href="' + watchHref(a, e) + '" aria-label="Play ' + esc(a.title) + ", episode " + e + '">' + icon("play") + "</a>" +
           (p ? '<div class="card-progress"><i style="width:' + ((p.t / p.d) * 100).toFixed(1) + '%"></i></div>' : "") + "</div>" +
-          '<div class="resume-body"><strong>' + esc(a.title) + "</strong><span>" + esc(left) + "</span></div></a></article>";
+          '<a class="resume-body" href="' + hrefOf(a) + '"><strong>' + esc(a.title) + "</strong><span>" + esc(left) + "</span></a></article>";
       }).join("") + "</div></section>";
   }
 

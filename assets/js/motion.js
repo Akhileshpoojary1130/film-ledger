@@ -42,7 +42,7 @@
         easing: (t) => 1 - Math.pow(1 - t, 4),
         smoothWheel: true,
         // Sheets, the player and rows that scroll on their own keep their own scrolling.
-        prevent: (node) => !!(node.closest && node.closest(".modal-backdrop, .player, .palette-list, .rail-track, .tn-list, .palette-row, .sakura-years, .az-strip, .tabs, .seg, .chip-row, [data-lenis-prevent]")),
+        prevent: (node) => !!(node.closest && node.closest(".modal-backdrop, .player, .palette-list, .rail-track, .tn-list, .sakura-years, .az-strip, .tabs, .seg, .chip-row, [data-lenis-prevent]")),
       });
       const loop = (t) => {
         if (!lenis) return;
@@ -98,6 +98,57 @@
     el.style.translate = (dx * pull).toFixed(1) + "px " + (dy * pull * 0.6).toFixed(1) + "px";
   }, { passive: true });
   document.addEventListener("pointerout", (e) => { if (magnet && (!e.relatedTarget || !magnet.contains(e.relatedTarget))) release(); }, true);
+
+  /* ---------- tap the tab you're on: back to the top ---------- */
+
+  document.addEventListener("click", (e) => {
+    const tab = e.target.closest && e.target.closest(".tabbar a[data-nav], .nav a[data-nav]");
+    if (!tab || !tab.classList.contains("is-on") || tab.getAttribute("href") !== location.hash || window.scrollY < 40) return;
+    e.preventDefault();
+    if (lenis) lenis.scrollTo(0, { duration: 0.9 }); else window.scrollTo({ top: 0, behavior: reduced.matches ? "auto" : "smooth" });
+  });
+
+  /* ---------- rows you can drag with the mouse (and fling) ---------- */
+
+  const ROWS = ".rail-track, .tn-list";
+  let drag = null;
+  document.addEventListener("pointerdown", (e) => {
+    if (e.pointerType !== "mouse" || e.button !== 0) return;
+    const row = e.target.closest && e.target.closest(ROWS);
+    if (!row || row.scrollWidth <= row.clientWidth + 4 || e.target.closest("button, input, .qa")) return;
+    drag = { row, x: e.clientX, left: row.scrollLeft, moved: false, v: 0, t: performance.now(), lastX: e.clientX };
+  });
+  document.addEventListener("pointermove", (e) => {
+    if (!drag || e.pointerType !== "mouse") return;
+    const dx = e.clientX - drag.x;
+    if (!drag.moved && Math.abs(dx) < 6) return;
+    if (!drag.moved) { drag.moved = true; drag.row.classList.add("is-dragging"); }
+    drag.row.scrollLeft = drag.left - dx;
+    const now = performance.now();
+    drag.v = (e.clientX - drag.lastX) / Math.max(1, now - drag.t); // px per ms
+    drag.lastX = e.clientX;
+    drag.t = now;
+  }, { passive: true });
+  const endDrag = () => {
+    if (!drag) return;
+    const d = drag;
+    drag = null;
+    if (!d.moved) return;
+    d.row.classList.remove("is-dragging");
+    // A drag isn't a click on whatever it started on.
+    const swallow = (ev) => { ev.preventDefault(); ev.stopPropagation(); };
+    window.addEventListener("click", swallow, { capture: true, once: true });
+    setTimeout(() => window.removeEventListener("click", swallow, true), 80); // only the click that ends this drag
+    // Fling: carry on at the release speed, slowing to a stop.
+    let v = -d.v * 16;
+    if (reduced.matches || Math.abs(v) < 1) return;
+    const step = () => { d.row.scrollLeft += v; v *= 0.92; if (Math.abs(v) > 0.5) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  };
+  document.addEventListener("pointerup", endDrag);
+  document.addEventListener("pointercancel", endDrag);
+  // Images and links would otherwise start the browser's own drag.
+  document.addEventListener("dragstart", (e) => { if (e.target.closest && e.target.closest(ROWS)) e.preventDefault(); });
 
   /* ---------- the headline, word by word ---------- */
 

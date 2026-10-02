@@ -74,7 +74,7 @@
   function seasonLabel(s) { return s === 0 ? "Specials" : "Season " + s; }
 
   FL.views.show = {
-    mount(el, params) {
+    mount(el, params, query) {
       const id = decodeURIComponent(params[0]);
       let show = FL.catalogue.get(id);
       let data = null;
@@ -181,17 +181,26 @@
          first, with their parts), creators, and the guests named in episode titles ("EP1 ft. Alia Bhatt, Sharvari"). */
       let wdCast = null;
       let tvCast = null;
+      let wpCast = null; // the show's Wikipedia cast list
       function castNames() {
         const out = [];
         const seen = new Set();
         const norm = FL.util.normalize;
         const wd = wdCast || [];
-        const push = (n, label) => { const k = norm(n); if (n && k && !seen.has(k)) { seen.add(k); out.push([n, label || ""]); } };
+        const push = (n, label) => {
+          const k = norm(n);
+          if (!n || !k || seen.has(k) || out.some(([o]) => FL.people.samePerson(o, n))) return; // "R. Madhavan" = "Madhavan"
+          seen.add(k);
+          out.push([n, label || ""]);
+        };
         const part = (ch) => { const p = String(ch || "").split(/,|\s[–—-]\s|\(/)[0].trim(); return p ? "as " + p : ""; };
         wd.filter((x) => x.role === "Host").forEach((x) => push(x.name, "Host"));
         (tvCast || []).filter((x) => /host|presenter|anchor|judge/i.test(x.character)).forEach((x) => push(x.name, x.character));
         const cast = wd.filter((x) => x.role === "Cast");
         const played = new Map(cast.filter((x) => x.character).map((x) => [norm(x.name), x.character]));
+        (wpCast || []).forEach((x) => { if (x.character && !played.has(norm(x.name))) played.set(norm(x.name), x.character); });
+        // Wikipedia's cast list is in billing order (the lead first); Cinemeta's few names fill in after it.
+        (wpCast || []).forEach((x) => push(x.name, part(x.character)));
         data.cast.forEach((n) => push(n, part(played.get(norm(n)))));
         cast.sort((a, b) => b.links - a.links).forEach((x) => push(x.name, part(x.character)));
         (tvCast || []).forEach((x) => push(x.name, part(x.character)));
@@ -251,6 +260,10 @@
           tvCast = [];
           FL.people.tvmazeCast(show.imdbId || show.id).then((list) => { if (alive && list.length) { tvCast = list; paintCast(); } });
         }
+        if (!wpCast) {
+          wpCast = [];
+          FL.people.wikiCast(show.imdbId || show.id).then((list) => { if (alive && list.length) { wpCast = list; paintCast(); } });
+        }
         const on = el.querySelector(".season-nav .is-on");
         if (on) on.scrollIntoView({ inline: "center", block: "nearest" });
         loadVegaSeason(season);
@@ -270,6 +283,8 @@
           FL.remote.touch(show);
           document.title = show.title + " · Iris";
           const up = nextUp(show, data);
+          // Up Next's play button: straight on to the next episode.
+          if (up && query && query.get("play") === "next") { location.replace("#/watch/" + encodeURIComponent(show.id) + "?s=" + up.s + "&e=" + up.e); return; }
           const latest = data.seasons.filter((x) => x > 0 && data.episodes.some((v) => v.s === x && v.aired));
           season = up ? up.s : latest.length ? latest[latest.length - 1] : data.seasons[0];
           render();
