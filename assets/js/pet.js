@@ -213,22 +213,32 @@
 
   const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement || null;
 
+  const SHOW_FOR = 10; // seconds: long enough to read, with a countdown so it's clear when it goes
+
   function show(text, emoji, kind, act) {
     const chosen = kind || choice();
     if (chosen === "off") return;
     const pet = resolvePet(chosen);
     const fs = fsElement();
-    if (fs && fs.tagName === "IFRAME") { waiting = [text, emoji, kind, Date.now()]; return; }
+    const hostFs = !!(fs && fs.tagName === "IFRAME");
     if (current) current.remove();
     const el = document.createElement("div");
     el.className = "pet pet-" + pet + (act ? " act-" + act : "");
     el.setAttribute("role", "status");
     el.innerHTML = '<span class="pet-face">' + face(pet) + "</span>" +
-      '<span class="pet-bubble">' + esc(text) + (emoji ? ' <span class="pet-emoji">' + emoji + "</span>" : "") + "</span>";
+      '<span class="pet-bubble">' + esc(text) + (emoji ? ' <span class="pet-emoji">' + emoji + "</span>" : "") + "</span>" +
+      '<span class="pet-count" aria-hidden="true">' + SHOW_FOR + "</span>" +
+      '<i class="pet-bar" aria-hidden="true" style="animation-duration:' + SHOW_FOR + 's"></i>';
     el.title = "Tap to dismiss";
-    (fs || document.body).appendChild(el); // inside Iris's fullscreen player, so it shows over the film
+    (fs && !hostFs ? fs : document.body).appendChild(el); // inside Iris's fullscreen player, so it shows over the film
+    // A video site's own fullscreen covers the page: show it in the browser's top layer, else say it afterwards.
+    if (hostFs && !FL.ui.overTop(el)) { el.remove(); waiting = [text, emoji, kind, Date.now()]; return; }
     current = el;
+    let left = SHOW_FOR;
+    const count = el.querySelector(".pet-count");
+    const tick = setInterval(() => { left -= 1; if (left > 0) count.textContent = left; }, 1000);
     const leave = () => {
+      clearInterval(tick);
       if (!el.isConnected || el.classList.contains("out")) return;
       el.classList.add("out");
       setTimeout(() => { el.remove(); if (current === el) current = null; }, 500);
@@ -236,7 +246,7 @@
     el.addEventListener("click", leave);
     void el.offsetWidth; // start from the hidden state, then slide in (works even when frames are throttled)
     el.classList.add("in");
-    setTimeout(leave, 5000);
+    setTimeout(leave, SHOW_FOR * 1000);
   }
 
   /* ---------- counting the sitting ---------- */

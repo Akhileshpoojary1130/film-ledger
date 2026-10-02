@@ -23,6 +23,7 @@
     "#/person/" + encodeURIComponent("Christopher Nolan") + "?as=crew", "#/move", "#/match", "#/no-such-page",
     // Sakura, the anime app
     "#/anime", "#/anime/seasons", "#/anime/explore?genre=Action", "#/anime/az/a", "#/anime/library", "#/anime/an154587", "#/anime/zr-naruto",
+    "#/anime/collections", "#/anime/collection/an16498",
   ].filter(Boolean);
 
   // Anything poking out sideways that isn't inside something meant to scroll or clip.

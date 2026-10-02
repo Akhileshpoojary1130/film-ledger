@@ -580,6 +580,24 @@
   /* ---------- toasts ---------- */
 
   let toastRoot = null;
+  /* A host's own fullscreen button makes its iframe the fullscreen element, which covers everything of ours. The
+     browser's top layer (a popover) is the one place that still shows above it, so reminders, Up Next and toasts go
+     there while that lasts. Returns whether the element was lifted. */
+  const hostFullscreen = () => { const f = document.fullscreenElement || document.webkitFullscreenElement; return !!(f && f.tagName === "IFRAME"); };
+  function overTop(el) {
+    if (!hostFullscreen() || !el || !el.showPopover) return false;
+    if (!el.isConnected) document.body.appendChild(el);
+    el.setAttribute("popover", "manual");
+    try { if (!el.matches(":popover-open")) el.showPopover(); return true; } catch (e) { el.removeAttribute("popover"); return false; }
+  }
+  // Out of the host's fullscreen: everything lifted goes back to normal.
+  const settleLifted = () => {
+    if (hostFullscreen()) return;
+    $$("[popover].pet, [popover].toasts, [popover].player-upnext").forEach((el) => { try { el.hidePopover(); } catch (e) { /* closed */ } el.removeAttribute("popover"); });
+  };
+  document.addEventListener("fullscreenchange", settleLifted);
+  document.addEventListener("webkitfullscreenchange", settleLifted);
+
   function toast(message, opts) {
     const o = opts || {};
     if (!toastRoot) {
@@ -593,6 +611,7 @@
     const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
     const host = fsEl && fsEl.tagName !== "IFRAME" ? fsEl : document.body;
     if (toastRoot.parentNode !== host) host.appendChild(toastRoot);
+    overTop(toastRoot);
     const el = document.createElement("div");
     el.className = "toast";
     el.innerHTML = "<span>" + esc(message) + "</span>" + (o.action ? '<button type="button" class="toast-action">' + esc(o.action) + "</button>" : "");
@@ -614,7 +633,7 @@
     return dismiss;
   }
 
-  /* A five-second check-in at the top right — said by the companion (pet.js). */
+  /* A ten-second check-in at the top right — said by the companion (pet.js). */
   function nudge(text, emoji) {
     if (FL.pet) FL.pet.show(text, emoji);
   }
@@ -704,6 +723,6 @@
 
   FL.ui = {
     icon, loader, stars, ratingWidget, art, placeholder, card, row, rail, refreshFilm, watchPosters, reveal, hrefFor, whereToWatch, fillWhere,
-    toast, nudge, modal, confirm, isModalOpen, closeModals, empty, segmented, metaLine, mustWatch,
+    toast, nudge, modal, confirm, isModalOpen, closeModals, empty, segmented, metaLine, mustWatch, overTop,
   };
 })(window.FL = window.FL || {});

@@ -232,9 +232,164 @@
     });
   }
 
+  /* For you: AniList's community recommendations for the anime you've liked most (rated, favourited, watched the most
+     of, lately), added up. A title recommended from several of yours, and strongly, comes first; ones you already
+     have are left out. One request. */
+  function forYou() {
+    const mine = FL.store.animeEntries();
+    const have = new Set(mine.map((e) => e.id));
+    const seeds = mine.filter((e) => /^an\d+$/.test(e.id)).map((e) => {
+      const eps = Object.keys(e.episodes || {}).length;
+      let w = (eps ? 0.3 + Math.min(1.2, eps / 8) : 0) + (e.progress ? 0.3 : 0) + (e.fav ? 1.5 : 0) + (e.rating ? (e.rating - 5) / 2.5 : 0) + (e.listed ? 0.3 : 0);
+      const months = (Date.now() - (e.updated || Date.now())) / (30.4 * 864e5);
+      if (w > 0) w *= 0.4 + 0.6 * Math.pow(0.5, Math.max(0, months) / 12);
+      return [w, e];
+    }).filter(([w]) => w > 0.25).sort((a, b) => b[0] - a[0]).slice(0, 8);
+    if (!seeds.length) return Promise.resolve([]);
+    const q = "query($ids:[Int]){Page(perPage:8){media(id_in:$ids,type:ANIME){id title{english romaji} " +
+      "recommendations(perPage:12,sort:RATING_DESC){nodes{rating mediaRecommendation{" + SMALL + " isAdult}}}}}}";
+    return gql(q, { ids: seeds.map(([, e]) => +e.id.slice(2)) }, 6 * 3600e3).then((d) => {
+      const found = new Map();
+      d.Page.media.forEach((m) => {
+        const seed = seeds.find(([, e]) => e.id === "an" + m.id);
+        if (!seed) return;
+        const name = m.title.english || m.title.romaji;
+        ((m.recommendations && m.recommendations.nodes) || []).forEach((n, i) => {
+          const r = n.mediaRecommendation;
+          if (!r || r.isAdult || have.has("an" + r.id)) return;
+          const add = seed[0] * Math.log2(2 + Math.max(0, n.rating || 0)) * (1 - i * 0.04);
+          const cur = found.get(r.id) || { anime: fromMedia(r), score: 0, best: 0, because: name };
+          cur.score += add;
+          if (add > cur.best) { cur.best = add; cur.because = name; }
+          found.set(r.id, cur);
+        });
+      });
+      return [...found.values()].map((x) => Object.assign(x, { score: x.score + (x.anime.score || 60) / 25 }))
+        .sort((a, b) => b.score - a.score).slice(0, 20);
+    });
+  }
+
   function cleanDesc(s) {
     return String(s || "").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").replace(/\(Source:[^)]*\)\s*$/i, "")
       .replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/&#039;/g, "'").replace(/\n{3,}/g, "\n\n").trim();
+  }
+
+  /* ---------- collections: a whole franchise in release order ----------
+     From AniList's links between titles, taken so that crossovers can't merge two franchises: climb from the title to
+     its main story (PARENT), follow that story's sequel/prequel chain, then add each entry's side stories, spin-offs,
+     recaps and films — with their own sequel chains, but no further side links (so "Lupin III vs. Detective Conan"
+     is part of Conan's collection without pulling in all of Lupin III). Live, so new sequels appear by themselves;
+     kept for a week. */
+  const COLL_KEY = "film_ledger_anime_coll_v1";
+  const COLL_TTL = 7 * 86400e3;
+  const FULL = "id idMal title{romaji english native} format status episodes duration season seasonYear averageScore popularity genres " +
+    "coverImage{extraLarge large color} bannerImage nextAiringEpisode{episode airingAt} startDate{year month day} synonyms isAdult " +
+    "relations{edges{relationType(version:2) node{id type format}}}";
+  const CHAIN = new Set(["SEQUEL", "PREQUEL"]);
+  const BRANCH = new Set(["SIDE_STORY", "SPIN_OFF", "ALTERNATIVE", "SUMMARY", "COMPILATION", "PARENT"]);
+  const raw = new Map(); // AniList id → media with its links, this visit
+
+  function fetchMedia(ids) {
+    const want = Array.from(new Set(ids)).filter((id) => !raw.has(id));
+    const batches = [];
+    for (let i = 0; i < want.length; i += 50) batches.push(want.slice(i, i + 50));
+    return batches.reduce((p, b) => p.then(() => gql("query($ids:[Int]){Page(perPage:50){media(id_in:$ids,type:ANIME){" + FULL + "}}}", { ids: b }, COLL_TTL)
+      .then((d) => d.Page.media.forEach((m) => raw.set(m.id, m)))), Promise.resolve())
+      .then(() => ids.map((id) => raw.get(id)).filter(Boolean));
+  }
+  const links = (m, set) => ((m.relations && m.relations.edges) || [])
+    .filter((e) => e.node.type === "ANIME" && e.node.format !== "MUSIC" && set.has(e.relationType)).map((e) => e.node.id);
+  function chainFrom(start) {
+    const seen = new Set(start);
+    const step = (frontier) => (!frontier.length ? Promise.resolve(seen) : fetchMedia(frontier).then((ms) => {
+      const next = [];
+      ms.forEach((m) => links(m, CHAIN).forEach((id) => { if (!seen.has(id)) { seen.add(id); next.push(id); } }));
+      return step(next);
+    }));
+    return step(start.slice());
+  }
+  const dateKey = (d) => ((d && d.year) || 9999) * 10000 + ((d && d.month) || 12) * 100 + ((d && d.day) || 31);
+  function franchiseName(m) {
+    let t = (m.title.english || m.title.romaji || "").replace(/\s*\(\d{4}\)\s*$/, "").replace(/\s+(Season|Part|Cour)\s*\d+.*$/i, "");
+    const head = t.split(/:\s+/)[0];
+    return head.length >= 3 ? head : t;
+  }
+  // Compact rows, so a collection draws instantly next time: [id, title, romaji, format, y, m, d, cover, colour, eps, status, score, banner].
+  const toRow = (m) => [m.id, m.title.english || m.title.romaji || "", m.title.romaji || "", m.format || "", (m.startDate || {}).year || 0, (m.startDate || {}).month || 0,
+    (m.startDate || {}).day || 0, (m.coverImage && (m.coverImage.extraLarge || m.coverImage.large)) || "", (m.coverImage && m.coverImage.color) || "", m.episodes || 0, m.status || "", m.averageScore || 0, m.bannerImage || ""];
+  function fromRow(r) {
+    const id = "an" + r[0];
+    const a = known.get(id) || {
+      id, type: "anime", anilist: r[0], mal: 0, title: r[1], romaji: r[2], native: "", year: r[4], season: "", format: r[3], status: r[10],
+      episodes: r[9], aired: r[10] === "FINISHED" ? r[9] : 0, next: null, duration: 24, score: r[11], pop: 0, genres: [], synonyms: [],
+      lang: "Japanese", cover: r[7], color: r[8], banner: r[12],
+    };
+    if (!known.has(id)) known.set(id, a);
+    a._date = r[4] * 10000 + r[5] * 100 + r[6];
+    return a;
+  }
+  function shape(c) {
+    return { top: c.top, name: c.name, items: c.rows.map(fromRow).sort((x, y) => (x._date || 99999999) - (y._date || 99999999)) };
+  }
+
+  function collection(id) {
+    const n = +String(id).replace(/^an/, "");
+    if (!n) return Promise.reject(new Error("bad id"));
+    const saved = storage.get(COLL_KEY, { c: {}, m: {} });
+    const hit = saved.m[n] && saved.c[saved.m[n]];
+    if (hit && Date.now() - hit.at < COLL_TTL) return Promise.resolve(shape(hit));
+    const climb = (cur, hops) => fetchMedia([cur]).then(([m]) => {
+      const up = m && ((m.relations && m.relations.edges) || []).find((e) => e.relationType === "PARENT" && e.node.type === "ANIME" && e.node.format !== "MUSIC");
+      return up && hops < 3 ? climb(up.node.id, hops + 1) : cur;
+    });
+    return climb(n, 0).then((top) => chainFrom([top]).then((core) => fetchMedia(Array.from(core)).then((coreMs) => {
+      const starts = new Set();
+      coreMs.forEach((m) => links(m, BRANCH).forEach((x) => { if (!core.has(x)) starts.add(x); }));
+      return chainFrom(Array.from(starts)).then((branches) => fetchMedia(Array.from(new Set([...core, ...branches, n])))).then((all) => {
+        const list = all.filter((m) => !m.isAdult && m.format !== "MUSIC").sort((x, y) => dateKey(x.startDate) - dateKey(y.startDate));
+        const main = coreMs.filter((m) => !m.isAdult).sort((x, y) => dateKey(x.startDate) - dateKey(y.startDate));
+        const lead = main.find((m) => m.format === "TV") || main[0] || list[0];
+        const c = { at: Date.now(), top, name: lead ? franchiseName(lead) : "", rows: list.map(toRow) };
+        const store = storage.get(COLL_KEY, { c: {}, m: {} });
+        store.c[top] = c;
+        list.forEach((m) => { store.m[m.id] = top; });
+        // Keep the 40 most recent collections.
+        const tops = Object.keys(store.c).sort((x, y) => store.c[y].at - store.c[x].at);
+        tops.slice(40).forEach((t) => { delete store.c[t]; });
+        Object.keys(store.m).forEach((k) => { if (!store.c[store.m[k]]) delete store.m[k]; });
+        storage.set(COLL_KEY, store);
+        return shape(c);
+      });
+    })));
+  }
+
+  /* Popular franchises, for the Collections page: the most popular anime, grouped by their sequel/prequel links
+     (directly, or through one title in between), one card each — named after the first series. One request. */
+  function popularCollections() {
+    return gql("query{a:Page(page:1,perPage:50){media(type:ANIME,isAdult:false,sort:POPULARITY_DESC,format_in:[TV,MOVIE,ONA]){" + FULL + "}}" +
+      " b:Page(page:2,perPage:50){media(type:ANIME,isAdult:false,sort:POPULARITY_DESC,format_in:[TV,MOVIE,ONA]){" + FULL + "}}}", {}, 86400e3).then((d) => {
+      const list = d.a.media.concat(d.b.media).filter((m) => !m.isAdult);
+      const parent = new Map();
+      const find = (x) => { while (parent.get(x) !== x) { parent.set(x, parent.get(parent.get(x))); x = parent.get(x); } return x; };
+      const union = (a, b) => { parent.set(find(a), find(b)); };
+      list.forEach((m) => parent.set(m.id, m.id));
+      const via = new Map(); // a title between two popular ones → the popular ones linked to it
+      list.forEach((m) => links(m, new Set(["SEQUEL", "PREQUEL", "PARENT", "SIDE_STORY"])).forEach((x) => {
+        if (parent.has(x)) union(m.id, x);
+        else { if (!via.has(x)) via.set(x, []); via.get(x).push(m.id); }
+      }));
+      via.forEach((ids) => ids.slice(1).forEach((x) => union(ids[0], x)));
+      const groups = new Map();
+      list.forEach((m) => { const r = find(m.id); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(m); });
+      const related = new Set(["SEQUEL", "PREQUEL", "PARENT", "SIDE_STORY", "SPIN_OFF", "ALTERNATIVE", "SUMMARY", "COMPILATION"]);
+      // A franchise has more than one title: two popular ones, or one with a sequel, film or special of its own.
+      return Array.from(groups.values()).filter((g) => g.length > 1 || links(g[0], related).length > 0).map((g) => {
+        g.sort((x, y) => dateKey(x.startDate) - dateKey(y.startDate));
+        const lead = g.find((m) => m.format === "TV") || g[0];
+        const a = fromMedia(lead);
+        return { anime: a, name: franchiseName(lead), size: g.length, pop: Math.max.apply(null, g.map((m) => m.popularity || 0)) };
+      }).sort((x, y) => y.pop - x.pop);
+    });
   }
 
   /* ---------- Zoro TV ---------- */
@@ -434,7 +589,7 @@
   const entries = () => FL.store.animeEntries();
 
   FL.anime = {
-    GENRES, SEASONS, FORMAT, active, home, search, browse, load, get, remember, episodes, entries,
+    GENRES, SEASONS, FORMAT, active, home, search, browse, load, get, remember, episodes, entries, forYou, collection, popularCollections,
     zoroList, zoroSlug, zoroServers, zoroSeries, fromZoro, latest, seasonOf, nextSeason,
     formatLabel, statusLabel, seasonLabel, airingIn, norm, similar,
     zoroUrl: (slug) => ZORO_SITE + "/anime/" + slug + "/",

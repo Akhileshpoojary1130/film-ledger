@@ -81,7 +81,7 @@
       let season = null;
       let alive = true;
 
-      el.innerHTML = '<div class="container page">' + FL.ui.loader(40, "Loading show") + "</div>";
+      el.innerHTML = '<div class="container page"><div class="page-loading">' + FL.ui.loader(40, "Loading show") + "</div></div>";
 
       function header() {
         const st = FL.store.state(show.id);

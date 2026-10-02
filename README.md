@@ -14,8 +14,8 @@ Live: https://film-ledger-mocha.vercel.app/
   middle button is **Browse**). The
   headline (**Moodline**) follows the time of day (early bird, lunch — "Had lunch yet?", dinner, late night), changes
   every six hours with different wording each day, and follows what you've been watching: a horror streak gets a
-  spooky line in an eerie typeface, comedies a cheerful one. Then **Up Next** (1–3, in Settings; the × on a card
-  forgets where you stopped, with Undo), **Tonight's Trio** — three wide artwork cards, one from your taste, one you
+  spooky line in an eerie typeface, comedies a cheerful one. Then **Up Next** — where you stopped (1–3, in Settings;
+  the × forgets it, with Undo), then the shows you follow, each with the last episode you ticked — **Tonight's Trio** — three wide artwork cards, one from your taste, one you
   saved, one must-watch, each saying why — **Up next in your series** (KGF 1 → KGF 2, the MCU in order), **For
   you**, *More from* the directors you like, **New episodes** in shows you follow, a daily **Throwback** year, and
   Indian and world discovery rows. The tab bar on phones is icons only.
@@ -59,16 +59,18 @@ Live: https://film-ledger-mocha.vercel.app/
   creators and the guests named in episode titles ("Guest · S2 E3"). On a phone people sit two or three to a row,
   with *Show all*. A bundled film Cinemeta can't match by title is found
   through its Wikipedia article (Wikipedia → Wikidata → IMDb id), so its details and servers still work.
-- **For you** — scored on your taste (genres, languages, decades) and quality, lifted for films closest to the ones
-  you rated highest, lowered for ones like those you rated 1–2, a little for new releases; varied so a row isn't one
-  genre, and each "Because you liked…" is honest about which film.
+- **For you** — scored on your taste (genres, languages, decades, the directors of films you loved) and quality,
+  with recent watches counting more than old ones (about half after a year and a half); lifted for films closest to
+  the ones you rated highest, lowered for ones like those you rated 1–2 or started and left, a little for new
+  releases; varied so a row isn't one genre, a little different each day, and each "Because you liked…" is honest
+  about which film.
 - **Trailer on hover** — rest the mouse on a poster for ~3 seconds and its trailer plays, muted, inside it
   (Settings → More to turn off).
 - **Diary** — films you tick appear on the day you ticked them; films you play fill the calendar.
 - **Stats** — films, hours, genres, languages, decades, ratings vs IMDb, **faces you watch most**, directors, **time
   of day** and **day of the week** you watch, records.
 - **Pause Pals** (break reminders) — on long sittings (anywhere in Iris, not only while watching) a little friend
-  drops in at the top right for five seconds, and acts it out: sit up straight at 25 minutes (it stretches), water at
+  drops in at the top right for ten seconds (counted down on the bubble), and acts it out: sit up straight at 25 minutes (it stretches), water at
   45 (it hops), rest your eyes (a slow blink), a stretch, a snack, a proper break at 3 and 4 hours, and a sleepy
   "z z" past midnight. Three episodes in a row and it waves for a break. A cat by default, or a dog, bunny, panda,
   fox, penguin, owl, koala, chick, the Iris mark, or *Mix* for a different one each time (Settings → Home, or Off).
@@ -83,7 +85,7 @@ Live: https://film-ledger-mocha.vercel.app/
 New visitors start in Material, high-contrast dark with a blue accent, clear glass on a still background, calm
 motion, the dial year picker, trailers on hover, the mood headline, three titles in Continue watching and the cat
 for break reminders. Everything can be changed, and the **Iris default** preset brings the look back. Settings →
-Appearance, in order:
+Appearance, in order (Settings opens with your name, then Relay and the app switch):
 
 1. **Style** — Cinema, Material (Android), Cupertino (Apple), Fluent (Windows 11), One UI (Samsung), Glyph
    (dot-matrix, Nothing-style), **Pop** (neo-brutalist: ink outlines, hard shadows, flat colour, buttons that press
@@ -92,8 +94,10 @@ Appearance, in order:
    zoom from the centre.
 2. **Glass & background** — liquid glass (off → clear): frosted, colour-rich panels with a specular rim that catches
    the light at the top left, and on a phone a tab bar that floats as a glass capsule. A background (*Lights*
-   drifting dimly behind the glass, *Aurora*, or *Artwork*), and motion (Full: buttons that give under your finger,
-   springy tabs and sheets; Calm: quick fades only).
+   far back behind the glass, *Aurora*, or *Artwork*: all dim washes, scattered by a fine frosted grain in the
+   glass), and motion (Full: buttons that give under your finger and lean toward the mouse, springy tabs and sheets,
+   the headline arriving word by word; Calm: quick fades only). With a mouse or trackpad the page scrolls smoothly
+   (Lenis) either way, unless the system asks for reduced motion.
 3. **Colour** — dark / light / auto, 13 palettes (the style's own, Noir, AMOLED, High contrast, Graphite, Midnight, Ocean,
    Forest, Sand, Sunset, Rose, Lavender, Nord), any accent colour.
 
@@ -151,7 +155,9 @@ Hindi-dubbed titles.
 - **Next server** goes to the best-ranked server not tried yet for this title, then rounds the list. Hindi and Indian
   titles start on Vega (its Super Player is what Vega's own site uses) until your own history says otherwise.
 - **Fullscreen** takes the whole player, not just the video's frame, so break reminders and toasts still show; the
-  bars fade after a few still seconds and come back at the top or bottom edge. On a phone it turns to landscape, and
+  bars fade after a few still seconds and come back at the top or bottom edge. A video site's own fullscreen button
+  hands over to Iris's fullscreen; where the browser doesn't allow that, Up Next, reminders and toasts still show
+  over the site's fullscreen (the browser's top layer). On a phone it turns to landscape, and
   a tap along the top or bottom edge brings the bars back.
 - **Episodes Vega has first** — a new episode Vega already carries shows up before Cinemeta lists it ("Out now on
   Vega") and starts on Vega's players; bonus episodes and extra footage (*Bonus 1*, *Bonus 2*…) play there too.
@@ -179,7 +185,8 @@ aperture, with the same pupil and catchlight; it blinks and turns the same way),
 both, so Relay syncs your anime too; Iris's lists and stats leave anime out.
 
 - **Home** — Up Next (where you stopped, else the next episode that's out), **Spotlight** (the week's most talked
-  about, as wide artwork cards), **Just out** (the newest episodes on Zoro TV), **This season** with each show's
+  about, as wide artwork cards), **For you** (AniList's community recommendations for the anime you've liked,
+  added up: "Because you liked Frieren"), **Just out** (the newest episodes on Zoro TV), **Collections**, **This season** with each show's
   countdown to its next episode, Trending, Plan to watch, Coming next season, genres, All-time favourites, Top rated
   and Films.
 - **Seasons** (Winter / Spring / Summer / Fall of any year, TV / films / ONA), **Explore** (by genre; popular, top
@@ -187,9 +194,14 @@ both, so Relay syncs your anime too; Iris's lists and stats leave anime out.
   **Library** (Watching, Plan to watch, Completed, Favourites).
 - **A title** — its banner, English, romaji and Japanese names, AniList score, the next episode's countdown, trailer,
   characters with their Japanese voices, every episode with its name and still (in hundreds for long runs like One
-  Piece), episodes and ranges to tick, **The story so far** (prequels, sequels and side stories in release order),
+  Piece), episodes and ranges to tick, its **collection** (the whole franchise in release order),
   More like this, your rating, and links to AniList, MyAnimeList and Zoro TV. A title from Zoro TV opens its AniList
   page when AniList has it.
+- **Collections** — a franchise's every series, film, OVA and special in release order (All / Series / Films /
+  Extras), from AniList's links: up from a title to its main story, along that story's sequels and prequels, then each
+  entry's side stories, films, recaps and spin-offs (with their own sequels, but no further side links, so a crossover
+  like *Lupin III vs. Detective Conan* belongs to Conan without pulling in all of Lupin III). Live, so new sequels
+  appear by themselves; kept a week. **Collections** (Sakura's top bar) lists yours and the popular franchises.
 - **Player** — MegaPlay (by AniList id; it reports playback, so resume, auto-ticking and Up Next work), **Zoro**
   (Zoro TV's own player for the episode) and Videasy, with a **Sub / Dub** switch that's remembered. All three refuse
   to play sandboxed, so they run behind the "Leave site?" guard.
@@ -254,6 +266,7 @@ assets/js/
   views/              home, years (dial), browse, film, shows, person, library + collections + diary, insights (stats),
                       together (Sync, one-time copy and Movie night), anime (Sakura's pages, search and the app switch)
   app.js              router, chrome, page transitions
+  motion.js           smooth scrolling (Lenis, from jsDelivr), magnetic buttons, the headline word by word
 ```
 
 ## Run

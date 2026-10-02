@@ -824,12 +824,23 @@
     return scored.slice(0, n).map((x) => x[1]);
   }
 
-  /* Taste from what you watched: ratings, favourites and rewatches weight genres, languages, decades. */
+  /* How much a watch still says about your taste now: full weight this year, about half after a year and a half,
+     never below a third (old favourites still count). */
+  const DAY = 864e5;
+  function recency(e) {
+    const last = e.watches.length ? Date.parse(e.watches[e.watches.length - 1]) : e.seenAt || e.updated || Date.now();
+    const months = Math.max(0, (Date.now() - (last || Date.now())) / (30.4 * DAY));
+    return 0.35 + 0.65 * Math.pow(0.5, months / 18);
+  }
+
+  /* Taste from what you watched: ratings, favourites and rewatches weight genres, languages, decades and directors —
+     recent watches more than old ones. */
   function profile(watched) {
     const g = {};
     const l = {};
     const r = {};
     const d = {};
+    const dir = {};
     const add = (map, k, w) => { map[k] = (map[k] || 0) + w; };
     const liked = [];
     watched.forEach((e) => {
@@ -838,6 +849,8 @@
       let w = e.rating ? (e.rating - 5) / 2.5 : 0.5;
       if (e.fav) w += 1;
       if (e.watches.length > 1) w += 0.4;
+      if (w > 0) w *= recency(e); // a dislike stays a dislike, however long ago
+      if (w > 0.6 && e.directors) e.directors.forEach((x) => add(dir, x, w));
       f.genres.forEach((x) => add(g, x, w / Math.sqrt(f.genres.length)));
       add(l, f.lang, w);
       if (f.region) add(r, f.region, w);
@@ -850,7 +863,7 @@
       return map;
     };
     liked.sort((a, b) => b[0] - a[0]);
-    return { g: norm(g), l: norm(l), r: norm(r), d: norm(d), liked: liked.map((x) => x[1]).slice(0, 25) };
+    return { g: norm(g), l: norm(l), r: norm(r), d: norm(d), dir, liked: liked.map((x) => x[1]).slice(0, 25) };
   }
 
   let recoCache = { v: "", items: [] };
@@ -863,7 +876,8 @@
 
   function forYou(limit = 24) {
     if (!FL.store) return [];
-    const v = FL.store.version() + ":" + version;
+    const today = FL.util.todayISO();
+    const v = FL.store.version() + ":" + version + ":" + today;
     if (recoCache.v === v) return recoCache.items.slice(0, limit);
     const watched = FL.store.watched();
     if (!watched.length) return [];
@@ -873,7 +887,7 @@
     const cy = new Date().getFullYear();
     // Film to film: the closest matches to what you rated highest ("Because you liked Drishyam" then means it)…
     const near = new Map(); // film id -> [[closeness, liked film]…], closest first
-    p.liked.slice(0, 10).forEach((liked) => similar(liked, 30).forEach((f, i) => {
+    p.liked.slice(0, 15).forEach((liked) => similar(liked, 30).forEach((f, i) => {
       if (!near.has(f.id)) near.set(f.id, []);
       near.get(f.id).push([(30 - i) / 30, liked]);
     }));
@@ -883,6 +897,13 @@
     watched.filter((e) => e.rating && e.rating <= 2).slice(0, 6).forEach((e) => {
       const d = byId.get(e.id);
       if (d) similar(d, 20).forEach((f) => far.add(f.id));
+    });
+    // Films you started and left (under a third, two weeks ago or more): close matches count a little against.
+    const left = new Set();
+    FL.store.entries().filter((e) => e.progress && !e.progress.s && e.progress.d && e.progress.t / e.progress.d < 0.33 &&
+      Date.now() - (e.progress.at || 0) > 14 * DAY && !FL.store.isWatched(e)).slice(0, 6).forEach((e) => {
+      const d = byId.get(e.id);
+      if (d) similar(d, 12).forEach((f) => left.add(f.id));
     });
     const scored = [];
     for (let i = 0; i < films.length; i++) {
@@ -908,7 +929,13 @@
       if (nextIds.has(f.id)) s += 8;
       if (near.has(f.id)) s += near.get(f.id)[0][0] * 3 + (near.get(f.id).length - 1) * 0.4; // close to several = better
       if (far.has(f.id)) s -= 2;
+      if (left.has(f.id)) s -= 0.8;
+      // Directors of films you loved (where Iris knows the film's director).
+      const m = FL.meta && FL.meta.cached(f);
+      if (m && m.directors) m.directors.forEach((x) => { if (p.dir[x]) s += Math.min(2.5, p.dir[x] * 1.5); });
       if (f.year >= cy - 2) s += 0.8; // new releases, a little
+      // A little day-to-day freshness among close picks, so the row isn't the same every visit.
+      s += ((FL.util.hash(today + f.id) % 1000) / 1000 - 0.5) * 0.7;
       if (s > 0.5) scored.push([s, f]);
     }
     scored.sort((a, b) => b[0] - a[0]);

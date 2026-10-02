@@ -199,20 +199,42 @@
         const shown = new Set(d.trending.filter((a) => a.banner).slice(0, 3).map((a) => a.id));
         const mine = AN().entries().filter((e) => e.listed).sort((x, y) => y.listedAt - x.listedAt).map(fromEntry);
         el.innerHTML = '<div class="container page sakura-home">' + hero() + upNextRail() + spotlight(d.trending) +
+          '<section class="rail" data-rail-id="foryou"></section>' +
           '<section class="rail" data-rail-id="latest"></section>' +
           rail("This season", d.season, { more: "#/anime/seasons/" + d.now.year + "/" + d.now.season.toLowerCase(), caption: (a) => esc(AN().airingIn(a)) }) +
           rail("Trending now", d.trending.filter((a) => !shown.has(a.id))) +
           (mine.length ? rail("Plan to watch", mine.slice(0, 24), { more: "#/anime/library/plan" }) : "") +
           rail("Next season", d.upcoming, { more: "#/anime/seasons/" + d.next.year + "/" + d.next.season.toLowerCase() }) +
+          '<section class="rail" data-rail-id="colls"></section>' +
           genreChips() +
           rail("All-time favourites", d.popular, { more: "#/anime/explore?sort=popular" }) +
           rail("Top rated", d.top, { more: "#/anime/explore?sort=top" }) +
           rail("Films", d.movies, { more: "#/anime/explore?format=MOVIE" }) +
           "</div>";
         if (FL.app) FL.app.watchSearch();
+        fillForYou();
         fillLatest();
+        fillCollections();
         const first = d.trending.find((a) => a.banner);
         if (first) FL.ambient.art(first.banner);
+      }
+      /* Popular franchises, each one card that opens its collection. */
+      function fillCollections() {
+        AN().popularCollections().then((list) => {
+          const box = alive && $('[data-rail-id="colls"]', el);
+          if (!box || !list.length) return;
+          box.outerHTML = '<section class="rail">' + railHead("Collections", { more: "#/anime/collections" }) + '<div class="rail-track">' + list.slice(0, 16).map(collCard).join("") + "</div></section>";
+        }).catch(() => {});
+      }
+      /* For you: from what you've watched and liked (AniList's community recommendations). */
+      function fillForYou() {
+        AN().forYou().then((list) => {
+          const box = alive && $('[data-rail-id="foryou"]', el);
+          if (!box) return;
+          if (!list.length) { box.remove(); return; }
+          const why = new Map(list.map((x) => [x.anime.id, x.because]));
+          box.outerHTML = rail("For you", list.map((x) => x.anime), { caption: (a) => esc("Because you liked " + why.get(a.id)) });
+        }).catch(() => { const box = $('[data-rail-id="foryou"]', el); if (box) box.remove(); });
       }
       /* Zoro TV's newest episodes. */
       function fillLatest() {
@@ -247,7 +269,7 @@
     let page = 1;
     let items = [];
     const seen = new Set();
-    el.innerHTML = '<div class="container page">' + head + controls + '<div data-results>' + FL.ui.loader(36, "Loading") + '</div><div class="year-more" data-more></div></div>';
+    el.innerHTML = '<div class="container page">' + head + controls + '<div data-results><div class="page-loading">' + FL.ui.loader(36, "Loading") + '</div></div><div class="year-more" data-more></div></div>';
     const results = $("[data-results]", el);
     const more = $("[data-more]", el);
     function load() {
@@ -337,7 +359,7 @@
         '<div class="sakura-controls"><div class="seg" role="radiogroup" aria-label="Type">' +
           [["", "All"], ["TV", "TV"], ["Movie", "Films"], ["ONA", "ONA"], ["OVA", "OVA"], ["Special", "Specials"]].map(([v, l]) =>
             '<a role="radio" class="seg-btn' + (v === type ? " is-on" : "") + '" aria-checked="' + (v === type) + '" href="' + go(letter, v) + '">' + l + "</a>").join("") + "</div></div>" +
-        '<div data-results>' + FL.ui.loader(36, "Loading") + "</div></div>";
+        '<div data-results><div class="page-loading">' + FL.ui.loader(36, "Loading") + "</div></div></div>";
       AN().zoroList().then((rows) => {
         if (!alive) return;
         const list = rows.filter((r) => (letter === "0" ? !/^[a-z]/i.test(r.title) : r.title.charAt(0).toLowerCase() === letter) && (!type || r.type === type));
@@ -412,7 +434,7 @@
       let list = [];
       let range = -1;
       let zoroEps = [];
-      el.innerHTML = '<div class="container page">' + FL.ui.loader(40, "Loading") + "</div>";
+      el.innerHTML = '<div class="container page"><div class="page-loading">' + FL.ui.loader(40, "Loading") + "</div></div>";
 
       function header() {
         const a = d.anime;
@@ -511,7 +533,7 @@
               '<p class="ext-links">' + linksHtml(a) + "</p>" +
             "</aside>" +
           "</div>" +
-          '<div class="container">' + relationsHtml() + rail("More like this", d.recs) + "</div>" +
+          '<div class="container"><div data-collection>' + relationsHtml() + "</div>" + rail("More like this", d.recs) + "</div>" +
           "</article>";
         const bg = a.banner;
         FL.ambient.art(bg || a.cover);
@@ -564,6 +586,15 @@
           AN().zoroSlug(a).then(() => { const box = alive && $(".ext-links", el); if (box) box.innerHTML = linksHtml(a); });
           const up = nextUp(a, list);
           if (up) FL.util.idle(() => FL.player.prefetch(a, { s: 1, e: up.e }));
+          // The whole franchise in release order (seasons, films, specials), in place of the direct links.
+          if (a.anilist) AN().collection(a.id).then((c) => {
+            const box = alive && $("[data-collection]", el);
+            if (!box || c.items.length < 2) return;
+            box.innerHTML = rail(esc(c.name) + " collection", c.items.slice(0, 30), {
+              more: collHref(a.id, a.id),
+              caption: (x) => (x.id === a.id ? "This one" : esc([AN().formatLabel(x), x.year || "Coming"].join(" · "))),
+            });
+          }).catch(() => {});
         }).catch(() => {
           if (!alive) return;
           el.innerHTML = '<div class="container page">' + FL.ui.empty("This title couldn’t be loaded.", "Check your connection and try again.", '<button type="button" class="btn" data-aa="retry">Try again</button>') + "</div>";
@@ -599,6 +630,116 @@
         },
         destroy() { alive = false; el.removeEventListener("click", onClick); },
       };
+    },
+  };
+
+  /* ---------- collections ---------- */
+
+  const KIND = (f) => (f === "MOVIE" ? "films" : f === "OVA" || f === "SPECIAL" ? "extras" : "series");
+  const collHref = (id, from) => "#/anime/collection/" + encodeURIComponent(id) + (from ? "?from=" + encodeURIComponent(from) : "");
+
+  /* A franchise as a card: its first series' artwork and the franchise's name; opens the collection. */
+  function collCard(x) {
+    const a = x.anime;
+    return '<article class="card acard" data-aid="' + esc(a.id) + '"><a class="card-link" href="' + collHref(a.id) + '" aria-label="' + esc(x.name) + '">' + art(a) + "</a>" +
+      '<div class="card-body"><a class="card-title" href="' + collHref(a.id) + '" tabindex="-1">' + esc(x.name) + "</a>" +
+      '<div class="card-meta"><span>' + esc(String(a.year || "")) + "</span></div></div></article>";
+  }
+
+  FL.views.animeCollection = {
+    title: "Collection",
+    mount(el, params, query) {
+      const id = decodeURIComponent(params[0]);
+      const kind = (query && query.get("kind")) || "";
+      const from = (query && query.get("from")) || id;
+      let alive = true;
+      let data = null;
+      el.innerHTML = '<div class="container page"><div class="page-loading">' + FL.ui.loader(40, "Loading") + "</div></div>";
+
+      function row(a, i) {
+        const st = FL.store.state(a.id);
+        const total = a.episodes || 0;
+        const you = st.episodes ? (total && st.episodes >= total ? '<span class="muted">' + icon("check") + "</span>" : '<span class="muted">' + st.episodes + (total ? "/" + total : "") + "</span>") : "";
+        const meta = [AN().formatLabel(a), a.year || "Coming", total > 1 ? total + " eps" : ""].filter(Boolean).map(esc).join(" · ");
+        return '<article class="row' + (a.id === from ? " is-here" : "") + '" data-aid="' + esc(a.id) + '">' +
+          '<span class="row-rank">' + String(i + 1).padStart(2, "0") + "</span>" +
+          '<a class="row-art" href="' + hrefOf(a) + '" tabindex="-1" aria-hidden="true">' + art(a) + "</a>" +
+          '<div class="row-main"><a class="row-title" href="' + hrefOf(a) + '">' + esc(a.title) + '</a><div class="row-meta">' + meta + "</div></div>" +
+          '<div class="row-score">' + (a.score ? '<span class="imdb" title="AniList score">★ ' + (a.score / 10).toFixed(1) + "</span>" : "") + "</div>" +
+          '<div class="row-you">' + you + "</div>" +
+          '<div class="row-actions"><button type="button" class="qa' + (st.listed ? " on" : "") + '" data-aqa="list" aria-pressed="' + st.listed + '" aria-label="Plan to watch" title="Plan to watch">' + icon("bookmark") + "</button>" +
+            (a.status !== "NOT_YET_RELEASED" ? '<a class="qa" href="' + watchHref(a, 1) + '" aria-label="Play" title="Play">' + icon("play") + "</a>" : "") + "</div></article>";
+      }
+
+      const segHref = (k) => {
+        const q = new URLSearchParams();
+        if (from !== id) q.set("from", from);
+        if (k) q.set("kind", k);
+        return "#/anime/collection/" + encodeURIComponent(id) + (q.toString() ? "?" + q : "");
+      };
+
+      function render() {
+        const all = data.items;
+        const count = (k) => all.filter((a) => KIND(a.format) === k).length;
+        const kinds = [["", "All", all.length], ["series", "Series", count("series")], ["films", "Films", count("films")], ["extras", "Extras", count("extras")]].filter((k) => k[2]);
+        const shown = all.map((a, i) => [a, i]).filter(([a]) => !kind || KIND(a.format) === kind);
+        el.innerHTML = '<div class="container page">' +
+          '<header class="page-head"><div><h1 class="h1">' + esc(data.name) + '</h1><p class="sub">' + plural(all.length, "title") + "</p></div></header>" +
+          (kinds.length > 2 ? '<div class="sakura-controls"><div class="seg" role="radiogroup" aria-label="Show">' + kinds.map(([k, l, n]) =>
+            '<a role="radio" class="seg-btn' + (k === kind ? " is-on" : "") + '" aria-checked="' + (k === kind) + '" href="' + segHref(k) + '">' + l + ' <small class="muted">' + n + "</small></a>").join("") + "</div></div>" : "") +
+          '<div class="rows ranked">' + shown.map(([a, i]) => row(a, i)).join("") + "</div></div>";
+        const banner = all.find((a) => a.banner);
+        FL.ambient.art(banner ? banner.banner : (all[0] && all[0].cover) || "");
+        const here = $(".row.is-here", el);
+        if (here && !kind) here.scrollIntoView({ block: "center" });
+      }
+
+      function load() {
+        AN().collection(id).then((c) => {
+          if (!alive) return;
+          data = c;
+          document.title = c.name + " · Sakura";
+          render();
+        }).catch(() => {
+          if (!alive) return;
+          el.innerHTML = '<div class="container page">' + FL.ui.empty("This collection couldn’t be loaded.", "Check your connection and try again.", '<button type="button" class="btn" data-ac="retry">Try again</button>') + "</div>";
+        });
+      }
+      const onClick = (e) => { if (e.target.closest('[data-ac="retry"]')) load(); };
+      el.addEventListener("click", onClick);
+      load();
+      return {
+        update(d) { if (data && d.kind !== "progress") { const y = window.scrollY; render(); window.scrollTo(0, y); } },
+        destroy() { alive = false; el.removeEventListener("click", onClick); },
+      };
+    },
+  };
+
+  FL.views.animeCollections = {
+    title: "Collections",
+    mount(el) {
+      let alive = true;
+      el.innerHTML = '<div class="container page"><header class="page-head"><div><h1 class="h1">Collections</h1></div></header>' +
+        '<section class="rail" data-rail-id="mine"></section><div data-results><div class="page-loading">' + FL.ui.loader(36, "Loading") + "</div></div></div>";
+      // Yours: the franchises of the anime in your library (each worked out once, then kept).
+      const mine = AN().entries().filter((e) => /^an\d+$/.test(e.id)).sort((x, y) => y.updated - x.updated).slice(0, 8);
+      const seen = new Set();
+      const yours = [];
+      mine.reduce((p, e) => p.then(() => (alive ? AN().collection(e.id).then((c) => {
+        if (seen.has(c.top) || c.items.length < 2) return;
+        seen.add(c.top);
+        const lead = c.items.find((a) => a.format === "TV") || c.items[0];
+        yours.push({ anime: lead, name: c.name });
+        const box = $('[data-rail-id="mine"]', el);
+        if (box) box.innerHTML = railHead("Yours", {}) + '<div class="rail-track">' + yours.map(collCard).join("") + "</div>";
+      }).catch(() => {}) : null)), Promise.resolve());
+      AN().popularCollections().then((list) => {
+        if (!alive) return;
+        $("[data-results]", el).innerHTML = '<h2 class="h2 coll-sub">Popular</h2><div class="grid">' + list.map(collCard).join("") + "</div>";
+      }).catch(() => {
+        if (alive) $("[data-results]", el).innerHTML = FL.ui.empty("AniList didn’t answer.", "Check your connection and try again.");
+      });
+      return { destroy() { alive = false; } };
     },
   };
 

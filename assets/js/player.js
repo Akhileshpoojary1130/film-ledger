@@ -729,6 +729,7 @@
         '<button type="button" class="btn btn-ghost btn-sm" data-pl="upnext-cancel">Cancel</button></div>' +
       '<i class="upnext-bar" style="animation-duration:' + UP_NEXT_SECONDS + 's"></i>';
     root.appendChild(box);
+    FL.ui.overTop(box); // over a video site's own fullscreen too
     let left = UP_NEXT_SECONDS;
     state.upNext = setInterval(() => {
       left--;
@@ -773,7 +774,16 @@
   }
   function onFullscreen() {
     if (!root) return;
-    const fs = (document.fullscreenElement || document.webkitFullscreenElement) === root;
+    const el = document.fullscreenElement || document.webkitFullscreenElement;
+    // The video site's own fullscreen button: hand fullscreen to Iris's player instead, so Up Next, reminders and the
+    // bars still show. A tap inside the site's frame counts for this page too, so the browser allows it; where it
+    // doesn't, theirs stays and our overlays use the top layer (FL.ui.overTop).
+    if (el && el.tagName === "IFRAME" && state.open && root.contains(el) && root.requestFullscreen && document.exitFullscreen &&
+      navigator.userActivation && navigator.userActivation.isActive) {
+      document.exitFullscreen().then(() => fullscreen()).catch(() => {});
+      return;
+    }
+    const fs = el === root;
     root.classList.toggle("is-fs", fs);
     if (fs) wake(); else {
       clearTimeout(idleTimer);

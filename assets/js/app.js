@@ -27,12 +27,14 @@
     [/^\/anime\/explore$/, "animeExplore"],
     [/^\/anime\/az(?:\/([a-z0]))?$/, "animeAz"],
     [/^\/anime\/library(?:\/(\w+))?$/, "animeLibrary"],
+    [/^\/anime\/collections$/, "animeCollections"],
+    [/^\/anime\/collection\/(an\d+)$/, "animeCollection"],
     [/^\/anime\/watch\/(.+)$/, "animeWatch"],
     [/^\/anime\/((?:an\d+|zr-[a-z0-9-]+))$/, "animeTitle"],
   ];
 
   const NAV_FOR = { home: "home", years: "years", browse: "browse", shows: "shows", show: "shows", film: "", library: "library", collection: "collections", collections: "collections", diary: "library", stats: "stats", person: "", move: "", match: "library",
-    animeHome: "a-home", animeSeasons: "a-seasons", animeExplore: "a-explore", animeAz: "a-az", animeLibrary: "a-library", animeTitle: "" };
+    animeHome: "a-home", animeSeasons: "a-seasons", animeExplore: "a-explore", animeAz: "a-az", animeLibrary: "a-library", animeTitle: "", animeCollections: "a-collections", animeCollection: "a-collections" };
   const appOf = (name) => (/^anime/.test(name) ? "sakura" : "iris");
   const LAST_KEY = "film_ledger_app_last"; // the page you were on in each app, for this visit
   const APP_KEY = "film_ledger_app"; // the app last used on this device
@@ -98,10 +100,12 @@
       top: '<header class="topbar"><div class="container topbar-inner">' + brand() +
         '<nav class="nav" aria-label="Primary">' +
           '<a href="#/anime" data-nav="a-home">Home</a><a href="#/anime/seasons" data-nav="a-seasons">Seasons</a><a href="#/anime/explore" data-nav="a-explore">Explore</a>' +
-          '<a href="#/anime/az/a" data-nav="a-az">A–Z</a><a href="#/anime/library" data-nav="a-library">Library</a>' +
+          '<a href="#/anime/az/a" data-nav="a-az">A–Z</a><a href="#/anime/collections" data-nav="a-collections">Collections</a><a href="#/anime/library" data-nav="a-library">Library</a>' +
         "</nav>" +
         '<div class="topbar-actions">' +
           '<button type="button" class="search-trigger" data-open="palette" aria-label="Search anime (' + mod + ')">' + icon("search") + "<span>Search</span><kbd>" + mod + "</kbd></button>" +
+          // Phones: the tab bar has no room for Collections, so it gets a button up here (as in Iris).
+          '<a class="icon-btn topbar-coll" href="#/anime/collections" data-nav="a-collections" aria-label="Collections" title="Collections">' + icon("collections") + "</a>" +
           '<button type="button" class="icon-btn" data-open="pick" aria-label="Spin: let Sakura pick" title="Spin (R)">' + icon("shuffle") + "</button>" +
           '<button type="button" class="icon-btn" data-open="settings" aria-label="Settings" title="Settings, theme & storage">' + icon("sliders") + "</button>" +
           '<button type="button" class="search-float" data-open="palette" aria-label="Search" title="Search">' + icon("search") + "</button>" +

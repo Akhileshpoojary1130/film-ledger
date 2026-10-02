@@ -2229,6 +2229,15 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
   transition: opacity 0.3s var(--ease-out), transform 0.65s cubic-bezier(0.34, 1.45, 0.5, 1);
 }
 .pet.in { opacity: 1; transform: none; }
+/* Ten seconds, counted down at the end of the bubble and drained along its bottom edge. */
+.pet-count { flex: none; display: grid; place-items: center; width: 22px; height: 22px; margin-right: -6px; border-radius: 50%; background: color-mix(in oklab, var(--text) 9%, transparent); color: var(--text-2); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.pet-bar { position: absolute; left: 24px; right: 24px; bottom: 3px; height: 2px; border-radius: 2px; background: var(--accent); opacity: 0.75; transform-origin: left; animation: petBar linear forwards; pointer-events: none; }
+@keyframes petBar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+[data-motion="calm"] .pet-bar { animation: none; opacity: 0.4; }
+/* Lifted into the top layer over a video site's own fullscreen (FL.ui.overTop): keep their own place and look. */
+.pet[popover] { left: auto; bottom: auto; margin: 0; overflow: visible; }
+.toasts[popover] { top: auto; right: auto; margin: 0; padding: 0; border: 0; background: none; color: inherit; overflow: visible; }
+.player-upnext[popover] { position: fixed; top: auto; left: auto; margin: 0; color: var(--text); }
 .pet.out { opacity: 0; transform: translate3d(24%, -70%, 0) scale(0.9); transition: opacity 0.35s var(--ease), transform 0.45s var(--ease); }
 /* The face pokes up over the bubble's edge. */
 .pet-face { flex: none; width: 54px; height: 54px; margin: -18px -2px -8px -6px; }
@@ -2862,3 +2871,22 @@ html.has-page-search:not(.search-docked) [data-page-search] { view-transition-na
 .settings .apps .app-text strong { font-size: 18px; }
 .settings .apps .app-check { display: none; }
 .settings .apps .app-text { min-width: 0; }
+
+/* ---------- motion.js: smooth scrolling, the headline word by word ---------- */
+
+/* Lenis (smooth wheel scrolling on mouse and trackpad) */
+html.lenis, html.lenis body { height: auto; }
+.lenis:not(.lenis-autoToggle).lenis-stopped { overflow: clip; }
+.lenis [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-smooth iframe { pointer-events: none; }
+
+/* Home's headline arrives a word at a time, out of a soft blur; its coloured half glows gently. */
+:root[data-motion="full"] .hero-words .word { display: inline-block; animation: wordIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(var(--i) * 70ms + 60ms); }
+@keyframes wordIn { from { opacity: 0; transform: translateY(0.38em); filter: blur(10px); } }
+:root[data-motion="full"]:not([data-theme="neon"]):not([data-theme="retro"]) .hero-words em { animation: emGlow 5s 1.2s ease-in-out infinite alternate; }
+@keyframes emGlow { from { text-shadow: 0 0 0 transparent; } to { text-shadow: 0 0 26px color-mix(in oklab, var(--accent) 45%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .hero-words .word, .hero-words em { animation: none !important; } }
+
+/* Sakura collections: the title you came from is marked in the list. */
+.row.is-here { background: var(--accent-soft); }
+.coll-sub { margin: 30px 0 16px; }
