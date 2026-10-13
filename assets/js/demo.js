@@ -132,6 +132,18 @@
   );
   window.addEventListener("contextmenu", function (e) { e.preventDefault(); }, true);
 
+  // ---------- no anime playback in the demo: send watch links to the title page ----------
+  function guardRoute() {
+    var m = (location.hash || "").match(/^#\/anime\/watch\/([^?]+)/);
+    if (!m) return;
+    location.replace("#/anime/" + m[1]);
+    setTimeout(function () {
+      if (window.FL && FL.ui && FL.ui.toast) FL.ui.toast("Playback isn't part of this demo.");
+    }, 400);
+  }
+  window.addEventListener("hashchange", guardRoute, true);
+  guardRoute();
+
   read();
   if (blocked) show("over");
   document.addEventListener("DOMContentLoaded", function () {
