@@ -1,5 +1,8 @@
 # Iris
 
+> **Branch `v2` is the public demo** at https://iris-film-demo.vercel.app (its own Vercel project): 5 minutes per visitor, Play buttons shown but blocked, no streaming lookups. `main` is the full app.
+
+
 A film and TV diary: go through cinema **year by year** (1970 → next year), tick off what you've seen, follow
 reality and talent shows episode by episode, and get told what to watch next. **Sakura**, its anime app, lives in
 the same place (tap its blossom in the logo to switch). Static site plus a few small functions (Vega and Zoro TV lookups, sync,
