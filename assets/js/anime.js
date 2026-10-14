@@ -9,8 +9,8 @@
 
   const ANILIST = "https://graphql.anilist.co";
   // Local copies use the deployed function (a static server has no /api), like Vega's lookup.
-  const ZORO_API = /(^|\.)localhost$|^127\.0\.0\.1$|^\[::1\]$/.test(location.hostname) ? "https://film-ledger-mocha.vercel.app/api/anime" : "/api/anime";
-  const ZORO_SITE = "https://zorotv.com.in";
+  const ZORO_API = "/api/anime"; // not deployed in the public demo: lookups fail quietly and AniList data is used
+  const ZORO_SITE = ""; // public demo: no outside anime site
   const ZORO_UPLOADS = ZORO_SITE + "/wp-content/uploads/";
   const Q_KEY = "film_ledger_anime_q"; // this visit's AniList answers
   const HOME_KEY = "film_ledger_anime_home"; // the home page's, kept so Sakura opens instantly next time
@@ -592,7 +592,7 @@
     GENRES, SEASONS, FORMAT, active, home, search, browse, load, get, remember, episodes, entries, forYou, collection, popularCollections,
     zoroList, zoroSlug, zoroServers, zoroSeries, fromZoro, latest, seasonOf, nextSeason,
     formatLabel, statusLabel, seasonLabel, airingIn, norm, similar,
-    zoroUrl: (slug) => ZORO_SITE + "/anime/" + slug + "/",
+    zoroUrl: () => "",
     /* A Zoro TV row (A–Z, search, newest) as a card-ready title; its page finds the AniList match. */
     zoroItem: (r) => known.get("zr-" + r.slug) || fromZoroRow(r),
   };

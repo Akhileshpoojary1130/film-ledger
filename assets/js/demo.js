@@ -2,6 +2,7 @@
    - Each visitor gets 5 minutes of use (time only counts while the tab is visible). After that the demo
      stays blocked in this browser.
    - While developer tools are open, the app pauses and makes no network requests.
+   - Play buttons are shown but blocked: they open a note instead of the player.
    Loaded before every other script. */
 (function () {
   "use strict";
@@ -64,7 +65,7 @@
       kind === "over"
         ? '<div class="demo-card"><p class="demo-eyebrow">Iris · demo</p><h2>Thanks for trying Iris.</h2>' +
           "<p>The public demo is limited to 5 minutes per visitor, and your time is up. Iris is a personal project by Akhilesh Poojary.</p>" +
-          '<a class="demo-btn" href="/">Back to the portfolio</a></div>'
+          '<a class="demo-btn" href="https://akhilesh-poojary.vercel.app/">See Akhilesh\'s portfolio</a></div>'
         : '<div class="demo-card"><p class="demo-eyebrow">Iris · demo</p><h2>Paused</h2>' +
           "<p>Developer tools are open, so the demo is paused and makes no requests. Close them to continue.</p></div>";
     overlay.hidden = false;
@@ -132,17 +133,18 @@
   );
   window.addEventListener("contextmenu", function (e) { e.preventDefault(); }, true);
 
-  // ---------- no anime playback in the demo: send watch links to the title page ----------
-  function guardRoute() {
-    var m = (location.hash || "").match(/^#\/anime\/watch\/([^?]+)/);
-    if (!m) return;
-    location.replace("#/anime/" + m[1]);
-    setTimeout(function () {
-      if (window.FL && FL.ui && FL.ui.toast) FL.ui.toast("Playback isn't part of this demo.");
-    }, 400);
-  }
-  window.addEventListener("hashchange", guardRoute, true);
-  guardRoute();
+  // ---------- Play buttons: visible, but they open a note instead of the player ----------
+  document.addEventListener(
+    "click",
+    function (e) {
+      var a = e.target && e.target.closest ? e.target.closest('a[href*="#/watch/"], a[href*="#/anime/watch/"]') : null;
+      if (!a) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (window.FL && FL.player && FL.player.blocked) FL.player.blocked();
+    },
+    true
+  );
 
   read();
   if (blocked) show("over");
