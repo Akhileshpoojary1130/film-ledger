@@ -11,7 +11,11 @@
 // Edge, not Node: Vega's Cloudflare answers 403 to Vercel's Node functions (AWS addresses) but lets the Edge network in.
 export const config = { runtime: "edge" };
 
-const SITE = "https://vegamovito.run";
+/* Vega moves to a new domain every few months, and an old one stops resolving (the lookup then fails and every Download
+   button stays hidden). Set VEGA_SITE / VEGA_HOT_SITE in Vercel to the current address and redeploy; no code change. */
+const host = (value, fallback) => String(value || fallback).trim().replace(/\/+$/, "");
+const ENV = (typeof process !== "undefined" && process.env) || {};
+const SITE = host(ENV.VEGA_SITE, "https://vegamovito.run");
 const UA = "Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36";
 const NONCE_TTL = 2 * 3600e3; // WordPress nonces live 12–24 h
 const BUDGET = 8000; // stop trying further candidates after this, well inside Vercel's limits
@@ -239,7 +243,8 @@ async function lookup({ title, year, imdb, s, e }) {
    A DataLife Engine site with titles Vega doesn't keep (older seasons, some shows). Its search is a plain GET; each
    post lists downloads either as "Download 720p … 1.6GB" links or as a quality heading ("720p x265 HEVC") above a
    "Click Here To Download [780MB]" button. Only its download pages are used (its player is Vega's Super Player). */
-const HOT = "https://vega-hot.com";
+const HOT = host(ENV.VEGA_HOT_SITE, "https://vega-hot.com");
+const HOT_POST = new RegExp('class="entry-title[^"]*"[^>]*>\\s*<a href="(' + HOT.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&") + '\\/[^"]+\\.html)"[^>]*>([\\s\\S]*?)<\\/a>', "g");
 
 function hotGet(url) {
   const ctrl = new AbortController();
@@ -264,7 +269,7 @@ function parseHot(raw) {
 async function hotSearch(q) {
   const html = await hotGet(HOT + "/index.php?do=search&subaction=search&story=" + encodeURIComponent(q));
   const out = [];
-  const re = /class="entry-title[^"]*"[^>]*>\s*<a href="(https:\/\/vega-hot\.com\/[^"]+\.html)"[^>]*>([\s\S]*?)<\/a>/g;
+  const re = new RegExp(HOT_POST.source, "g");
   let m;
   while ((m = re.exec(html))) out.push(Object.assign({ url: m[1] }, parseHot(m[2])));
   return out;

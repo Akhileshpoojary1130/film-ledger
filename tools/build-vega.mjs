@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import vm from "node:vm";
 import { parseTitle, language, posterOf, similar } from "../api/vega.js";
 
-const SITE = "https://vegamovito.run";
+const SITE = (process.env.VEGA_SITE || "https://vegamovito.run").replace(/\/+$/, "");
 const UA = "Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36";
 const CATEGORIES = [
   ["hindi-dubbed", { dub: true }], ["web-series", { series: true }], ["bollywood", { lang: "Hindi" }], ["hollywood", { lang: "English" }],
