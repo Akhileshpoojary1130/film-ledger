@@ -166,7 +166,7 @@
     const fresh = gql(q, { season: now.season, year: now.year, ns: nx.season, ny: nx.year }, 3 * 3600e3).then((d) => {
       storage.set(HOME_KEY, { at: Date.now(), data: d });
       return shape(d);
-    });
+    }).catch(() => zoroHome(now, nx));
     // Last visit's answer straight away (under a day old); the fresh one replaces it when it lands.
     return { cached: saved && Date.now() - saved.at < 86400e3 ? shape(saved.data) : null, fresh };
   }
@@ -175,7 +175,8 @@
     const s = String(q || "").trim();
     if (s.length < 2) return Promise.resolve([]);
     return gql("query($q:String){Page(perPage:20){media(type:ANIME,isAdult:false,search:$q,sort:[SEARCH_MATCH,POPULARITY_DESC]){" + MEDIA + "}}}", { q: s })
-      .then((d) => d.Page.media.map(fromMedia));
+      .then((d) => d.Page.media.map(fromMedia))
+      .catch(() => zoroFetch("q=" + encodeURIComponent(s)).then((d) => ((d && d.results) || []).map(zoroCard)));
   }
 
   /* A page of a filtered list: a season, a genre, a format; sorted by popularity, score, trend or date. */
@@ -192,7 +193,16 @@
     if (o.sort === "new") args.push("status_not:NOT_YET_RELEASED");
     const q = "query(" + types.join(",") + "){Page(page:$p,perPage:30){pageInfo{hasNextPage} media(type:ANIME,isAdult:false," +
       (args.length ? args.join(",") + "," : "") + "sort:[" + sort + ",ID]){" + MEDIA + "}}}";
-    return gql(q, vars).then((d) => ({ items: d.Page.media.map(fromMedia), more: !!d.Page.pageInfo.hasNextPage }));
+    return gql(q, vars).then((d) => ({ items: d.Page.media.map(fromMedia), more: !!d.Page.pageInfo.hasNextPage })).catch((err) => {
+      // Zoro TV's A–Z list knows the format but not genres or seasons, so only those pages have a fallback.
+      if (o.genre || o.season || o.year) throw err;
+      return zoroList().then((rows) => {
+        const want = { TV: "TV", MOVIE: "Movie", ONA: "ONA", OVA: "OVA", SPECIAL: "Special" }[o.format];
+        const list = rows.filter((r) => r.poster && (!o.format || r.type === want));
+        const p = o.page || 1;
+        return { items: list.slice((p - 1) * 30, p * 30).map(zoroCard), more: list.length > p * 30 };
+      });
+    });
   }
 
   /* Everything for a title page: the title, its characters and voice actors, sequels and prequels, recommendations,
@@ -229,6 +239,17 @@
         recs: ((m.recommendations && m.recommendations.nodes) || []).map((x) => x.mediaRecommendation).filter((x) => x && !x.isAdult).map(fromMedia),
         stills,
       };
+    }).catch((err) => {
+      // AniList down: a title we've seen before opens from Zoro TV, keeping its id so the library still matches.
+      const a = known.get("an" + n) || get("an" + n);
+      if (!a) throw err;
+      return zoroSlug(a).then((slug) => {
+        if (!slug) throw err;
+        return zoroSeries(slug).then((info) => {
+          if (info && info.synopsis && !a.desc) a.desc = info.synopsis;
+          return { anime: a, characters: [], relations: [], recs: [], stills: {}, zoroEpisodes: (info && info.episodes) || [] };
+        });
+      });
     });
   }
 
@@ -503,6 +524,7 @@
     }
     return zoroList().then((rows) => {
       const row = rows.find((r) => r.slug === slug) || { slug, title: slug.replace(/-/g, " "), type: "", eps: 0, poster: "" };
+      if (anilistDown) return fromZoroRow(row);
       const fmt = { TV: ["TV", "TV_SHORT"], Movie: ["MOVIE"], ONA: ["ONA"], OVA: ["OVA"], Special: ["SPECIAL"] }[row.type];
       return gql("query($q:String,$f:[MediaFormat]){Page(perPage:10){media(type:ANIME,isAdult:false,search:$q,format_in:$f,sort:[SEARCH_MATCH,POPULARITY_DESC]){" + MEDIA + "}}}",
         { q: row.title, f: fmt || undefined }).then((d) => {
@@ -529,6 +551,25 @@
       const full = info && info.title ? fromZoroRow(row, info) : a;
       remember(full);
       return { anime: full, characters: [], relations: [], recs: [], stills: {}, zoroEpisodes: (info && info.episodes) || [] };
+    });
+  }
+
+  /* AniList switched its API off in Oct 2026 ("temporarily disabled due to severe stability issues"). Until it's back,
+     home is built from Zoro TV: newest series, a hand-picked set of well-known series and films. */
+  let anilistDown = false;
+  const zoroCard = (r) => known.get("zr-" + r.slug) || fromZoroRow(r);
+  const FAVOURITES = ["one-piece", "frieren-beyond-journey-s-end", "solo-leveling", "attack-on-titan", "demon-slayer-kimetsu-no-yaiba",
+    "jujutsu-kaisen-2nd-season", "naruto-shippuden", "death-note", "fullmetal-alchemist-brotherhood", "hunter-x-hunter", "spy-x-family",
+    "chainsaw-man", "vinland-saga", "bleach", "dragon-ball", "mob-psycho-100", "one-punch-man", "steins-gate", "my-hero-academia"];
+  const FILMS = ["your-name", "a-silent-voice", "suzume-s-door-locking", "weathering-with-you", "jujutsu-kaisen-0-movie", "spy-x-family-code-white"];
+  const pick = (rows, slugs) => slugs.map((s) => rows.find((r) => r.slug === s)).filter(Boolean).map(zoroCard);
+  function zoroHome(now, next) {
+    anilistDown = true;
+    return Promise.all([zoroList(), latest()]).then(([rows, eps]) => {
+      const seen = new Set();
+      const fresh = eps.filter((r) => !seen.has(r.slug) && seen.add(r.slug)).map(zoroCard);
+      if (!rows.length && !fresh.length) throw new Error("Neither AniList nor Zoro TV answered");
+      return { now, next, trending: fresh, season: [], upcoming: [], popular: pick(rows, FAVOURITES), top: [], movies: pick(rows, FILMS) };
     });
   }
 
