@@ -30,7 +30,7 @@
     FL.store.watched().forEach((e) => {
       if (all) {
         if (e.watches.length) e.watches.forEach((d) => viewings.push({ entry: e, date: d }));
-        else viewings.push({ entry: e, date: "" });
+        else viewings.push({ entry: e, date: FL.store.tickedOn(e), ticked: true }); // the day you ticked it, as in the diary
       } else {
         e.watches.forEach((d) => { if (+d.slice(0, 4) === year) viewings.push({ entry: e, date: d }); });
         // Ticked as watched with no date: it counts in the year you ticked it, as the diary's calendar shows it.
@@ -307,7 +307,7 @@
         const labels = [];
         const vals = [];
         for (let y = from; y <= to; y++) { labels.push(String(y)); vals.push(s.years[y] || 0); }
-        timeline = '<section class="panel chart-panel"><header class="section-head"><div><h2 class="h3">Films per year</h2><p class="sub">Dated watches, including rewatches</p></div></header>' +
+        timeline = '<section class="panel chart-panel"><header class="section-head"><div><h2 class="h3">Films per year</h2><p class="sub">Including rewatches</p></div></header>' +
           columns(vals, labels.map((l) => (labels.length > 12 ? "’" + l.slice(2) : l)), vals.map((v, i) => plural(v, "film") + "\n" + labels[i]), { label: "Films per year", dense: labels.length > 12 }) +
           table("Films per year", labels.map((l, i) => [l, vals[i]])) + "</section>";
       } else {
