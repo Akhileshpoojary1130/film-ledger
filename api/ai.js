@@ -220,7 +220,8 @@ export function cleanFixes(fix, had) {
   if (yr >= 1900 && yr <= new Date().getFullYear() + 2 && yr !== had.year) { out.year = yr; was.year = had.year; }
   const rt = parseInt(fix.runtime, 10);
   if (rt >= 30 && rt <= 400 && Math.abs(rt - (had.runtime || 0)) > 2) { out.runtime = rt; was.runtime = had.runtime; }
-  if (typeof fix.language === "string" && fix.language.trim() && fix.language.length < 30 && had.language !== fix.language.trim() &&
+  // Language only corrects one we had (a film without one in the catalogue isn't shown a language from here).
+  if (had.language && typeof fix.language === "string" && fix.language.trim() && fix.language.length < 30 && had.language !== fix.language.trim() &&
       !(had.language === "Indian (not Hindi)" && fix.language !== "Hindi" && fix.language !== "English")) {
     out.language = fix.language.trim(); was.language = had.language;
   }

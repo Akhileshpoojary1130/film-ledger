@@ -116,6 +116,7 @@ test("cleanFixes keeps only real, well-formed changes and remembers what was the
   assert.deepEqual(fixes, { directors: ["Christopher Nolan"] }); // same cast, same genres in another order, same year, runtime within 2 min
   assert.deepEqual(was, { directors: ["C. Nolan"] });
   assert.deepEqual(cleanFixes({ genres: ["Space Opera", "Sci-Fi"], year: 1800, runtime: 5 }, had).fixes, { genres: ["Sci-Fi"] });
+  assert.deepEqual(cleanFixes({ language: "English" }, had).fixes, {}); // no language to correct: left alone
 });
 
 test("cleanPicks drops empty titles and bad ids, and caps at ten", () => {
