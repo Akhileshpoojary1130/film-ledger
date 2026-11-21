@@ -35,7 +35,7 @@
       .then((d) => {
         const checks = (d && d.checks) || {};
         resolvers.forEach(([id, rs]) => {
-          const rec = checks[id] || null;
+          const rec = tidy(checks[id] || null);
           if (d) { cache[id] = { r: rec, t: Date.now() }; save(); }
           if (!rec && d) want(id);
           rs.forEach((fn) => fn(rec));
@@ -65,6 +65,13 @@
     });
   }
 
+  // A language filled in where there was none isn't a correction (older checks did that): drop it.
+  function tidy(rec) {
+    if (!rec || !rec.fixes || !rec.fixes.language || (rec.was && rec.was.language)) return rec;
+    const fixes = Object.assign({}, rec.fixes);
+    delete fixes.language;
+    return Object.assign({}, rec, { fixes, verdict: rec.verdict === "fixed" && !Object.keys(fixes).length ? "ok" : rec.verdict });
+  }
   const usable = (rec) => !!rec && (rec.verdict === "ok" || rec.verdict === "fixed");
 
   /* Cinemeta's details with the AI's fixes laid over them. */
@@ -140,7 +147,7 @@
   /* Check one film right now; everyone sees the answer from then on. */
   function scan(tt) {
     return post({ scan: tt }).then((d) => {
-      const rec = d.check || null;
+      const rec = tidy(d.check || null);
       cache[tt] = { r: rec, t: Date.now() };
       save();
       return rec;
