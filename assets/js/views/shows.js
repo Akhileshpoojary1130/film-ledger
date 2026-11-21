@@ -40,7 +40,7 @@
         slot("reality", "Indian reality &amp; talent") +
         slot("indian", "Indian web series") +
         slot("top", "Popular series right now") +
-        slot("vegaseries", "New web series", "Just added on Vega, in Hindi") +
+        slot("vegaseries", "New web series", "Just added, in Hindi") +
         slot("realityworld", "Reality TV worldwide") +
         "</div>";
       fill(el, "reality", FL.remote.realityShows(), true);
@@ -80,6 +80,30 @@
       let data = null;
       let season = null;
       let alive = true;
+      let aiSlot = null; // the AI badge (or Scan with AI), kept across hero redraws
+      let aiFix = null; // the AI's corrections, laid over what Cinemeta said
+
+      /* The AI check for a series (by its IMDb id), in the hero's top right like a film's. */
+      function placeAi() {
+        const tt = (show && (/^tt\d+$/.test(show.imdbId || "") ? show.imdbId : /^tt\d+$/.test(show.id) ? show.id : "")) || "";
+        if (!FL.ai || !tt) return;
+        if (!aiSlot) {
+          aiSlot = FL.ai.attach({
+            page: el, id: tt, noun: "series", hero: () => el.querySelector(".film-hero"),
+            onRec(rec) { aiFix = rec.fixes || {}; redrawHero(); },
+          });
+        }
+        const hero = el.querySelector(".film-hero");
+        if (hero && aiSlot.parentNode !== hero) hero.prepend(aiSlot);
+      }
+      function redrawHero() {
+        const hero = el.querySelector(".film-hero");
+        if (!hero) return;
+        const tmp = document.createElement("div");
+        tmp.innerHTML = header();
+        hero.replaceWith(tmp.querySelector(".film-hero"));
+        placeAi();
+      }
 
       el.innerHTML = '<div class="container page"><div class="page-loading">' + FL.ui.loader(40, "Loading show") + "</div></div>";
 
@@ -93,8 +117,10 @@
         const seenCount = scope.filter((v) => FL.store.episodeWatched(show.id, v.s, v.e)).length;
         const scopeLabel = isReality(show) && scope.length ? " in season " + scope[0].s : "";
         const playHref = up ? "#/watch/" + encodeURIComponent(show.id) + "?s=" + up.s + "&e=" + up.e : "";
-        const facts = [FL.catalogue.yearLabel(show), data && data.seasons.filter((x) => x > 0).length ? plural(data.seasons.filter((x) => x > 0).length, "season") : "",
-          show.genres.slice(0, 3).join(", "), data && data.status ? data.status : ""].filter(Boolean).map(esc).join('<span class="sep">·</span>');
+        const fix = aiFix || {};
+        const years = FL.catalogue.yearLabel(show);
+        const facts = [fix.year ? years.replace(/^\d{4}/, fix.year) : years, data && data.seasons.filter((x) => x > 0).length ? plural(data.seasons.filter((x) => x > 0).length, "season") : "",
+          (fix.genres && fix.genres.length ? fix.genres : show.genres).slice(0, 3).join(", "), data && data.status ? data.status : ""].filter(Boolean).map(esc).join('<span class="sep">·</span>');
         return '<div class="film-backdrop" aria-hidden="true"></div>' +
           '<div class="container film-hero">' +
             '<div class="film-poster">' + art(show, { size: "medium", eager: true }) + "</div>" +
@@ -163,7 +189,7 @@
                 (v.thumb ? '<img src="' + esc(v.thumb) + '" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.remove()">' : "") +
                 (v.aired ? '<span class="ep-play">' + icon("play") + "</span>" : "") + "</a>" +
               '<div class="ep-main"><div class="ep-title"><span class="ep-num">' + (v.bonus ? "Bonus " + (v.e - 100) : "E" + v.e) + "</span>" + esc(v.bonus ? "Extra footage" : title) + "</div>" +
-                '<div class="ep-date">' + (v.early ? "Out now on Vega" : v.bonus ? "On Vega" : v.date ? (v.date > today ? "Airs " : "") + fmtDate(v.date) : "Date to be announced") + "</div>" +
+                '<div class="ep-date">' + (v.early ? "Out now" : v.bonus ? "Extra" : v.date ? (v.date > today ? "Airs " : "") + fmtDate(v.date) : "Date to be announced") + "</div>" +
                 (v.overview ? '<p class="ep-overview">' + esc(FL.util.prose(v.overview)) + "</p>" : "") + "</div>" +
               '<div class="ep-actions">' +
               (dl.by[v.e] ? '<a class="qa ep-dl" href="' + esc(dl.by[v.e].url) + '" target="_blank" rel="noopener noreferrer nofollow" aria-label="Download ' + (v.bonus ? "bonus episode " + (v.e - 100) : "episode " + v.e) + '" title="Download · opens the download page">' + icon("download") + "</a>" : "") +
@@ -266,7 +292,7 @@
         }
         const on = el.querySelector(".season-nav .is-on");
         if (on) on.scrollIntoView({ inline: "center", block: "nearest" });
-        loadVegaSeason(season);
+        loadVegaSeason(season);        placeAi();
       }
 
       function refreshEpisodes() {
@@ -328,12 +354,7 @@
           if (!data || (detail.id && detail.id !== show.id) || detail.kind === "progress") return;
           const y = window.scrollY;
           const eps = $("[data-episodes]", el);
-          const hero = el.querySelector(".film-hero");
-          if (hero) {
-            const tmp = document.createElement("div");
-            tmp.innerHTML = header();
-            hero.replaceWith(tmp.querySelector(".film-hero"));
-          }
+          redrawHero();
           if (eps) refreshEpisodes();
           FL.ui.watchPosters(el);
           window.scrollTo(0, y);

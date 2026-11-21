@@ -15,7 +15,9 @@ export const config = { runtime: "edge" };
    button stays hidden). Set VEGA_SITE / VEGA_HOT_SITE in Vercel to the current address and redeploy; no code change. */
 const host = (value, fallback) => String(value || fallback).trim().replace(/\/+$/, "");
 const ENV = (typeof process !== "undefined" && process.env) || {};
-const SITE = host(ENV.VEGA_SITE, "https://vegamovito.run");
+// The Dooplay Vega (vegamovito.run) stopped answering in Nov 2026 and its new addresses run DataLife Engine instead
+// (see Vega Hot below), so this part is off unless VEGA_SITE names a Dooplay address again.
+const SITE = ENV.VEGA_SITE ? host(ENV.VEGA_SITE, "") : "";
 const UA = "Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36";
 const NONCE_TTL = 2 * 3600e3; // WordPress nonces live 12–24 h
 const BUDGET = 8000; // stop trying further candidates after this, well inside Vercel's limits
@@ -81,6 +83,7 @@ function similar(a, b) {
 }
 
 async function search(keyword) {
+  if (!SITE) return [];
   const url = (n) => SITE + "/wp-json/dooplay/search/?keyword=" + encodeURIComponent(keyword) + "&nonce=" + n;
   let text = await get(url(await searchNonce()), true);
   if (/no_verify_nonce/.test(text)) text = await get(url(await searchNonce(true)), true);
@@ -123,14 +126,14 @@ function playerOptions(html) {
    episode. [{ label, url }] */
 const SOCIAL = /^https:\/\/(?:[\w-]+\.)*(?:t\.me|telegram\.\w+|facebook\.com|twitter\.com|x\.com|whatsapp\.com|instagram\.com)\//;
 const EP_NO = /\b(?:ep(?:isode)?|e)[\s.-]*0*(\d{1,4})\b/i;
-function downloadLinks(html, episode) {
+function downloadLinks(html, episode, own = SITE) {
   const byUrl = new Map();
   const re = /<a\b[^>]*?href=["']\s*([^"']+?)\s*["'][^>]*>([\s\S]*?)<\/a>/g;
   let m;
   while ((m = re.exec(String(html || "")))) {
     if (!/download-button|\bdownload\b|\bEP[\s.-]*\d/i.test(m[2])) continue;
     const url = cleanUrl(m[1]);
-    if (!url || url.startsWith(SITE) || SOCIAL.test(url)) continue;
+    if (!url || (own && url.startsWith(own)) || SOCIAL.test(url)) continue; // the post's own site: tags, how-to pages
     let label = decode(m[2]).replace(/\bdownload(?: now)?\b/ig, "").replace(/[[\]|:]/g, " ").replace(/\s+/g, " ").trim().slice(0, 40);
     if (/^watch\b|watch online/i.test(label)) continue; // a player link dressed as a button
     if (/^multiples?(?: packs?)?$/i.test(label)) label = "All episodes";
@@ -243,8 +246,11 @@ async function lookup({ title, year, imdb, s, e }) {
    A DataLife Engine site with titles Vega doesn't keep (older seasons, some shows). Its search is a plain GET; each
    post lists downloads either as "Download 720p … 1.6GB" links or as a quality heading ("720p x265 HEVC") above a
    "Click Here To Download [780MB]" button. Only its download pages are used (its player is Vega's Super Player). */
-const HOT = host(ENV.VEGA_HOT_SITE, "https://vega-hot.com");
-const HOT_POST = new RegExp('class="entry-title[^"]*"[^>]*>\\s*<a href="(' + HOT.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&") + '\\/[^"]+\\.html)"[^>]*>([\\s\\S]*?)<\\/a>', "g");
+/* Vega's current addresses (Nov 2026) are DataLife Engine sites too, searched the same way; each is looked up and
+   their download pages merged. VEGA_HOT_SITE can list them, comma-separated, when they move again. */
+const HOTS = String(ENV.VEGA_HOT_SITE || "https://vegamovies17.co.in,https://vegamovies4u.top").split(",").map((x) => host(x, "")).filter(Boolean);
+const HOT = HOTS[0];
+const escRe = (x) => x.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
 
 function hotGet(url) {
   const ctrl = new AbortController();
@@ -261,18 +267,30 @@ function parseHot(raw) {
   const paren = /\((19\d{2}|20\d{2})\)/.exec(title);
   const bare = paren ? null : /(?!^)\b(19\d{2}|20\d{2})\b/.exec(title);
   const y = paren || bare;
-  const name = (y ? title.slice(0, y.index) : title).replace(/[\s–—:|-]+$/, "").trim();
+  // "Mirzapur S03 (2024)" and "Dhindora 2026 Season 2": the season tag isn't part of the name.
+  const name = (y ? title.slice(0, y.index) : title).replace(/\s+(?:S\d{1,3}|season\s*\d{1,3})(?=\s|$)/i, "").replace(/[\s–—:|-]+$/, "").trim();
   const sm = title.match(/\bseason\s*0*(\d{1,3})\b|\bS0*(\d{1,3})\b(?!\s*E\d)/i);
   return { title, name, year: y ? +y[1] : 0, season: sm ? +(sm[1] || sm[2]) : 0 };
 }
 
-async function hotSearch(q) {
-  const html = await hotGet(HOT + "/index.php?do=search&subaction=search&story=" + encodeURIComponent(q));
-  const out = [];
-  const re = new RegExp(HOT_POST.source, "g");
+/* A search page's posts: links to <site>/….html named by their title attribute or their own text (a poster link and a
+   title link point at the same post; the one with words wins). */
+function hotPosts(html, site) {
+  const re = new RegExp('<a\\b([^>]*?)href="(' + escRe(site) + '\\/[^"#?]+\\.html)"([^>]*)>([\\s\\S]*?)<\\/a>', "g");
+  const byUrl = new Map();
   let m;
-  while ((m = re.exec(html))) out.push(Object.assign({ url: m[1] }, parseHot(m[2])));
-  return out;
+  while ((m = re.exec(String(html || "")))) {
+    const attr = (m[1] + " " + m[3]).match(/\btitle="([^"]+)"/);
+    const name = decode(attr ? attr[1] : m[4]);
+    if (!/\b(19|20)\d{2}\b/.test(name)) continue; // menus and categories carry no year
+    if (!byUrl.has(m[2]) || byUrl.get(m[2]).length < name.length) byUrl.set(m[2], name);
+  }
+  return [...byUrl].map(([url, title]) => Object.assign({ url, site }, parseHot(title)));
+}
+
+async function hotSearch(q, site) {
+  const at = site || HOT;
+  return hotPosts(await hotGet(at + "/index.php?do=search&subaction=search&story=" + encodeURIComponent(q)), at);
 }
 
 const QUALITY = /\b(2160p|4k|1080p|720p|480p|360p)\b/i;
@@ -280,10 +298,10 @@ const SIZE = /\b(\d+(?:\.\d+)?\s?(?:MB|GB))\b/i;
 const IMAGE = /\.(?:jpe?g|png|webp|gif)(?:[?#]|$)|blogspot\.com|googleusercontent\.com/i;
 
 /* A post's download pages, labelled "720p x265 HEVC · 780MB" (heading + size) or "720p · 1.6GB" (from the link). */
-function hotDownloads(html, episode) {
+function hotDownloads(html, episode, site) {
   const src = String(html || "");
   const start = src.search(/download-links-div|==\s*Download|Download Links/i);
-  if (start === -1) return [];
+  if (start === -1) return relDownloads(src, site);
   const endAt = src.slice(start).search(/Winding Up|class="entry-footer|<\/article>/i);
   const block = src.slice(start, endAt === -1 ? start + 60000 : start + endAt);
   // Headings that label what follows (ones without a link inside).
@@ -296,7 +314,7 @@ function hotDownloads(html, episode) {
   let a;
   while ((a = are.exec(block))) {
     const url = cleanUrl(a[1]);
-    if (!url || url.startsWith(HOT) || url.startsWith(SITE) || IMAGE.test(url) || SOCIAL.test(url)) continue;
+    if (!url || HOTS.some((h) => url.startsWith(h)) || (SITE && url.startsWith(SITE)) || IMAGE.test(url) || SOCIAL.test(url)) continue;
     const text = decode(a[2]);
     if (!/download|\bEP[\s.-]*\d|episode/i.test(text + " " + a[2])) continue;
     const before = heads.filter((x) => x.at < a.index);
@@ -317,18 +335,53 @@ function hotDownloads(html, episode) {
   return list.slice(0, 12);
 }
 
+/* The other layout: relative "l.php?cloud=…" links that read "Download 460mb {480p-HEVC}" → "480p HEVC · 460MB". */
+function relDownloads(html, site) {
+  if (!site) return [];
+  const list = [];
+  const re = /<a\b[^>]*?href="(l\.php\?cloud=[\w%=+-]+)"[^>]*>([\s\S]*?)<\/a>/g;
+  let m;
+  while ((m = re.exec(html))) {
+    const text = decode(m[2]);
+    if (!/download/i.test(text)) continue;
+    const q = (text.match(/\{([^}]+)\}/) || [])[1] || (text.match(QUALITY) || [])[1] || "";
+    const size = (text.match(/(\d+(?:\.\d+)?\s?(?:mb|gb))/i) || [])[1] || "";
+    const label = [q.replace(/-/g, " ").replace(/\b(\d{3,4})P\b/, "$1p").trim(), size.replace(/\s+/g, "").toUpperCase()].filter(Boolean).join(" · ") || "Download";
+    const url = site + "/" + m[1];
+    if (!list.some((d) => d.url === url)) list.push({ label, url });
+  }
+  return list.slice(0, 12);
+}
+
 /* A title's download pages on Vega Hot: the best-matching post (same name, year within one for films, same season for
    shows). Two-letter titles are searched with their year, since the site ignores very short searches. */
-async function hotLookup({ title, year, s, e }) {
+async function hotLookup(input) {
+  const lists = await Promise.all(HOTS.map((site) => hotLookupAt(input, site).catch(() => [])));
+  const out = [];
+  lists.forEach((list) => list.forEach((d) => { if (!out.some((x) => x.url === d.url)) out.push(d); }));
+  return numbered(out.slice(0, 16));
+}
+
+/* Two sites with the same "720p · 1.3GB": the second becomes "720p · 1.3GB · 2" so the buttons can be told apart. */
+function numbered(list) {
+  const seen = {};
+  return list.map((d) => {
+    const k = d.label.toLowerCase();
+    seen[k] = (seen[k] || 0) + 1;
+    return seen[k] > 1 ? { label: d.label + " · " + seen[k], url: d.url } : d;
+  });
+}
+
+async function hotLookupAt({ title, year, s, e }, site) {
   const tv = s > 0;
   const q = title.replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
-  const hits = await hotSearch(q.length < 3 && year ? q + " " + year : q);
+  const hits = await hotSearch(q.length < 3 && year ? q + " " + year : q, site);
   const best = hits
     .map((r) => Object.assign(r, { score: similar(r.name, title) }))
     .filter((r) => r.score >= 0.75 && (tv ? r.season === s : !r.season && (!year || !r.year || Math.abs(r.year - year) <= 1)))
     .sort((a, b) => b.score - a.score || (b.year === year) - (a.year === year))[0];
   if (!best) return [];
-  const list = hotDownloads(await hotGet(best.url), tv ? e : 0);
+  const list = hotDownloads(await hotGet(best.url), tv ? e : 0, site);
   // A season still airing ("[EP-20 Added]") only has its latest episodes: unless a link names this episode, its pages
   // may be for another one, so none are offered.
   if (tv && /\b(?:EP|Episode)[\s.-]*\d+\s*Added\b/i.test(best.title) && !list.some((d) => EP_NO.test(d.label))) return [];
@@ -339,6 +392,7 @@ async function hotLookup({ title, year, s, e }) {
    use it to add what Vega has before Cinemeta lists it (a new episode, bonus footage) and to offer per-episode
    downloads. */
 async function seasonInfo({ title, s }) {
+  if (!SITE) return hotSeason(title, s);
   const t0 = Date.now();
   const seen = new Set();
   for (const q of queries(title, s)) {
@@ -362,6 +416,19 @@ async function seasonInfo({ title, s }) {
     }
   }
   return { match: null, episodes: [], bonus: [], downloads: [] };
+}
+
+/* A season's download pages from the DataLife Engine sites (they list no per-episode players). */
+async function hotSeason(title, s) {
+  const lists = await Promise.all(HOTS.map(async (site) => {
+    const hits = await hotSearch(title.replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim(), site).catch(() => []);
+    const best = hits.map((r) => Object.assign(r, { score: similar(r.name, title) }))
+      .filter((r) => r.score >= 0.75 && r.season === s).sort((a, b) => b.score - a.score)[0];
+    return best ? hotDownloads(await hotGet(best.url).catch(() => ""), 0, site) : [];
+  }));
+  const downloads = [];
+  lists.forEach((list) => list.forEach((d) => { if (!downloads.some((x) => x.url === d.url)) downloads.push(d); }));
+  return { match: null, episodes: [], bonus: [], downloads: numbered(downloads.slice(0, 24)) };
 }
 
 /* Vega's language tag after the year: "Hindi" (a Hindi film), "Hindi Dubbed", "Punjabi HD"… */
@@ -442,4 +509,4 @@ export default async function handler(req) {
 }
 
 // For tests/vega.test.mjs.
-export { parseTitle, similar, queries, playerOptions, episodeOf, cleanUrl, episodeLink, GONE, RETIRED, language, posterOf, downloadLinks, parseHot, hotDownloads };
+export { parseTitle, similar, queries, playerOptions, episodeOf, cleanUrl, episodeLink, GONE, RETIRED, language, posterOf, downloadLinks, parseHot, hotDownloads, hotPosts, relDownloads };

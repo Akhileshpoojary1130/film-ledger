@@ -75,7 +75,8 @@
       if (!d.poster && !o.keepBare) return; // posterless search noise is almost always obscure
       // Cinemeta points every search hit at a metahub poster, even when none exists; a released title with
       // no rating and no real poster is noise (shorts, stubs, fan uploads).
-      if (o.search && !d.rating && /metahub/.test(d.poster) && d.year && d.year < new Date().getFullYear()) return;
+      // Unless it's the very title you typed: search hits carry no rating, so "Dhindora" (2021) looked like noise too.
+      if (o.search && !d.rating && /metahub/.test(d.poster) && d.year && d.year < new Date().getFullYear() && !(o.named && o.named(m))) return;
       out.push(FL.catalogue.addRemote(d));
     });
     return out;
@@ -164,7 +165,9 @@
         return words.every((w) => t.some((x) => x.startsWith(w)) || joined.includes(w));
       };
       const pick = (list, n) => { const good = list.filter(relevant); return (good.length ? good : list).slice(0, n); };
-      const out = ingest(pick(movies, 14), { type: "movie", search: true }).concat(ingest(pick(shows, 6), { type: "series", search: true }));
+      // The name you typed, whole ("dhindora", "the kapil sharma show"), or its start ("panchayat" → "Panchayat: …").
+      const named = (m) => { const n = normalize(m.name || ""); return n === q || n.startsWith(q + " ") || n.replace(/ /g, "") === q.replace(/ /g, ""); };
+      const out = ingest(pick(movies, 14), { type: "movie", search: true, named }).concat(ingest(pick(shows, 6), { type: "series", search: true, named }));
       results.set(q, out);
       // Fill genres/ratings for the first few so their cards read like everything else.
       out.slice(0, 8).forEach((f) => {
@@ -380,7 +383,8 @@
      Loaded once Iris is up (it's a few hundred KB): films and web series the bundle lacks join the catalogue with
      Vega's name, year, language, IMDb rating and genres; bundled films Vega has in Hindi get a "Hindi dubbed" mark. */
   const VEGA_LANG = { h: "Hindi", e: "English", r: "OtherIndian", g: "Global" };
-  const posterFrom = (p) => (!p ? "" : /^https:\/\//.test(p) ? p : "https://image.tmdb.org/t/p/w342/" + p + ".jpg");
+  // Uploads on the old Vega address (gone since Nov 2026) can't load: those titles take IMDb's or a placeholder instead.
+  const posterFrom = (p) => (!p || /^https?:\/\/(?:www\.)?vegamovito\.run\//.test(p) ? "" : /^https:\/\//.test(p) ? p : "https://image.tmdb.org/t/p/w342/" + p + ".jpg");
   let vegaLoad = null;
   function loadVega() {
     if (vegaLoad) return vegaLoad;

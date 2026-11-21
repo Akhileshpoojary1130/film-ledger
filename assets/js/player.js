@@ -21,6 +21,16 @@
       },
     },
     {
+      // vidfast.pro now redirects here. Takes a TMDB or IMDb id; shows need the TMDB one.
+      id: "vidfast", name: "VidFast", origin: "https://vidfast.vc", resume: true,
+      url: ({ imdb, tmdb, start, tv, s, e }) => {
+        const id = tmdb || imdb;
+        if (!id || (tv && !tmdb) || (tv && e > 100)) return null;
+        const q = "?theme=" + hex() + (start ? "&startAt=" + start : "");
+        return tv ? "https://vidfast.vc/tv/" + tmdb + "/" + s + "/" + e + q + "&nextButton=false&autoNext=false" : "https://vidfast.vc/movie/" + id + q;
+      },
+    },
+    {
       // Refuses to play in a sandboxed frame ("Sandbox not allowed" once you press play), so it runs unshielded.
       id: "2embed", name: "2Embed", origin: "https://www.2embed.cc",
       url: ({ imdb, tmdb, tv, s, e }) => {
@@ -48,9 +58,20 @@
       },
     },
     {
-      // Vega's "Super Player": heads the Vega group in the bar, ahead of the per-title links found below.
-      id: "vega", name: "Vega", short: "Super", label: "Super Player", origin: "https://slast430did.com", sandbox: true,
-      url: ({ imdb, tv }) => (imdb && !tv ? "https://slast430did.com/play/" + imdb : null),
+      // VidSrc's other address: answers when vidsrc.me doesn't (and the other way round).
+      id: "vidsrcto", name: "VidSrc.to", origin: "https://vidsrc.to",
+      url: ({ imdb, tmdb, tv, s, e }) => {
+        const id = tmdb || imdb;
+        if (!id || (tv && e > 100)) return null;
+        return tv ? "https://vidsrc.to/embed/tv/" + id + "/" + s + "/" + e : "https://vidsrc.to/embed/movie/" + id;
+      },
+    },
+    {
+      // The Hindi-audio player Vega's current pages embed (allmovieland's IndStream script loads this frame). Takes an
+      // IMDb id for films and shows alike; a show opens with its own season and episode picker. Posts {event: "error"}
+      // when it hasn't the title, which moves on to the next server by itself.
+      id: "indstream", name: "IndStream", origin: "https://geffe448mik.com",
+      url: ({ imdb }) => (imdb ? "https://geffe448mik.com/play/" + imdb : null),
     },
   ];
 
@@ -161,6 +182,7 @@
     let name = base;
     for (let n = 2; taken[id]; n++) { id = "vg-" + key + "-" + n; name = base + " " + n; }
     taken[id] = true;
+    // Shown by its own name only: no source site in the label.
     // Of Vega's hosts only HubStream plays in the shield's sandbox (MixDrop, VSEmbed, Minochinos, MoreNcius refuse).
     return { id, name, label: link.label, origin: "https://" + host, url: () => link.url, sandbox: /(^|\.)hubstream\.art$/.test(host) };
   }
@@ -281,7 +303,7 @@
       if (s.id === filmSrv) score += 30;
       // Vega is built for Hindi and Indian films (its Super Player is what Vega's own site plays Pushpa on); until
       // your own history says otherwise, its servers lead for them.
-      if (film && (film.lang === "Hindi" || film.lang === "OtherIndian") && (s.id === "vega" || /^vg-/.test(s.id))) score += 22;
+      if (film && (film.lang === "Hindi" || film.lang === "OtherIndian") && (s.id === "indstream" || /^vg-/.test(s.id))) score += 22;
       // An episode out on Vega before the usual sources list it (India's Got Latent's newest): Vega's hosts first.
       if (state.ep && state.show && /^vg-/.test(s.id) &&
         !state.show.episodes.some((x) => x.s === state.ep.s && x.e === state.ep.e && x.aired)) score += 60;
@@ -323,22 +345,30 @@
         '<button type="button" class="icon-btn" data-pl="close" aria-label="Close player">' + icon("arrow-left") + "</button>" +
         '<div class="player-title"></div>' +
         '<div class="player-top-actions">' +
-          '<button type="button" class="btn btn-sm btn-ghost" data-pl="next-ep" hidden>' + "Next episode" + icon("chevron-right") + "</button>" +
-          '<button type="button" class="btn btn-ghost btn-sm" data-pl="download" aria-expanded="false" hidden>' + icon("download") + "<span>Download</span></button>" +
-          '<a class="btn btn-ghost btn-sm" data-pl="newtab" target="_blank" rel="noopener noreferrer">' + icon("external") + "<span>New tab</span></a>" +
-          '<button type="button" class="icon-btn" data-pl="fullscreen" aria-label="Fullscreen (F)">' + icon("expand") + "</button>" +
+          '<div class="player-epnav" hidden>' +
+            '<button type="button" class="icon-btn" data-pl="prev-ep" aria-label="Previous episode (Shift+P)" title="Previous episode">' + icon("chevron-left") + "</button>" +
+            '<button type="button" class="btn btn-sm btn-ghost" data-pl="next-ep" title="Next episode (Shift+N)"><span>Next episode</span>' + icon("chevron-right") + "</button>" +
+          "</div>" +
+          '<button type="button" class="btn btn-ghost btn-sm" data-pl="episodes" aria-expanded="false" title="Episodes (E)" hidden>' + icon("list") + "<span>Episodes</span></button>" +
+          '<button type="button" class="btn btn-ghost btn-sm" data-pl="download" aria-expanded="false" title="Download" hidden>' + icon("download") + "<span>Download</span></button>" +
+          '<a class="btn btn-ghost btn-sm" data-pl="newtab" target="_blank" rel="noopener noreferrer" title="Open this server in a new tab">' + icon("external") + "<span>New tab</span></a>" +
+          '<button type="button" class="icon-btn" data-pl="fullscreen" aria-label="Fullscreen (F)" title="Fullscreen (F)">' + icon("expand") + "</button>" +
         "</div>" +
       "</header>" +
       '<div class="player-stage"><div class="player-frame"></div></div>' +
       '<div class="player-hot player-hot-top" aria-hidden="true"></div><div class="player-hot player-hot-bottom" aria-hidden="true"></div>' +
       '<div class="player-notice" hidden></div>' +
       '<div class="player-dl" data-dl hidden></div>' +
-      '<footer class="player-bar">' +
-        '<div class="player-audio" hidden>' + FL.ui.segmented("audio", [["sub", "Sub"], ["dub", "Dub"]], "sub") + "</div>" +
-        '<span class="label">Server</span>' +
-        '<div class="player-servers" role="radiogroup" aria-label="Stream server"></div>' +
-        '<button type="button" class="btn btn-sm" data-pl="next">Next server <kbd>N</kbd></button>' +
-      "</footer>";
+      // Under the video on phones held upright (servers, then the episode list); a bar and a side panel elsewhere.
+      '<div class="player-dock">' +
+        '<footer class="player-bar">' +
+          '<div class="player-audio" hidden>' + FL.ui.segmented("audio", [["sub", "Sub"], ["dub", "Dub"]], "sub") + "</div>" +
+          '<span class="label">Server</span>' +
+          '<div class="player-servers" role="radiogroup" aria-label="Stream server"></div>' +
+          '<button type="button" class="btn btn-sm" data-pl="next" title="Not playing? Try the next server (N)">' + icon("rewatch") + "<span>Next server</span> <kbd>N</kbd></button>" +
+        "</footer>" +
+        '<section class="player-eps" aria-label="Episodes" hidden></section>' +
+      "</div>";
     document.body.appendChild(root);
     // In fullscreen, moving over Iris's own parts (the bars, the edges) brings the bars back.
     root.addEventListener("pointermove", () => { if (root.classList.contains("is-fs")) wake(); });
@@ -351,6 +381,8 @@
       else if (act === "fullscreen") fullscreen();
       else if (act === "next") next();
       else if (act === "next-ep") nextEpisode();
+      else if (act === "prev-ep") prevEpisode();
+      else if (act === "episodes") toggleEps();
       else if (act === "restart") { state.start = 0; load(state.server, true); }
       else if (act === "dismiss") hideNotice();
       else if (act === "download") toggleDownloads();
@@ -372,6 +404,17 @@
       if (!state.ids) return;
       if (state.server && state.server.url(params())) load(state.server);
       else next();
+    });
+    // Episodes: another season (or block of 100 for long anime), or any aired episode.
+    FL.util.on(root, "click", "[data-seg=epgroup]", (e, el) => {
+      state.epGroup = +el.dataset.value;
+      renderEps();
+    });
+    FL.util.on(root, "click", "[data-pe]", (e, el) => {
+      const [s, n] = el.dataset.pe.split("|").map(Number);
+      if (state.ep && state.ep.s === s && state.ep.e === n) return;
+      if (wideEps()) toggleEps(false);
+      playEpisode({ s, e: n });
     });
     FL.util.on(root, "click", "[data-srv]", (e, el) => {
       const s = allServers().find((x) => x.id === el.dataset.srv);
@@ -418,8 +461,88 @@
     const epInfo = ep && state.show ? state.show.episodes.find((x) => x.s === ep.s && x.e === ep.e) : null;
     root.querySelector(".player-title").innerHTML = "<strong>" + esc(f.title) + "</strong><span>" +
       (ep ? esc(epLabel(ep) + (epInfo && epInfo.title && !/^episode \d+$/i.test(epInfo.title) ? " · " + epInfo.title : "")) : esc(FL.catalogue.yearLabel(f)) + (f.genres[0] ? " · " + esc(f.genres[0]) : "")) + "</span>";
-    const nextBtn = root.querySelector('[data-pl="next-ep"]');
-    nextBtn.hidden = !(ep && nextEp());
+    const n = ep && nextEp();
+    const p = ep && prevEp();
+    root.querySelector(".player-epnav").hidden = !(n || p);
+    root.querySelector('[data-pl="next-ep"]').disabled = !n;
+    root.querySelector('[data-pl="prev-ep"]').disabled = !p;
+    renderEps();
+  }
+
+  /* ---------- episodes, inside the player ---------- */
+
+  /* Shows group by season; long anime by blocks of 100 (One Piece has over a thousand). */
+  const EP_BLOCK = 100;
+  const groupOf = (v) => (isAnime(state.film) ? Math.floor((v.e - 1) / EP_BLOCK) : v.s);
+  const groupLabel = (g) => (isAnime(state.film) ? g * EP_BLOCK + 1 + "–" + (g + 1) * EP_BLOCK : g === 0 ? "Specials" : "S" + g);
+  // Beside the video (a panel you open) on wide screens; under it, always there, on phones held upright.
+  const wideEps = () => !matchMedia(STACKED).matches;
+  const STACKED = "(max-width: 1100px) and (orientation: portrait), (max-width: 760px) and (min-height: 560px)";
+
+  function epList() {
+    const list = (state.show && state.show.episodes) || [];
+    // An episode only Vega has (a bonus, or one out early) is still the one playing.
+    if (state.ep && !list.some((x) => x.s === state.ep.s && x.e === state.ep.e)) return list.concat([{ s: state.ep.s, e: state.ep.e, title: "", aired: true }]);
+    return list;
+  }
+
+  function renderEps() {
+    const box = root.querySelector(".player-eps");
+    const btn = root.querySelector('[data-pl="episodes"]');
+    const list = epList();
+    const has = !!(state.ep && list.length > 1);
+    btn.hidden = !has;
+    box.hidden = !has;
+    if (!has) { toggleEps(false); box.innerHTML = ""; return; }
+    const groups = Array.from(new Set(list.map(groupOf))).sort((a, b) => (a === 0 && !isAnime(state.film) ? 1 : b === 0 && !isAnime(state.film) ? -1 : a - b));
+    if (state.epGroup == null || groups.indexOf(state.epGroup) === -1) state.epGroup = groupOf(state.ep);
+    const today = new Date().toISOString().slice(0, 10);
+    const id = state.film.id;
+    const shown = list.filter((v) => groupOf(v) === state.epGroup).sort((a, b) => a.e - b.e);
+    const seen = shown.filter((v) => FL.store.episodeWatched(id, v.s, v.e)).length;
+    box.innerHTML =
+      '<header class="pe-head"><h2 class="pe-title">Episodes <span>' + seen + " of " + shown.filter((v) => v.aired).length + " watched</span></h2>" +
+        '<button type="button" class="icon-btn icon-btn-sm pe-close" data-pl="episodes" aria-label="Close episodes">' + icon("x") + "</button></header>" +
+      (groups.length > 1 ? '<div class="pe-groups">' + FL.ui.segmented("epgroup", groups.map((g) => [g, groupLabel(g)]), state.epGroup) + "</div>" : "") +
+      '<ol class="pe-list">' + shown.map((v) => {
+        const now = state.ep.s === v.s && state.ep.e === v.e;
+        const w = FL.store.episodeWatched(id, v.s, v.e);
+        const name = v.e > 100 && !isAnime(state.film) ? "Bonus " + (v.e - 100) : v.title && !/^episode \d+$/i.test(v.title) && v.title !== "TBD" ? v.title : "Episode " + v.e;
+        const sub = now ? "Playing" : !v.aired ? (v.date ? (v.date > today ? "Airs " : "") + FL.util.fmtDate(v.date) : "Not out yet") : w ? "Watched" : "";
+        return '<li><button type="button" class="pe' + (now ? " is-now" : "") + (w ? " is-seen" : "") + '" data-pe="' + v.s + "|" + v.e + '"' +
+          (v.aired || now ? "" : " disabled") + (now ? ' aria-current="true"' : "") + ">" +
+          '<span class="pe-thumb">' + (v.thumb ? '<img src="' + esc(v.thumb) + '" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.remove()">' : "") +
+            "<b>" + (v.e > 100 && !isAnime(state.film) ? "B" + (v.e - 100) : v.e) + "</b>" + (now ? '<i class="pe-eq" aria-hidden="true"><i></i><i></i><i></i></i>' : "") + "</span>" +
+          '<span class="pe-text"><strong>' + esc(name) + "</strong>" + (sub ? "<small>" + esc(sub) + "</small>" : "") + "</span>" +
+          (w && !now ? '<span class="pe-check" aria-label="Watched">' + icon("check") + "</span>" : "") +
+          "</button></li>";
+      }).join("") + "</ol>";
+    if (wideEps() && root.classList.contains("eps-open")) keepNowInView();
+  }
+
+  /* The playing episode in the middle of the side panel's list (scrolling only the list, never the page). */
+  function keepNowInView() {
+    const cur = root.querySelector(".pe.is-now");
+    const ol = root.querySelector(".pe-list");
+    if (!cur || !ol) return;
+    requestAnimationFrame(() => {
+      const c = cur.getBoundingClientRect();
+      const s = ol.getBoundingClientRect();
+      if (c.top < s.top || c.bottom > s.bottom) ol.scrollTop += c.top - s.top - s.height / 2 + c.height / 2;
+    });
+  }
+
+  function toggleEps(force) {
+    const box = root.querySelector(".player-eps");
+    const open = force != null ? !!force : !root.classList.contains("eps-open") && !box.hidden;
+    root.classList.toggle("eps-open", open);
+    root.querySelector('[data-pl="episodes"]').setAttribute("aria-expanded", String(open));
+    if (open) { state.epGroup = state.ep ? groupOf(state.ep) : state.epGroup; renderEps(); }
+  }
+
+  function playEpisode(ep) {
+    history.replaceState(null, "", watchHash(state.film, ep));
+    start(state.film, { s: ep.s, e: ep.e });
   }
 
   function renderServers() {
@@ -430,14 +553,13 @@
       const usable = !!(state.ids && s.url(p));
       const status = state.ids && !usable ? "na" : !h ? "wait" : h.ok ? "ok" : "down";
       const na = isAnime(state.film) ? (p.dub ? "No dub here for this episode" : "Doesn't have this episode") : state.ep ? "Doesn't carry shows" : "Needs an id this title doesn't have";
-      const label = (s.label ? "Vega · " + s.label + " · " : "") +
-        { na, wait: "Checking…", ok: h && h.ms + " ms", down: "Unreachable from your network" }[status];
+      const label = (s.label ? s.label + " · " : "") + (s.id === "indstream" && state.ep ? "Pick the episode in its player · " : "") +
+        { na, wait: "Checking…", ok: "Reachable · " + (h && h.ms) + " ms", down: "Unreachable from your network" }[status];
       const active = state.server && state.server.id === s.id;
-      return (s.id === "vega" ? '<span class="label srv-sep">Vega</span>' : "") +
-        '<button type="button" role="radio" aria-checked="' + active + '" class="srv srv-' + status + (active ? " is-active" : "") +
+      return '<button type="button" role="radio" aria-checked="' + active + '" class="srv srv-' + status + (active ? " is-active" : "") +
         '" data-srv="' + s.id + '" title="' + esc(label) + '"' + (status === "na" ? " disabled" : "") + ">" +
         '<i class="srv-dot" aria-hidden="true"></i><span>' + esc(s.short || s.name) + "</span>" +
-        (status === "ok" ? "<small>" + h.ms + "ms</small>" : status === "down" ? "<small>down</small>" : "") + "</button>";
+        (active ? '<i class="srv-live" aria-hidden="true"></i>' : "") + "</button>";
     }).join("");
     // The row scrolls on its own once Vega's links join; keep the playing server in sight.
     const act = wrap.querySelector(".is-active");
@@ -453,6 +575,14 @@
 
   function status(html) {
     frame().innerHTML = '<div class="player-status">' + html + "</div>";
+  }
+
+  /* The title's still behind the frame, dimmed: what you see while a server starts instead of a black box. */
+  function paintBackdrop(film) {
+    const url = isAnime(film) ? film.banner || film.cover || "" : (FL.meta.backdrop && FL.meta.backdrop(film)) || "";
+    const f = frame();
+    if (url) f.style.setProperty("--bd", 'url("' + url.replace(/"/g, "%22") + '")'); else f.style.removeProperty("--bd");
+    f.classList.toggle("has-bd", !!url);
   }
 
   function notice(html, persistent) {
@@ -472,6 +602,8 @@
     const o = opts || {};
     onClose = o.onClose || null;
     state.open = true;
+    clearTimeout(state.hideTimer);
+    root.classList.remove("is-closing");
     root.hidden = false;
     document.documentElement.classList.add("has-player");
     hideNotice();
@@ -496,6 +628,8 @@
     state.runtime = 0;
     state.openedAt = Date.now();
     state.zoro = undefined; // anime: Zoro TV's { sub, dub } once looked up, false when it hasn't this episode
+    state.epGroup = null; // the episode list opens on the playing one's season
+    paintBackdrop(film);
     root.querySelector(".player-servers").scrollLeft = 0; // a new title starts at the first server
     if (isAnime(film)) state.show = { episodes: film._eps || FL.anime.episodes(film, {}, []) };
     paintAudio();
@@ -573,7 +707,7 @@
       if (token !== state.token) return;
       if (resolved) { begin(resolved); return; }
       // No IMDb id means the fixed servers can't look it up — but Vega finds titles by name.
-      status(FL.ui.loader(44, "Loading") + "<p>Looking for " + (ep ? "this episode" : "this film") + " on Vega…</p>");
+      status(FL.ui.loader(44, "Loading") + "<p>Looking for " + (ep ? "this episode" : "this film") + " on more servers…</p>");
       vega.then(() => {
         if (token !== state.token) return;
         if (state.extra.length) begin({});
@@ -711,6 +845,12 @@
     const i = list.findIndex((x) => x.s === state.ep.s && x.e === state.ep.e);
     return i !== -1 ? list[i + 1] || null : null;
   }
+  function prevEp() {
+    if (!state.ep || !state.show) return null;
+    const list = state.show.episodes.filter((x) => x.s > 0 && x.aired);
+    const i = list.findIndex((x) => x.s === state.ep.s && x.e === state.ep.e);
+    return i > 0 ? list[i - 1] : null;
+  }
 
   /* Up Next: at the credits (the player says it's 92% through), the next episode is announced and starts after a
      10-second countdown — Play now to skip the wait, Cancel to stay. Settings → Player turns it off. */
@@ -746,9 +886,11 @@
 
   function nextEpisode() {
     const n = nextEp();
-    if (!n) return;
-    history.replaceState(null, "", watchHash(state.film, n));
-    start(state.film, { s: n.s, e: n.e });
+    if (n) playEpisode(n);
+  }
+  function prevEpisode() {
+    const p = prevEp();
+    if (p) playEpisode(p);
   }
 
   /* The whole player goes fullscreen (not just the video's frame), so Iris's own things — break reminders, toasts,
@@ -803,6 +945,8 @@
     if (!state.server || !state.film || state.confirmed) return;
     const dwell = Date.now() - state.openedAt;
     if (closing && dwell < 20e3) return;
+    // Tapping through servers to compare (a few seconds on each) says nothing about them either way.
+    if (!closing && dwell < 8e3) return;
     if (dwell > 5 * 60e3) bumpStat(state.server.id, "ok", state.film);
     else if (dwell < 90e3) bumpStat(state.server.id, "fail", state.film);
   }
@@ -815,6 +959,7 @@
       const ep = state.ep;
       FL.store.toggleEpisode(film, ep.s, ep.e, true);
       FL.store.clearProgress(film.id);
+      if (state.open) renderEps();
       if (FL.pet && FL.pet.onEpisode) FL.pet.onEpisode();
       const n = nextEp();
       const auto = n && state.open && (FL.store.prefs().player || {}).autoNext !== false;
@@ -861,7 +1006,10 @@
     state.server = null;
     clearTimeout(state.hintTimer);
     frame().innerHTML = ""; // unloading the iframe stops playback
-    root.hidden = true;
+    // A short fade out (the page underneath is already back); then the player leaves the layout.
+    root.classList.add("is-closing");
+    toggleEps(false);
+    state.hideTimer = setTimeout(() => { if (!state.open) { root.hidden = true; root.classList.remove("is-closing"); } }, 200);
     document.documentElement.classList.remove("has-player");
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     const cb = onClose;
@@ -924,7 +1072,11 @@
   document.addEventListener("keydown", (e) => {
     if (!state.open || FL.util.isTyping(e) || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.key === "Escape" && root && !root.querySelector("[data-dl]").hidden) { e.preventDefault(); toggleDownloads(false); } // first Esc closes the list
+    else if (e.key === "Escape" && root.classList.contains("eps-open")) { e.preventDefault(); toggleEps(false); } // then the episodes panel
     else if (e.key === "Escape" && !document.fullscreenElement) { e.preventDefault(); close(); }
+    else if (e.key === "N" && e.shiftKey) { e.preventDefault(); nextEpisode(); }
+    else if (e.key === "P" && e.shiftKey) { e.preventDefault(); prevEpisode(); }
+    else if (e.key === "e" || e.key === "E") { if (wideEps()) { e.preventDefault(); toggleEps(); } }
     else if (e.key === "n" || e.key === "N") { e.preventDefault(); next(); }
     else if (e.key === "f" || e.key === "F") { e.preventDefault(); fullscreen(); }
     else if (/^[1-9]$/.test(e.key)) {

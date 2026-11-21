@@ -140,7 +140,7 @@
         const shown = new Set(items.filter((x) => x.film).map((x) => x.film.id));
         const vega = (vegaHits.get(q) || []).map(vegaFilm).filter((f) => f && !shown.has(f.id)).slice(0, 5);
         if (vega.length) {
-          html += '<div class="pal-group">On Vega<span class="pal-group-note">plays on Vega’s servers</span></div>';
+          html += '<div class="pal-group">More to play</div>';
           vega.forEach((f) => { html += filmItem(f, items.length); items.push({ film: f }); });
         }
         const nq = normalize(q);
@@ -184,7 +184,9 @@
       webTimer = setTimeout(() => {
         busy.hidden = false;
         const fixed = FL.catalogue.searchAll(q).total ? "" : FL.catalogue.suggest(q);
-        const web = FL.remote.search(fixed || q);
+        // What you typed always goes to the web (Iris may simply not have it yet: "dhindora" isn't a typo of "Dhandoraa"),
+        // and the spelling fix too when there is one.
+        const web = Promise.all([FL.remote.search(q), fixed && fixed !== q ? FL.remote.search(fixed) : null]);
         const vega = FL.player.vegaSearch(q).then((hits) => { vegaHits.set(q, hits); });
         web.then(() => {
           if (input.value.trim() !== q || !paletteOpen) return;
@@ -397,22 +399,28 @@
       "</div>";
   }
 
+  /* An on/off setting as a switch. It speaks the same data-seg / data-value as the two-button control it replaces (the
+     value is what a tap turns it to), so the handlers are unchanged; the one just tapped slides over when redrawn. */
+  let flipped = "";
+  function sw(name, on, label) {
+    const cls = "switch" + (on ? " is-on" : "") + (flipped === name ? " is-flip" : "");
+    return '<button type="button" role="switch" aria-checked="' + on + '" aria-label="' + esc(label) + '" class="' + cls + '" data-seg="' + name + '" data-value="' + (on ? "off" : "on") + '"><i></i></button>';
+  }
+  const swRow = (name, on, title, note) => '<div class="setting-row setting-switch"><span>' + title + "<small>" + note + "</small></span>" + sw(name, on, title) + "</div>";
+
   /* What Home and the pages show (only what applies on this device: the search button is a phone thing, trailers on
      hover need a mouse). */
   function homeHtml() {
     const a = FL.store.prefs().appearance;
     const home = FL.store.prefs().home || {};
     const picker = FL.store.prefs().years.picker || "dial";
-    return '<div class="setting-row"><span>Moodline<small>Headline follows your taste</small></span>' +
-        FL.ui.segmented("moodtype", [["on", "On"], ["off", "Off"]], a.moodType === false ? "off" : "on") + "</div>" +
+    return swRow("moodtype", a.moodType !== false, "Moodline", "Headline follows your taste") +
       '<div class="setting-row"><span>Up Next<small>How many unfinished titles Home shows</small></span>' + FL.ui.segmented("cwmax", [["1", "1"], ["2", "2"], ["3", "3"]], String(home.continueMax || 3)) + "</div>" +
-      '<div class="setting-row"><span>Glance<small>Your numbers under the headline</small></span>' +
-        FL.ui.segmented("glance", [["on", "Show"], ["off", "Hide"]], home.glance ? "on" : "off") + "</div>" +
+      swRow("glance", !!home.glance, "Glance", "Your numbers under the headline") +
       '<div class="setting-row"><span>Year picker<small>How you choose a year on the Years page</small></span>' + FL.ui.segmented("picker", [["dial", "Dial"], ["wheel", "Wheel"], ["ruler", "Ruler"], ["chips", "Chips"]], picker) + "</div>" +
       (phone() ? '<div class="setting-row"><span>Search button<small>In the top bar, or floating under Settings</small></span>' +
         FL.ui.segmented("searchspot", [["center", "Top"], ["float", "Floating"]], a.searchSpot === "float" ? "float" : "center") + "</div>" : "") +
-      (mouse() ? '<div class="setting-row"><span>Trailer on hover<small>Rest on a poster for 3 seconds to preview it</small></span>' +
-        FL.ui.segmented("hovertrailer", [["on", "On"], ["off", "Off"]], a.hoverTrailer === false ? "off" : "on") + "</div>" : "");
+      (mouse() ? swRow("hovertrailer", a.hoverTrailer !== false, "Trailer on hover", "Rest on a poster for 3 seconds to preview it") : "");
   }
 
   /* Pause Pals: the break-reminder companion. */
@@ -455,10 +463,8 @@
   function playerHtml() {
     const pp = FL.store.prefs().player || {};
     const shield = pp.shield !== false;
-    return '<div class="setting-row"><span>Autoplay next episode<small>Starts after a 10-second countdown at the credits</small></span>' +
-      FL.ui.segmented("autonext", [["on", "On"], ["off", "Off"]], pp.autoNext === false ? "off" : "on") + "</div>" +
-      '<div class="setting-row"><span>Clear Play<small>Blocks pop-ups and redirects</small></span>' +
-      FL.ui.segmented("shield", [["on", "On"], ["off", "Off"]], shield ? "on" : "off") + "</div>" +
+    return swRow("autonext", pp.autoNext !== false, "Autoplay next episode", "Starts after a 10-second countdown at the credits") +
+      swRow("shield", shield, "Clear Play", "Blocks pop-ups and redirects") +
       '<details class="set-details"><summary>Server status</summary>' +
         '<p class="sub set-sub-note">From your network right now; the player skips unreachable ones.</p>' +
         '<ul class="server-list">' + serverRows() + '</ul><button type="button" class="btn btn-sm btn-ghost" data-set="recheck">Re-check</button></details>';
@@ -472,8 +478,7 @@
         (k ? '<div class="ai-key-row"><code>' + esc(k.slice(0, 6) + "…" + k.slice(-4)) + '</code><button type="button" class="btn btn-sm btn-ghost" data-set="ai-key-remove">Remove</button></div>'
           : '<form class="ai-key-row" data-ai-key><input class="input" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…" aria-label="Your Gemini API key"><button class="btn btn-sm btn-primary" type="submit">Save</button></form>') +
       "</div>" +
-      (k ? '<div class="setting-row"><span>Auto-check<small>Films you open that haven’t been checked get checked by AI right away, for everyone</small></span>' +
-        FL.ui.segmented("aiauto", [["on", "On"], ["off", "Off"]], FL.ai.autoCheck() ? "on" : "off") + "</div>" : "");
+      (k ? swRow("aiauto", FL.ai.autoCheck(), "Auto-check", "Films, series and anime you open that haven’t been checked get checked by AI right away, for everyone") : "");
     const modelRow = keyRow + '<div class="setting-row"><span>Model first<small>Tried first for your AI searches, picks and scans; the other takes over if it’s busy</small></span>' +
       FL.ui.segmented("aimodel", FL.ai.MODELS, FL.ai.model()) + "</div>";
     if (st === null) return '<div class="setting-row"><span>Status<small>Checking…</small></span>' + FL.ui.loader(18) + "</div>" + modelRow;
@@ -505,8 +510,7 @@
 
   /* Dev mode: the live network card in the corner. Kept on this device only. */
   function devHtml() {
-    return '<div class="setting-row"><span>Dev mode<small>Every request arrives as a spark, bottom right; tap the card for details</small></span>' +
-      FL.ui.segmented("devmode", [["on", "On"], ["off", "Off"]], FL.devmode.on ? "on" : "off") + "</div>";
+    return swRow("devmode", !!FL.devmode.on, "Dev mode", "Every request arrives as a spark, bottom right; tap the card for details");
   }
 
   const phone = () => window.matchMedia("(max-width: 760px)").matches;
@@ -521,6 +525,11 @@
     const m = modal(
       '<div class="modal-pad settings">' +
         '<h2 class="h2">Settings</h2>' +
+        // Eleven sections: a bar to jump between them, which follows along as you scroll.
+        '<nav class="set-jump" aria-label="Settings sections">' + [["relay", "Relay"], FL.sakura ? ["app", "App"] : null, ["style", "Style"], ["appearance", "Appearance"],
+          ["home", "Home"], ["player", "Player"], FL.pet ? ["pals", "Pause Pals"] : null, ["storage", "Backup"], FL.ai ? ["ai", "AI"] : null,
+          FL.devmode ? ["developer", "Developer"] : null, ["maintenance", "Maintenance"]].filter(Boolean)
+          .map(([k, t]) => '<button type="button" class="set-jump-btn" data-jump="' + k + '">' + t + "</button>").join("") + "</nav>" +
         // You first: your name (Home greets you with it).
         '<div class="set-me"><span class="set-avatar" aria-hidden="true">' + esc((prefs.name || "").trim().charAt(0).toUpperCase() || "☺") + "</span>" +
           '<input class="input" id="set-name" maxlength="40" placeholder="Your name" aria-label="Your name" autocomplete="nickname" value="' + esc(prefs.name || "") + '"></div>' +
@@ -532,7 +541,7 @@
         '<section data-sec="player"><h3 class="label">Player</h3><div class="set-group" data-playerset>' + playerHtml() + "</div></section>" +
         (FL.pet ? '<section data-sec="pals"><h3 class="label">Pause Pals</h3><p class="set-note">A friend who reminds you to drink water, stretch and rest your eyes</p><div data-petset>' + petHtml() + "</div></section>" : "") +
         '<section data-sec="storage"><h3 class="label">Backup</h3><div data-storage>' + storageHtml(FL.persist.status(), false) + "</div></section>" +
-        (FL.ai ? '<section data-sec="ai"><h3 class="label">AI</h3><p class="set-note">Daily fact-check of film details, Ask Iris, AI picks and the Stats read</p><div class="set-group" data-aiset>' + aiHtml(null) + "</div></section>" : "") +
+        (FL.ai ? '<section data-sec="ai"><h3 class="label">AI</h3><p class="set-note">Daily fact-check of film, series and anime details, Ask Iris, AI picks and the Stats read</p><div class="set-group" data-aiset>' + aiHtml(null) + "</div></section>" : "") +
         (FL.devmode ? '<section data-sec="developer"><h3 class="label">Developer</h3><div class="set-group" data-devset>' + devHtml() + "</div></section>" : "") +
         '<section data-sec="maintenance"><h3 class="label">Maintenance</h3><p class="set-note">Reload missing posters, or start your library over</p><div class="btn-row">' +
           '<button type="button" class="btn btn-ghost" data-set="clear-cache">Clear artwork cache</button>' +
@@ -578,6 +587,51 @@
       const sec = $('[data-sec="' + focus + '"]', m.el);
       if (sec) setTimeout(() => sec.scrollIntoView({ block: "start" }), 60);
     }
+
+    /* The section bar: a tap scrolls there; scrolling lights the section you're in (and keeps its chip in view). */
+    const jump = $(".set-jump", m.el);
+    // Sticky measures from inside the sheet's scroller padding (the gap above the sheet on wide screens): undo it so
+    // the bar meets the top edge, and land sections just under the bar.
+    const fitJump = () => {
+      const scroller = m.el.closest(".modal-backdrop") || m.el;
+      const pad = parseFloat(getComputedStyle(scroller).paddingTop) || 0;
+      jump.style.top = -pad + "px";
+      m.el.style.setProperty("--jump-h", jump.offsetHeight + 8 + "px");
+    };
+    fitJump();
+    window.addEventListener("resize", fitJump);
+    const lightJump = (k) => {
+      jump.querySelectorAll(".set-jump-btn").forEach((b) => {
+        const on = b.dataset.jump === k;
+        if (on === b.classList.contains("is-on")) return;
+        b.classList.toggle("is-on", on);
+        if (on) jump.scrollTo({ left: b.offsetLeft - jump.clientWidth / 2 + b.offsetWidth / 2, behavior: "smooth" });
+      });
+    };
+    jump.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-jump]");
+      const sec = b && $('[data-sec="' + b.dataset.jump + '"]', m.el);
+      if (!sec) return;
+      lightJump(b.dataset.jump);
+      sec.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    });
+    if ("IntersectionObserver" in window) {
+      const seen = new Map();
+      const io = new IntersectionObserver((list) => {
+        list.forEach((x) => seen.set(x.target.dataset.sec, x.isIntersecting ? x.boundingClientRect.top : null));
+        const first = [...seen].filter((x) => x[1] != null).sort((a, b) => a[1] - b[1])[0];
+        if (first) lightJump(first[0]);
+      }, { root: null, rootMargin: "-90px 0px -55% 0px" });
+      m.el.querySelectorAll("[data-sec]").forEach((sec) => io.observe(sec));
+    }
+
+    // A switch row toggles from anywhere on it; the switch tapped slides over when its section redraws.
+    m.el.addEventListener("click", (e) => {
+      const swb = e.target.closest(".switch");
+      if (swb) { flipped = swb.dataset.seg; setTimeout(() => { flipped = ""; }, 0); return; }
+      const row = e.target.closest(".setting-switch");
+      if (row && !e.target.closest("a, button, input")) { const t = row.querySelector(".switch"); if (t) t.click(); }
+    }, true);
 
     const name = $("#set-name", m.el);
     name.addEventListener("change", () => {
@@ -709,7 +763,7 @@
     });
 
     const origClose = m.close;
-    m.close = () => { off(); origClose(); };
+    m.close = () => { off(); window.removeEventListener("resize", fitJump); origClose(); };
   }
 
   /* ---------- shortcuts ---------- */
@@ -722,7 +776,7 @@
       ["Anywhere", [[[mod, "K"], "Search films, shows & commands"], [["/"], "Search"], [["R"], "Reel Spin"], [["?"], "This list"], [["Esc"], "Close"]]],
       ["Go to", [[["G", "H"], "Home"], [["G", "Y"], "Years"], [["G", "B"], "Browse"], [["G", "T"], "Shows"], [["G", "W"], "Watch later"], [["G", "D"], "Diary"], [["G", "S"], "Stats"]]],
       ["On a film page", [[["P"], "Play"], [["T"], "Trailer"], [["W"], "Watch later"], [["M"], "Mark watched"], [["F"], "Favourite"]]],
-      ["Player", [[["N"], "Next server"], [["1"], "–", ["9"], "Pick a server"], [["F"], "Fullscreen"], [["Esc"], "Close player"]]],
+      ["Player", [[["N"], "Next server"], [["1"], "–", ["9"], "Pick a server"], [["E"], "Episodes"], [["Shift"], "+", ["N"], "Next episode"], [["Shift"], "+", ["P"], "Previous episode"], [["F"], "Fullscreen"], [["Esc"], "Close player"]]],
       ["Years", [[["←"], "Previous year"], [["→"], "Next year"]]],
       ["Grids", [[["←", "→", "↑", "↓"], "Move between posters"], [["↵"], "Open"]]],
     ];

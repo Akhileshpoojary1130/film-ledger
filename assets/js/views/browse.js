@@ -158,7 +158,8 @@
         if (!q || q.length < 2) { web.innerHTML = ""; return; }
         const token = ++webToken;
         web.innerHTML = FL.ui.loader(22) + "<span>Searching everywhere…</span>";
-        FL.remote.search(corrected || q).then(() => {
+        // Your own words first (the web may have what the bundle lacks), and the spelling fix too.
+        Promise.all([FL.remote.search(q), corrected && corrected !== q ? FL.remote.search(corrected) : null]).then(() => {
           if (token !== webToken || !alive) return;
           web.innerHTML = "";
           const before = new Set(items.map((f) => f.id));

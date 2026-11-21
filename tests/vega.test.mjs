@@ -1,7 +1,7 @@
 // Unit tests for the Vega lookup's matching and clean-up (no network): node --test tests/
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseTitle, similar, queries, playerOptions, episodeOf, cleanUrl, episodeLink, GONE, language, posterOf, downloadLinks, parseHot, hotDownloads } from "../api/vega.js";
+import { parseTitle, similar, queries, playerOptions, episodeOf, cleanUrl, episodeLink, GONE, language, posterOf, downloadLinks, parseHot, hotDownloads, hotPosts, relDownloads } from "../api/vega.js";
 
 test("parseTitle reads name, year and season off Vega's post titles", () => {
   assert.deepEqual(
@@ -107,7 +107,7 @@ test("downloadLinks reads a post's download buttons, grouped by page", () => {
   const html = '<div class="download-container"><h1>Download Multi Audio</h1>' + btn("1080p", page) + btn("1080p", page) + btn("720p", page) + btn("480p", page) +
     btn("720p", "https://other.example/file/9") + '</div><ul class="wp-tags"><li><a href="https://vegamovito.run/tag/x/" rel="tag">Download Full HD</a></li></ul>' +
     '<a href="https://t.me/vega">Download on Telegram</a><a href="https://vegamovito.run/how-to-download/">How to download</a>';
-  assert.deepEqual(downloadLinks(html), [
+  assert.deepEqual(downloadLinks(html, 0, "https://vegamovito.run"), [
     { label: "1080p · 720p · 480p", url: page },
     { label: "720p", url: "https://other.example/file/9" },
   ]);
@@ -152,4 +152,33 @@ test("hotDownloads reads both of Vega Hot's layouts", () => {
     { label: "480p · 860MB", url: "https://vgmlinks.live/31332" },
   ]);
   assert.deepEqual(hotDownloads("<p>nothing here</p>"), []);
+});
+
+test("hotPosts reads both search layouts (title attribute, or the link's own words) and skips menus", () => {
+  const a = 'https://vegamovies17.co.in';
+  const html17 = '<a data-post-id="1" href="' + a + '/61188-dhindora.html" title="Dhindora 2026 Season 2 Hindi Audio WEB-DL 720p" class="blog-img"><img></a>' +
+    '<a href="' + a + '/61188-dhindora.html">Dhindora 2026 Season 2 Hindi Audio WEB-DL 720p</a><a href="' + a + '/dmca.html">DMCA</a>';
+  const p17 = hotPosts(html17, a);
+  assert.equal(p17.length, 1);
+  assert.equal(p17[0].name, "Dhindora");
+  assert.equal(p17[0].season, 2);
+  const b = 'https://vegamovies4u.top';
+  const html4u = '<a href="' + b + '/blackmail-2018.html" class="fz-poster-link"><img></a><a href="' + b + '/blackmail-2018.html" class="fz-title-link">\n Blackmail (2018) Bollywood Hindi Movie BluRay HD ESub</a>';
+  const p4 = hotPosts(html4u, b);
+  assert.deepEqual(p4.map((x) => [x.name, x.year, x.url]), [["Blackmail", 2018, b + "/blackmail-2018.html"]]);
+});
+
+test("relDownloads labels the l.php buttons by quality and size", () => {
+  const site = "https://vegamovies4u.top";
+  const html = '<a href="l.php?cloud=abc" title="x">Download 460mb {480p-HEVC}</a><a href="l.php?cloud=def">Download 2.7Gb {1080p-HD}</a><a href="/other.html">Other</a>';
+  assert.deepEqual(relDownloads(html, site), [
+    { label: "480p HEVC · 460MB", url: site + "/l.php?cloud=abc" },
+    { label: "1080p HD · 2.7GB", url: site + "/l.php?cloud=def" },
+  ]);
+  assert.deepEqual(relDownloads(html, ""), []);
+});
+
+test("parseHot drops the season tag from the name", () => {
+  assert.deepEqual([parseHot("Mirzapur S03 (2024) Hindi Completed Web Series HEVC ESub")].map((x) => [x.name, x.year, x.season]), [["Mirzapur", 2024, 3]]);
+  assert.equal(parseHot("Mirzapur S03 (Bonus Episode) (2024) Web Series").name, "Mirzapur (Bonus Episode)");
 });

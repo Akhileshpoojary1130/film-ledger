@@ -253,10 +253,12 @@
   }
 
   /* Ordered list of poster URLs to try; the <img> error handler walks it. */
+  const DEAD_ART = /^https?:\/\/(?:www\.)?vegamovito\.run\//;
   function posterCandidates(film, size) {
     const list = [];
     const tt = idFor(film);
-    const own = sized(film.poster, size);
+    // Artwork on the old Vega address (gone since Nov 2026) can't load; skip straight to the other sources.
+    const own = DEAD_ART.test(film.poster || "") ? "" : sized(film.poster, size);
     if (film.remote && own) list.push(own);
     // Metahub takes TMDB's main poster, which for Indian films is sometimes a foreign release (Saiyaara showed
     // a Brazilian one). The bundled Wikipedia poster, then IMDb's own, are the Indian artwork.

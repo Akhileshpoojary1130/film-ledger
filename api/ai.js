@@ -29,6 +29,8 @@ import { creds } from "./sync.js";
 export const config = { runtime: "edge" };
 
 const TT = /^tt\d{5,10}$/;
+// What can be checked: films and series by IMDb id, anime by AniList id ("an" + number, as Sakura names them).
+const ID = /^(?:tt\d{5,10}|an\d{1,9})$/;
 const CINEMETA = "https://v3-cinemeta.strem.io";
 const GEMINI = "https://generativelanguage.googleapis.com/v1beta/models/";
 const CHECKS = "iris:ai:checks"; // hash: imdb id → JSON
@@ -154,6 +156,7 @@ export function facts(id, meta, row) {
   const m = meta || {};
   return {
     id,
+    kind: m.type === "series" ? "series" : "film",
     title: m.name || (row && row.title) || "",
     year: parseInt(m.year || m.releaseInfo, 10) || null,
     released: m.released ? String(m.released).slice(0, 10) : null,
@@ -195,15 +198,18 @@ export const CHECK_SCHEMA = {
 };
 
 export function checkPrompt(items) {
-  return "You fact-check film details for a film diary app used mostly in India.\n" +
-    "For each film below (identified by its IMDb id, title and year), compare every field with what you know for certain about that exact film.\n" +
+  return "You fact-check film, TV series and anime details for a diary app used mostly in India.\n" +
+    "For each title below (identified by its id, kind, title and year), compare every field with what you know for certain about that exact title.\n" +
+    "Ids starting with \"tt\" are IMDb ids; ids starting with \"an\" are AniList ids.\n" +
+    "For a series or anime series: year and released are the first episode's; runtime is the usual minutes per episode; directors are the series' main " +
+    "directors (or creators if it has no regular director); writers are its creators or head writers; cast is the main cast (for anime, the main Japanese voice cast).\n" +
     "Rules:\n" +
     "- Correct a field only if it is wrong, or empty when you know the answer, AND you are highly confident. Never guess.\n" +
     "- directors/writers: full credited names in their usual English spelling. cast: the main leads in billing order, at most 6.\n" +
     "- genres: 1 to 3, only from: " + GENRES.join(", ") + ".\n" +
     "- runtime in minutes; year is the original release year; released is YYYY-MM-DD; language is the original language.\n" +
     "- Leave out every field that is already right. A different but valid spelling of the same name is right.\n" +
-    "- verdict: \"ok\" when nothing needed fixing, \"fixed\" when you corrected something, \"unsure\" when you don't know this film well enough to judge.\n" +
+    "- verdict: \"ok\" when nothing needed fixing, \"fixed\" when you corrected something, \"unsure\" when you don't know this title well enough to judge.\n" +
     "- notes: one short sentence on what you changed, or empty.\n" +
     "Return one entry per film, same ids.\n\nFilms:\n" + JSON.stringify(items);
 }
@@ -224,7 +230,9 @@ export function cleanFixes(fix, had) {
   const yr = parseInt(fix.year, 10);
   if (yr >= 1900 && yr <= new Date().getFullYear() + 2 && yr !== had.year) { out.year = yr; was.year = had.year; }
   const rt = parseInt(fix.runtime, 10);
-  if (rt >= 30 && rt <= 400 && Math.abs(rt - (had.runtime || 0)) > 2) { out.runtime = rt; was.runtime = had.runtime; }
+  // Episodes run short (an anime's 24 minutes, a sitcom's 22); films don't.
+  const minRt = had.kind && had.kind !== "film" && had.kind !== "anime film" ? 3 : 30;
+  if (rt >= minRt && rt <= 400 && Math.abs(rt - (had.runtime || 0)) > 2) { out.runtime = rt; was.runtime = had.runtime; }
   // Language only corrects one we had (a film without one in the catalogue isn't shown a language from here).
   if (had.language && typeof fix.language === "string" && fix.language.trim() && fix.language.length < 30 && had.language !== fix.language.trim() &&
       !(had.language === "Indian (not Hindi)" && fix.language !== "Hindi" && fix.language !== "English")) {
@@ -234,13 +242,63 @@ export function cleanFixes(fix, had) {
   return { fixes: out, was };
 }
 
+/* Cinemeta files series apart from films. Series first: its film endpoint also answers for a series (typed "movie",
+   without episodes), while its series endpoint returns an empty "meta" for a film. */
 async function cinemeta(id) {
+  for (const kind of ["series", "movie"]) {
+    try {
+      const r = await fetch(CINEMETA + "/meta/" + kind + "/" + id + ".json");
+      if (!r.ok) continue;
+      const d = await r.json();
+      if (d && d.meta && d.meta.name) return Object.assign({ type: kind === "movie" ? "movie" : "series" }, d.meta);
+    } catch (e) { /* the other kind, or nothing */ }
+  }
+  return null;
+}
+
+/* An anime's details from AniList (what Sakura shows): its directors, writers (series composition, original creator),
+   genres, first-air year and date, minutes per episode. (AniList keeps voice actors from anonymous requests, so the
+   cast starts empty and the AI may fill it in.) */
+const ANI_QUERY = "query($id:Int){Media(id:$id,type:ANIME){title{english romaji}format episodes duration genres startDate{year month day}" +
+  " staff(perPage:25,sort:RELEVANCE){edges{role node{name{full}}}}}}";
+export function animeFacts(id, media) {
+  const m = media || {};
+  const staff = ((m.staff && m.staff.edges) || []).map((x) => [String(x.role || ""), x.node && x.node.name && x.node.name.full]).filter((x) => x[1]);
+  const pick = (re) => [...new Set(staff.filter(([role]) => re.test(role)).map((x) => x[1]))].slice(0, 3);
+  const sd = m.startDate || {};
+  const pad = (n) => String(n).padStart(2, "0");
+  return {
+    id,
+    kind: m.format === "MOVIE" ? "anime film" : "anime series",
+    title: (m.title && (m.title.english || m.title.romaji)) || "",
+    year: sd.year || null,
+    released: sd.year && sd.month && sd.day ? sd.year + "-" + pad(sd.month) + "-" + pad(sd.day) : null,
+    language: "Japanese",
+    genres: (m.genres || []).slice(0, 4),
+    directors: pick(/^(?:Chief )?Director$/i),
+    writers: pick(/series composition|original creator|original story|script/i),
+    cast: [],
+    runtime: m.duration || null,
+    country: "Japan",
+  };
+}
+async function anilist(id) {
   try {
-    const r = await fetch(CINEMETA + "/meta/movie/" + id + ".json");
+    const r = await fetch("https://graphql.anilist.co", {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ query: ANI_QUERY, variables: { id: +id.slice(2) } }),
+    });
     if (!r.ok) return null;
     const d = await r.json();
-    return d && d.meta ? d.meta : null;
+    return d && d.data && d.data.Media ? d.data.Media : null;
   } catch (e) { return null; }
+}
+
+/* The facts for any checkable id. */
+async function factsFor(id, row) {
+  if (/^an/.test(id)) { const m = await anilist(id); return m ? animeFacts(id, m) : { id, title: "" }; }
+  return facts(id, await cinemeta(id), row);
 }
 
 async function pool(items, n, fn) {
@@ -256,7 +314,7 @@ async function pool(items, n, fn) {
 async function pickToday(c, origin, daily, log) {
   const picked = [];
   const wanted = (await redis(c, ["SPOP", WANT, String(daily)])) || [];
-  wanted.filter((id) => TT.test(id)).forEach((id) => picked.push({ id }));
+  wanted.filter((id) => ID.test(id)).forEach((id) => picked.push({ id }));
   if (picked.length >= daily) return { picked, rows: new Map() };
   const src = await (await fetch(new URL("/data/catalogue.js", origin))).text();
   const rows = catalogueIds(src);
@@ -286,7 +344,7 @@ async function checkBatch(c, batch, model, own) {
     const { fixes, was } = cleanFixes(f.fixes, had);
     const verdict = f.verdict === "unsure" ? "unsure" : Object.keys(fixes).length ? "fixed" : "ok";
     const rec = { v: 1, at: new Date().toISOString().slice(0, 10), model: answer.model, verdict, fixes, was,
-      notes: verdict === "fixed" ? String(f.notes || "").slice(0, 200) : "", title: had.title, year: had.year };
+      notes: verdict === "fixed" ? String(f.notes || "").slice(0, 200) : "", title: had.title, year: had.year, kind: had.kind || "film" };
     out[had.id] = rec;
     writes.push(had.id, JSON.stringify(rec));
   });
@@ -307,7 +365,7 @@ export async function runCheck(c, origin, log) {
   const perRun = Math.ceil(daily / runs);
   const { picked, rows } = await pickToday(c, origin, perRun, log);
   log("checking " + picked.length);
-  const items = await pool(picked, 8, async (p) => facts(p.id, await cinemeta(p.id), rows.get(p.id)));
+  const items = await pool(picked, 8, async (p) => factsFor(p.id, rows.get(p.id)));
   const usable = items.filter((x) => x.title);
   const tally = { checked: 0, fixed: 0, ok: 0, unsure: 0, failed: 0 };
   const batches = [];
@@ -493,7 +551,7 @@ export default async function handler(req) {
   }
 
   if (req.method === "GET") {
-    const ids = (url.searchParams.get("ids") || "").split(",").filter((id) => TT.test(id)).slice(0, 40);
+    const ids = (url.searchParams.get("ids") || "").split(",").filter((id) => ID.test(id)).slice(0, 40);
     if (!ids.length) return json({ error: "bad-ids" }, 400);
     if (!c) return json({ checks: {} });
     try {
@@ -512,7 +570,7 @@ export default async function handler(req) {
 
     if (Array.isArray(body.want)) {
       if (!c) return json({ queued: 0 });
-      const ids = body.want.filter((id) => TT.test(id)).slice(0, 20);
+      const ids = body.want.filter((id) => ID.test(id)).slice(0, 20);
       if (!ids.length) return json({ queued: 0 });
       try {
         if ((await redis(c, ["SCARD", WANT])) >= WANT_MAX) return json({ queued: 0, full: true });
@@ -525,13 +583,13 @@ export default async function handler(req) {
     const userKey = (req.headers.get("x-gemini-key") || "").trim();
     const own = USER_KEY.test(userKey) ? [userKey] : null;
     const opt = (o) => Object.assign({ model, keys: own }, o);
-    const wantsAi = (typeof body.ask === "string" && body.ask.trim()) || body.picks || body.insight || body.match || TT.test(body.scan || "");
+    const wantsAi = (typeof body.ask === "string" && body.ask.trim()) || body.picks || body.insight || body.match || ID.test(body.scan || "");
     if (wantsAi && !keys().length && !own) return json({ error: "not-configured" }, 503);
     const failed = (err) => (own && /\b(400|401|403)\b/.test(err && err.message)
       ? json({ error: "bad-key", message: "Your Gemini key didn't work. Check it in Settings → AI." }, 400)
       : json({ error: "ai", message: BUSY_MSG }, 502));
 
-    if (TT.test(body.scan || "")) {
+    if (ID.test(body.scan || "")) {
       if (c) {
         const had = await redis(c, ["HGET", CHECKS, body.scan]).catch(() => null);
         if (had) { try { return json({ check: JSON.parse(had), cached: true }); } catch (err) { /* re-check */ } }
@@ -539,8 +597,8 @@ export default async function handler(req) {
       if (!c) return json({ error: "not-configured" }, 503);
       if (await overLimit(c, req, "scan", SCAN_PER_DAY, own)) return json({ error: "limit", message: LIMIT_MSG }, 429);
       try {
-        const item = facts(body.scan, await cinemeta(body.scan), null);
-        if (!item.title) return json({ error: "unknown", message: "Couldn't find this film's details to check." }, 404);
+        const item = await factsFor(body.scan, null);
+        if (!item.title) return json({ error: "unknown", message: "Couldn't find this title's details to check." }, 404);
         const out = await checkBatch(c, [item], model, own);
         redis(c, ["SREM", WANT, body.scan]).catch(() => {});
         return json({ check: out[body.scan] || null });

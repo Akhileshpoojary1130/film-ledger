@@ -1,7 +1,7 @@
 // Unit tests for the AI endpoint (no network: Upstash, Cinemeta, the catalogue and Gemini are faked): node --test tests/*.test.mjs
 import test from "node:test";
 import assert from "node:assert/strict";
-import handler, { catalogueIds, cleanFixes, cleanPicks, models, keys, gemini, facts, runCheck } from "../api/ai.js";
+import handler, { catalogueIds, cleanFixes, cleanPicks, models, keys, gemini, facts, animeFacts, runCheck } from "../api/ai.js";
 
 const BASE = "https://iris.test/api/ai";
 
@@ -220,3 +220,24 @@ test("without a Gemini key, Ask Iris says it isn't set up", () => withEnv(Object
   const r = await handler(new Request(BASE, { method: "POST", body: JSON.stringify({ ask: "anything" }) }));
   assert.equal(r.status, 503);
 }));
+
+test("series and anime facts: kind, AniList staff, and episode-length runtimes", () => {
+  const show = facts("tt12004706", { type: "series", name: "Panchayat", year: "2020–", runtime: "36 min", writer: ["Chandan Kumar"] }, null);
+  assert.equal(show.kind, "series");
+  // An episode's 30 minutes corrects a series, where a film would reject anything under 30.
+  assert.deepEqual(cleanFixes({ runtime: 24 }, show).fixes, { runtime: 24 });
+  const film = facts("tt1", { name: "X", runtime: "120 min" }, null);
+  assert.equal(film.kind, "film");
+  assert.deepEqual(cleanFixes({ runtime: 24 }, film).fixes, {});
+  const a = animeFacts("an154587", {
+    title: { english: "Frieren: Beyond Journey’s End", romaji: "Sousou no Frieren" }, format: "TV", duration: 24, genres: ["Adventure", "Drama", "Fantasy"],
+    startDate: { year: 2023, month: 9, day: 29 },
+    staff: { edges: [{ role: "Director", node: { name: { full: "Keiichirou Saitou" } } }, { role: "Series Composition", node: { name: { full: "Tomohiro Suzuki" } } },
+      { role: "Original Creator", node: { name: { full: "Kanehito Yamada" } } }, { role: "Key Animation (ep 1)", node: { name: { full: "Someone" } } }] },
+  });
+  assert.equal(a.kind, "anime series");
+  assert.equal(a.released, "2023-09-29");
+  assert.deepEqual(a.directors, ["Keiichirou Saitou"]);
+  assert.deepEqual(a.writers.sort(), ["Kanehito Yamada", "Tomohiro Suzuki"]);
+  assert.equal(animeFacts("an1", { format: "MOVIE", title: { romaji: "Akira" } }).kind, "anime film");
+});

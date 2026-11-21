@@ -411,7 +411,7 @@
       slot("facts").innerHTML = facts(film, m);
       slot("scores").innerHTML = scores(film, m);
       slot("overview").textContent = desc() || (/^vega-/.test(film.id)
-        ? "Found on Vega. No synopsis is listed anywhere yet; Play finds it on Vega’s servers."
+        ? "No synopsis is listed anywhere yet."
         : "No synopsis available.");
       paintCredits();
       paintMatch();

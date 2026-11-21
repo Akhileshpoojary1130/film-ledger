@@ -8,7 +8,7 @@
   const LENIS = "https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.min.js";
   const root = document.documentElement;
   const fine = window.matchMedia("(hover: hover) and (pointer: fine)");
-  const full = () => !FL.theme.calm();
+  const full = () => !(FL.theme && FL.theme.calm());
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
   const glide = () => fine.matches && !reduced.matches;
 

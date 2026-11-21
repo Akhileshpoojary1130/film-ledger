@@ -11,7 +11,7 @@
   const KEY = "iris_ai_checks_v1";
   const HIT_TTL = 3 * 864e5;
   const MISS_TTL = 12 * 36e5;
-  const TT = /^tt\d{5,10}$/;
+  const TT = /^(?:tt\d{5,10}|an\d{1,9})$/; // films and series by IMDb id, anime by AniList id
 
   let cache = storage.get(KEY, {}); // tt -> { r: check | null, t }
   const save = debounce(() => {
@@ -100,16 +100,86 @@
     return isNaN(d) ? iso : d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
   }
 
-  /* The badge at the top right of the film's hero; tap for what changed. */
+  /* The badge at the top right of the title's hero; tap for what changed. */
   function badge(rec) {
     if (!usable(rec)) return "";
+    const series = rec.kind && rec.kind !== "film" && rec.kind !== "anime film";
+    const label = (k) => (series && k === "runtime" ? "Episode length" : series && k === "year" ? "First aired" : series && k === "directors" ? "Directors" : LABEL[k]);
+    const noun = /anime/.test(rec.kind || "") ? "anime" : series ? "series" : "film";
     const fixes = Object.keys(rec.fixes || {});
-    const rows = fixes.map((k) => "<li><b>" + LABEL[k] + "</b><span><s>" + esc(show((rec.was || {})[k], k)) + "</s> → " + esc(show(rec.fixes[k], k)) + "</span></li>").join("");
+    const rows = fixes.map((k) => "<li><b>" + label(k) + "</b><span><s>" + esc(show((rec.was || {})[k], k)) + "</s> → " + esc(show(rec.fixes[k], k)) + "</span></li>").join("");
     return '<button type="button" class="ai-badge" data-fa="ai-badge" aria-expanded="false" title="Details checked by AI">' + FL.ui.icon("spark") +
         "<span>AI checked</span></button>" +
       '<div class="ai-pop" hidden><p class="ai-pop-head">' + FL.ui.icon("spark") + "Checked by AI on " + esc(fmtDay(rec.at)) + "</p>" +
-        (fixes.length ? "<ul>" + rows + "</ul>" : '<ul class="ai-ok-list">' + ["Director", "Writers", "Lead cast", "Genres", "Year", "Runtime"].map((x) => "<li>" + FL.ui.icon("check") + x + "</li>").join("") + "</ul><p>All looked right, so nothing changed.</p>") +
-        '<p class="ai-pop-foot">Gemini compares these details with what it knows about the film and fixes only what it’s sure of. ' + esc(rec.model || "") + "</p></div>";
+        (fixes.length ? "<ul>" + rows + "</ul>" : '<ul class="ai-ok-list">' + ["directors", "writers", "cast", "genres", "year", "runtime"].map((k) => "<li>" + FL.ui.icon("check") + label(k) + "</li>").join("") + "</ul><p>All looked right, so nothing changed.</p>") +
+        '<p class="ai-pop-foot">Gemini compares these details with what it knows about this ' + noun + " and fixes only what it’s sure of. " + esc(rec.model || "") + "</p></div>";
+  }
+
+  /* The AI corner of any title's page (series and anime; the film page has its own, with more to redraw):
+     the badge when it's been checked, otherwise Scan with AI (or, with your own key and Auto-check on, a scan by
+     itself). o: { page, hero(): element, id, noun, onRec(rec) }. The slot element stays the same across hero redraws
+     (hand it back with o.slot when the hero is replaced). */
+  function attach(o) {
+    const slot = document.createElement("div");
+    slot.className = "ai-slot";
+    o.slot = slot;
+    const noun = o.noun || "title";
+    let busy = false;
+    const scanBtn = () => '<button type="button" class="ai-badge ai-scan" data-fa="ai-scan" title="Check this ' + noun + "’s details with AI\">" + FL.ui.icon("spark") + "<span>Scan with AI</span></button>";
+    const showRec = (rec) => { slot.innerHTML = badge(rec); if (o.onRec) o.onRec(rec); };
+    const openPop = () => { const pop = slot.querySelector(".ai-pop"); if (pop) { pop.hidden = false; slot.querySelector('[data-fa="ai-badge"]').setAttribute("aria-expanded", "true"); } };
+    function scanNow(auto) {
+      const btn = slot.querySelector('[data-fa="ai-scan"]');
+      if (busy || !btn) return;
+      busy = true;
+      btn.disabled = true;
+      btn.innerHTML = FL.ui.loader(16) + "<span>Scanning…</span>";
+      const hero = o.hero();
+      if (hero) { hero.style.setProperty("--sweep", hero.offsetHeight + "px"); hero.classList.add("is-scanning"); }
+      scan(o.id).then((rec) => {
+        busy = false;
+        const h = o.hero();
+        if (h) h.classList.remove("is-scanning");
+        if (!o.page.isConnected) return;
+        if (usable(rec)) {
+          showRec(rec);
+          const n = Object.keys(rec.fixes || {}).length;
+          if (n || !auto) FL.ui.toast(n ? "AI fixed " + FL.util.plural(n, "detail") + " for everyone." : "AI checked it: everything looks right.");
+          if (!auto) openPop();
+        } else {
+          slot.innerHTML = "";
+          if (!auto) FL.ui.toast("The AI wasn’t sure about this one, so nothing changed.");
+        }
+      }).catch((err) => {
+        busy = false;
+        const h = o.hero();
+        if (h) h.classList.remove("is-scanning");
+        if (!o.page.isConnected) return;
+        slot.innerHTML = scanBtn();
+        FL.ui.toast(err.message);
+      });
+    }
+    slot.addEventListener("click", (e) => {
+      const t = e.target.closest("[data-fa]");
+      if (!t) return;
+      if (t.dataset.fa === "ai-scan") scanNow(false);
+      else if (t.dataset.fa === "ai-badge") {
+        const pop = slot.querySelector(".ai-pop");
+        if (!pop) return;
+        pop.hidden = !pop.hidden;
+        t.setAttribute("aria-expanded", String(!pop.hidden));
+      }
+    });
+    check(o.id).then((rec) => {
+      if (!o.page.isConnected) return;
+      if (usable(rec)) { showRec(rec); return; }
+      isReady().then((ok) => {
+        if (!ok || !o.page.isConnected || slot.firstChild) return;
+        slot.innerHTML = scanBtn();
+        if (userKey() && autoCheck() && (!rec || rec.verdict !== "unsure")) scanNow(true);
+      });
+    });
+    return slot;
   }
 
   /* ---------- the model to try first (Settings → AI), status, scans ---------- */
@@ -276,5 +346,5 @@
   /* Reads like a description rather than a title: worth offering first. */
   const wordy = (q) => q.trim().split(/\s+/).length >= 4 || /\b(like|similar|about|where|movies?|films?|shows?|series|something|recommend|best|feel.?good|funny|scary)\b/i.test(q);
 
-  FL.ai = { check, merge, badge, usable, ask, wordy, taste, scan, picks, insight, status, isReady, model, MODELS, userKey, validKey, autoCheck, aiMatch };
+  FL.ai = { check, merge, badge, attach, usable, ask, wordy, taste, scan, picks, insight, status, isReady, model, MODELS, userKey, validKey, autoCheck, aiMatch };
 })(window.FL = window.FL || {});

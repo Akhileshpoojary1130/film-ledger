@@ -446,7 +446,7 @@
         const film = a.format === "MOVIE" && list.length <= 1;
         const eyebrow = [AN().formatLabel(a), AN().seasonLabel(a.season, a.year), (a.studios || [])[0]].filter(Boolean).map(esc).join(" · ");
         const facts = [film ? (a.duration ? FL.util.fmtRuntime(a.duration) : "") : list.length ? plural(a.episodes || list.length, "episode") + (a.duration ? " · " + a.duration + " min" : "") : "",
-          AN().statusLabel(a), a.genres.slice(0, 3).join(", ")].filter(Boolean).map(esc).join('<span class="sep">·</span>');
+          AN().statusLabel(a), ((aiFix && aiFix.genres && aiFix.genres.length) ? aiFix.genres : a.genres).slice(0, 3).join(", ")].filter(Boolean).map(esc).join('<span class="sep">·</span>');
         const alt = [a.romaji !== a.title ? a.romaji : "", a.native].filter(Boolean).map(esc).join(" · ");
         const playLabel = film ? "Play" : seenCount ? "Continue" : "Start";
         return '<div class="film-backdrop" aria-hidden="true"></div>' +
@@ -549,12 +549,33 @@
         }
         const onSeg = el.querySelector(".season-nav .is-on");
         if (onSeg) onSeg.scrollIntoView({ inline: "center", block: "nearest" });
+        placeAi();
+      }
+
+      /* The AI check for an anime (by its AniList id), in the hero's top right like a film's. */
+      let aiSlot = null;
+      let aiFix = null;
+      function placeAi() {
+        const a = d && d.anime;
+        if (!FL.ai || !a || !/^an\d+$/.test(a.id)) return;
+        if (!aiSlot) {
+          aiSlot = FL.ai.attach({
+            page: el, id: a.id, noun: "anime", hero: () => el.querySelector(".film-hero"),
+            onRec(rec) { aiFix = rec.fixes || {}; redrawHero(); },
+          });
+        }
+        const hero = el.querySelector(".film-hero");
+        if (hero && aiSlot.parentNode !== hero) hero.prepend(aiSlot);
+      }
+      function redrawHero() {
+        const hero = el.querySelector(".film-hero");
+        if (hero) { const tmp = document.createElement("div"); tmp.innerHTML = header(); hero.replaceWith(tmp.querySelector(".film-hero")); }
+        placeAi();
       }
 
       function refresh() {
         const y = window.scrollY;
-        const hero = el.querySelector(".film-hero");
-        if (hero) { const tmp = document.createElement("div"); tmp.innerHTML = header(); hero.replaceWith(tmp.querySelector(".film-hero")); }
+        redrawHero();
         const eps = $("[data-episodes]", el);
         if (eps) eps.innerHTML = episodesHtml();
         window.scrollTo(0, y);
