@@ -299,9 +299,9 @@
           '<a class="btn btn-ghost" href="#/stats/' + chosen + '">' + icon("chart") + chosen + " stats</a></header>" +
           '<div class="scope-nav">' + segmented("dyear", years.sort((a, b) => b - a).map((y) => [y, y]), chosen) + "</div>" +
           '<section class="panel">' + heatmap(chosen, rows) +
-          '<p class="heat-summary">' + (rows.some((r) => !r.marked)
-            ? "<strong>" + plural(s.films, "film") + "</strong> · " + plural(s.viewings, "viewing") + (s.minutes ? " · " + fmtHours(s.minutes) : "") + (s.rated ? " · avg " + s.avgRating.toFixed(1) + " ★" : "") + (s.rewatches ? " · " + plural(s.rewatches, "rewatch", "rewatches") : "")
-            : rows.length ? "<strong>" + plural(rows.length, "film") + "</strong> in " + chosen + " · ticked as watched" : "Nothing in " + chosen + " yet.") + "</p></section>" +
+          '<p class="heat-summary">' + (rows.length
+            ? "<strong>" + plural(s.films, "film") + "</strong>" + (s.viewings !== s.films ? " · " + plural(s.viewings, "viewing") : "") + (s.minutes ? " · " + fmtHours(s.minutes) : "") + (s.rated ? " · avg " + s.avgRating.toFixed(1) + " ★" : "") + (s.rewatches ? " · " + plural(s.rewatches, "rewatch", "rewatches") : "")
+            : "Nothing in " + chosen + " yet.") + "</p></section>" +
           (groups.length ? groups.map(([k, list]) => monthBlock(k, list)).join("")
             : empty("Your film history, day by day.", "Tick a film as watched, or finish one in the player, and it shows up here on that day.", '<a class="btn" href="#/years">Pick from the years</a>')) +
           (undated ? '<p class="footnote">' + plural(undated, "film") + " marked watched without a date. They count in all-time stats. <a class=\"link\" href=\"#/library/watched\">Add dates from their pages</a>.</p>" : "") +

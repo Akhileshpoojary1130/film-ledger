@@ -33,6 +33,8 @@
         else viewings.push({ entry: e, date: "" });
       } else {
         e.watches.forEach((d) => { if (+d.slice(0, 4) === year) viewings.push({ entry: e, date: d }); });
+        // Ticked as watched with no date: it counts in the year you ticked it, as the diary's calendar shows it.
+        if (!e.watches.length) { const d = FL.store.tickedOn(e); if (+d.slice(0, 4) === year) viewings.push({ entry: e, date: d, ticked: true }); }
       }
     });
 
@@ -163,7 +165,10 @@
 
   function years() {
     const set = new Set([new Date().getFullYear()]);
-    FL.store.entries().forEach((e) => e.watches.forEach((d) => set.add(+d.slice(0, 4))));
+    FL.store.watched().forEach((e) => {
+      e.watches.forEach((d) => set.add(+d.slice(0, 4)));
+      if (!e.watches.length) set.add(+FL.store.tickedOn(e).slice(0, 4));
+    });
     return Array.from(set).sort((a, b) => b - a);
   }
 

@@ -339,13 +339,18 @@
     },
     /* Flat diary of films, newest first: one row per dated watch, plus films ticked without a date on the day
        you ticked them (marked, so the calendar can tell them apart from real viewings). */
+    /* The day a film ticked as watched (no watch date) counts on: the day you ticked it. The diary and Stats both
+       use it, so the calendar and the year's totals agree. */
+    tickedOn(e) {
+      const d = new Date(e.seenAt || e.added || e.updated);
+      return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    },
     diary() {
       const rows = [];
-      const iso = (ms) => { const d = new Date(ms); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
       api.entries().forEach((e) => {
         if (isShow(e)) return;
         e.watches.forEach((date, i) => rows.push({ id: e.id, date, entry: e, rewatch: i > 0 }));
-        if (!e.watches.length && isWatched(e)) rows.push({ id: e.id, date: iso(e.seenAt || e.added || e.updated), entry: e, marked: true });
+        if (!e.watches.length && isWatched(e)) rows.push({ id: e.id, date: api.tickedOn(e), entry: e, marked: true });
       });
       rows.sort((a, b) => (b.date === a.date ? b.entry.updated - a.entry.updated : b.date.localeCompare(a.date)));
       return rows;
