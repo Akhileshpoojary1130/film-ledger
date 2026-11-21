@@ -10,12 +10,15 @@
    POST { want: [tt…] }         → { queued }      films someone opened that have no check yet go to the front
    POST { scan: tt, title }     → { check }       check one film now (the film page's "Scan with AI")
    POST { ask, taste }          → { understood, picks: [{ title, year, imdb, why }] }       "Ask Iris" search
-   POST { picks: 1, taste }     → { picks }       AI picks for you (Home)
+   POST { picks: 1, taste, trending } → { picks } AI picks for you (Home): from your taste, with new titles that fit
+   POST { match: film, taste }  → { verdict, score, headline, reasons }   "Will I like it?" on the film page
    POST { insight: 1, taste, stats } → { headline, summary, traits, picks }               the Stats page's AI read
    GET  ?run=1                  → runs the daily check (cron; needs CRON_SECRET when one is set)
    GET  ?status=1               → { ai, keys, store, checked, queued, last, recent }
 
-   POST bodies may carry `model` (one of the allowed models) to try first; Settings → AI sets it.
+   POST bodies may carry `model` (one of the allowed models) to try first; Settings → AI sets it. A visitor's own Gemini
+   key, if they added one in Settings, comes in the x-gemini-key header: their calls then use only that key (never
+   stored or logged) and get much higher daily limits.
 
    Env: GEMINI_API_KEY, and up to nine more as GEMINI_API_KEY_2 … GEMINI_API_KEY_10 (or a comma list in
    GEMINI_API_KEYS): calls rotate across them and a key that hits its limit hands over to the next. GEMINI_MODEL
@@ -37,6 +40,8 @@ const WANT_MAX = 2000;
 const BATCH = 10; // films per Gemini call
 const ASK_PER_DAY = 60; // AI calls per visitor per day (Ask, picks, insight)
 const SCAN_PER_DAY = 25; // on-demand scans per visitor per day
+const OWN_KEY_PER_DAY = 400; // either kind, for a visitor using their own key
+const USER_KEY = /^AIza[0-9A-Za-z_-]{30,60}$/;
 const RUN_BUDGET = 240000; // ms: a run stops starting new batches after this, well inside the edge's 300 s
 export const GENRES = ["Action", "Adventure", "Animation", "Biography", "Comedy", "Crime", "Documentary", "Drama", "Family",
   "Fantasy", "History", "Horror", "Music", "Musical", "Mystery", "Romance", "Sci-Fi", "Sport", "Thriller", "War", "Western"];
@@ -87,7 +92,7 @@ let turn = 0; // round-robin over keys, so a busy run spreads its calls
    key, a model that's missing or down (404/5xx) to the next model. */
 export async function gemini(prompt, schema, opts) {
   const o = Object.assign({ timeout: 25000, temperature: 0.1 }, opts);
-  const ks = keys(o.env);
+  const ks = o.keys && o.keys.length ? o.keys : keys(o.env);
   if (!ks.length) throw new Error("no-key");
   let last = "no model answered";
   const start = turn++ % ks.length;
@@ -270,8 +275,8 @@ async function pickToday(c, origin, daily, log) {
 }
 
 /* Checks a batch of films (facts already read) and stores the answers. Returns the stored records by id. */
-async function checkBatch(c, batch, model) {
-  const answer = await gemini(checkPrompt(batch), CHECK_SCHEMA, { model });
+async function checkBatch(c, batch, model, own) {
+  const answer = await gemini(checkPrompt(batch), CHECK_SCHEMA, { model, keys: own });
   const byId = new Map((answer.data.films || []).map((f) => [f.id, f]));
   const writes = [];
   const out = {};
@@ -365,12 +370,16 @@ export function askPrompt(q, taste) {
     "understood: a short phrase restating what they asked for.";
 }
 
-export function picksPrompt(taste) {
-  return "You are the recommender inside Iris, a film and TV diary used mostly in India.\n" +
-    "From what this viewer watches, pick 12 real films or series they haven't watched and are very likely to love. Mix: " +
-    "a few close to their favourites, a few from directors or actors they like, two or three acclaimed ones a step outside their usual taste, " +
-    "and respect the languages they watch. No titles from their watched list.\n" +
-    "Viewer: " + JSON.stringify(tasteOf(taste)) + "\n" +
+export function picksPrompt(taste, trending) {
+  return "You are the recommender inside Iris, a film and TV diary used mostly in India. Recommend for THIS viewer, not for everyone.\n" +
+    "Their taste profile (genre and people scores run from -1, disliked, to +1, loved; 'curious' are titles they opened but haven't watched):\n" +
+    JSON.stringify(tasteOf(taste)) + "\n" +
+    "New and trending titles Iris has right now (" + list(trending, 40).length + "): " + JSON.stringify(list(trending, 40)) + "\n" +
+    "Pick 12 real films or series they haven't watched and are very likely to love:\n" +
+    "- 3 or 4 from the new and trending list, only those that genuinely fit their taste;\n" +
+    "- 3 or 4 from directors or actors they score highly, or close cousins of their top-rated films;\n" +
+    "- the rest acclaimed titles in the genres and languages they love, plus one step outside their usual taste they'd still enjoy.\n" +
+    "Avoid genres and people they score below 0. No titles from their watched list.\n" +
     "Give the original release year and IMDb id when you're sure of it (else leave imdb empty). why: under 12 words, naming the film or person behind it.\n" +
     "understood: a 3 to 6 word name for this mix, like 'Slow-burn thrillers and Malayalam gems'.";
 }
@@ -385,9 +394,42 @@ export function insightPrompt(taste, stats) {
     "traits: 3 tags of 1 to 3 words. picks: 5 real titles they haven't watched that fit, with a why under 12 words.";
 }
 
+const scored = (v, n) => (Array.isArray(v) ? v.slice(0, n).map((x) => (x && typeof x === "object"
+  ? { name: String(x.name || "").slice(0, 60), score: Math.max(-1, Math.min(1, +x.score || 0)), films: +x.n || 0, role: x.role ? String(x.role).slice(0, 12) : undefined }
+  : { name: String(x).slice(0, 60) })).filter((x) => x.name) : []);
+
 function tasteOf(t) {
   t = t || {};
-  return { loved: list(t.loved, 15), recent: list(t.recent, 20), watched: list(t.watched, 60), genres: list(t.genres, 6), languages: list(t.languages, 4) };
+  return {
+    loved: list(t.loved, 15), disliked: list(t.disliked, 10), recent: list(t.recent, 20), watched: list(t.watched, 80),
+    curious: list(t.curious, 12), watchlist: list(t.watchlist, 15),
+    genres: scored(t.genres, 10), languages: list(t.languages, 4), decades: list(t.decades, 4), people: scored(t.people, 12),
+    style: t.style && typeof t.style === "object" ? { avgRating: +t.style.avgRating || 0, vsImdb: +t.style.vsImdb || 0, mainstream: String(t.style.mainstream || "").slice(0, 20), runtime: +t.style.runtime || 0 } : undefined,
+  };
+}
+
+export const MATCH_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    verdict: { type: "STRING", enum: ["yes", "maybe", "no"] },
+    score: { type: "INTEGER" },
+    headline: { type: "STRING" },
+    reasons: { type: "ARRAY", items: { type: "STRING" } },
+  },
+  required: ["verdict", "score", "headline", "reasons"],
+};
+
+export function matchPrompt(film, taste) {
+  const f = film || {};
+  const info = { title: String(f.title || "").slice(0, 120), year: +f.year || null, kind: f.kind === "series" ? "series" : "movie",
+    genres: list(f.genres, 5), directors: list(f.directors, 3), cast: list(f.cast, 8), language: String(f.language || "").slice(0, 30),
+    rating: +f.rating || null, about: String(f.desc || "").slice(0, 500) };
+  return "You are the 'Will I like it?' note on a film page in Iris, a film diary used mostly in India.\n" +
+    "Title: " + JSON.stringify(info) + "\n" +
+    "Viewer's taste profile (scores -1 disliked to +1 loved): " + JSON.stringify(tasteOf(taste)) + "\n" +
+    "Decide honestly whether THIS viewer will enjoy it. Ground every reason in their own history: name the films they rated, " +
+    "the genres, actors or directors they score, e.g. 'You rated 3 Idiots 9/10 and this is Rajkumar Hirani again'. Say so plainly when it's not their kind of film.\n" +
+    "verdict: yes, maybe or no. score: 0 to 100. headline: under 9 words, in second person. reasons: 2 or 3, each under 16 words.";
 }
 
 export function cleanPicks(data) {
@@ -401,7 +443,8 @@ export function cleanPicks(data) {
   return { understood: String((data && data.understood) || "").slice(0, 140), picks: picks.slice(0, 12) };
 }
 
-async function overLimit(c, req, what, max) {
+async function overLimit(c, req, what, max, own) {
+  if (own) { what = "own"; max = OWN_KEY_PER_DAY; }
   if (!c) return false;
   const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "anon";
   const key = "iris:ai:" + what + ":" + new Date().toISOString().slice(0, 10) + ":" + ip;
@@ -479,8 +522,14 @@ export default async function handler(req) {
     }
 
     const model = typeof body.model === "string" ? body.model : "";
-    const wantsAi = (typeof body.ask === "string" && body.ask.trim()) || body.picks || body.insight || TT.test(body.scan || "");
-    if (wantsAi && !keys().length) return json({ error: "not-configured" }, 503);
+    const userKey = (req.headers.get("x-gemini-key") || "").trim();
+    const own = USER_KEY.test(userKey) ? [userKey] : null;
+    const opt = (o) => Object.assign({ model, keys: own }, o);
+    const wantsAi = (typeof body.ask === "string" && body.ask.trim()) || body.picks || body.insight || body.match || TT.test(body.scan || "");
+    if (wantsAi && !keys().length && !own) return json({ error: "not-configured" }, 503);
+    const failed = (err) => (own && /\b(400|401|403)\b/.test(err && err.message)
+      ? json({ error: "bad-key", message: "Your Gemini key didn't work. Check it in Settings → AI." }, 400)
+      : json({ error: "ai", message: BUSY_MSG }, 502));
 
     if (TT.test(body.scan || "")) {
       if (c) {
@@ -488,45 +537,58 @@ export default async function handler(req) {
         if (had) { try { return json({ check: JSON.parse(had), cached: true }); } catch (err) { /* re-check */ } }
       }
       if (!c) return json({ error: "not-configured" }, 503);
-      if (await overLimit(c, req, "scan", SCAN_PER_DAY)) return json({ error: "limit", message: LIMIT_MSG }, 429);
+      if (await overLimit(c, req, "scan", SCAN_PER_DAY, own)) return json({ error: "limit", message: LIMIT_MSG }, 429);
       try {
         const item = facts(body.scan, await cinemeta(body.scan), null);
         if (!item.title) return json({ error: "unknown", message: "Couldn't find this film's details to check." }, 404);
-        const out = await checkBatch(c, [item], model);
+        const out = await checkBatch(c, [item], model, own);
         redis(c, ["SREM", WANT, body.scan]).catch(() => {});
         return json({ check: out[body.scan] || null });
-      } catch (err) { return json({ error: "ai", message: BUSY_MSG }, 502); }
+      } catch (err) { return failed(err); }
     }
 
     if (typeof body.ask === "string" && body.ask.trim()) {
-      if (await overLimit(c, req, "ask", ASK_PER_DAY)) return json({ error: "limit", message: LIMIT_MSG }, 429);
+      if (await overLimit(c, req, "ask", ASK_PER_DAY, own)) return json({ error: "limit", message: LIMIT_MSG }, 429);
       try {
-        const r = await gemini(askPrompt(body.ask, body.taste), ASK_SCHEMA, { temperature: 0.4, timeout: 20000, model });
+        const r = await gemini(askPrompt(body.ask, body.taste), ASK_SCHEMA, opt({ temperature: 0.4, timeout: 20000 }));
         return json(Object.assign(cleanPicks(r.data), { model: r.model }));
-      } catch (err) {
-        return json({ error: "ai", message: BUSY_MSG }, 502);
-      }
+      } catch (err) { return failed(err); }
     }
 
     if (body.picks) {
-      if (await overLimit(c, req, "ask", ASK_PER_DAY)) return json({ error: "limit", message: LIMIT_MSG }, 429);
+      if (await overLimit(c, req, "ask", ASK_PER_DAY, own)) return json({ error: "limit", message: LIMIT_MSG }, 429);
       try {
-        const r = await gemini(picksPrompt(body.taste), ASK_SCHEMA, { temperature: 0.6, timeout: 20000, model });
+        const r = await gemini(picksPrompt(body.taste, body.trending), ASK_SCHEMA, opt({ temperature: 0.6, timeout: 20000 }));
         return json(Object.assign(cleanPicks(r.data), { model: r.model }));
-      } catch (err) { return json({ error: "ai", message: BUSY_MSG }, 502); }
+      } catch (err) { return failed(err); }
+    }
+
+    if (body.match && typeof body.match === "object") {
+      if (await overLimit(c, req, "ask", ASK_PER_DAY, own)) return json({ error: "limit", message: LIMIT_MSG }, 429);
+      try {
+        const r = await gemini(matchPrompt(body.match, body.taste), MATCH_SCHEMA, opt({ temperature: 0.3, timeout: 15000 }));
+        const d = r.data || {};
+        return json({
+          verdict: ["yes", "maybe", "no"].includes(d.verdict) ? d.verdict : "maybe",
+          score: Math.max(0, Math.min(100, parseInt(d.score, 10) || 50)),
+          headline: String(d.headline || "").slice(0, 80),
+          reasons: (Array.isArray(d.reasons) ? d.reasons : []).map((x) => String(x).slice(0, 140)).filter(Boolean).slice(0, 3),
+          model: r.model,
+        });
+      } catch (err) { return failed(err); }
     }
 
     if (body.insight) {
-      if (await overLimit(c, req, "ask", ASK_PER_DAY)) return json({ error: "limit", message: LIMIT_MSG }, 429);
+      if (await overLimit(c, req, "ask", ASK_PER_DAY, own)) return json({ error: "limit", message: LIMIT_MSG }, 429);
       try {
-        const r = await gemini(insightPrompt(body.taste, body.stats), INSIGHT_SCHEMA, { temperature: 0.5, timeout: 20000, model });
+        const r = await gemini(insightPrompt(body.taste, body.stats), INSIGHT_SCHEMA, opt({ temperature: 0.5, timeout: 20000 }));
         const d = r.data || {};
         return json({
           headline: String(d.headline || "").slice(0, 80), summary: String(d.summary || "").slice(0, 400),
           traits: (Array.isArray(d.traits) ? d.traits : []).map((x) => String(x).slice(0, 30)).filter(Boolean).slice(0, 3),
           picks: cleanPicks({ picks: d.picks }).picks.slice(0, 5), model: r.model,
         });
-      } catch (err) { return json({ error: "ai", message: BUSY_MSG }, 502); }
+      } catch (err) { return failed(err); }
     }
     return json({ error: "bad-body" }, 400);
   }

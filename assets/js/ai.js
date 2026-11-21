@@ -108,7 +108,7 @@
     return '<button type="button" class="ai-badge" data-fa="ai-badge" aria-expanded="false" title="Details checked by AI">' + FL.ui.icon("spark") +
         "<span>AI checked</span></button>" +
       '<div class="ai-pop" hidden><p class="ai-pop-head">' + FL.ui.icon("spark") + "Checked by AI on " + esc(fmtDay(rec.at)) + "</p>" +
-        (fixes.length ? "<ul>" + rows + "</ul>" : "<p>Director, writers, cast, genres, year and runtime all looked right.</p>") +
+        (fixes.length ? "<ul>" + rows + "</ul>" : '<ul class="ai-ok-list">' + ["Director", "Writers", "Lead cast", "Genres", "Year", "Runtime"].map((x) => "<li>" + FL.ui.icon("check") + x + "</li>").join("") + "</ul><p>All looked right, so nothing changed.</p>") +
         '<p class="ai-pop-foot">Gemini compares these details with what it knows about the film and fixes only what it’s sure of. ' + esc(rec.model || "") + "</p></div>";
   }
 
@@ -121,8 +121,30 @@
     try { return localStorage.getItem(MODEL_KEY) || MODELS[0][0]; } catch (e) { return MODELS[0][0]; }
   }
 
+  /* Your own Gemini key (Settings → AI): kept on this device, sent only with your own AI requests to Iris's server,
+     which uses it for them and never stores it. With one: no daily limits to speak of, and films you open are checked
+     on their own (Auto-check). */
+  const KEY_KEY = "iris_ai_userkey_v1";
+  const AUTO_KEY = "iris_ai_auto_v1";
+  const KEY_RE = /^AIza[0-9A-Za-z_-]{30,60}$/;
+  function userKey(v) {
+    if (v !== undefined) {
+      try { if (v) localStorage.setItem(KEY_KEY, v.trim()); else localStorage.removeItem(KEY_KEY); } catch (e) { /* private mode */ }
+      return v;
+    }
+    try { const k = localStorage.getItem(KEY_KEY) || ""; return KEY_RE.test(k) ? k : ""; } catch (e) { return ""; }
+  }
+  const validKey = (k) => KEY_RE.test(String(k || "").trim());
+  function autoCheck(v) {
+    if (v !== undefined) { try { localStorage.setItem(AUTO_KEY, v ? "1" : "0"); } catch (e) { /* this visit only */ } return v; }
+    try { return localStorage.getItem(AUTO_KEY) !== "0"; } catch (e) { return true; }
+  }
+
   function post(body) {
-    return fetch("/api/ai", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(Object.assign({ model: model() }, body)) })
+    const headers = { "content-type": "application/json" };
+    const k = userKey();
+    if (k) headers["x-gemini-key"] = k;
+    return fetch("/api/ai", { method: "POST", headers, body: JSON.stringify(Object.assign({ model: model() }, body)) })
       .then((r) => r.json().catch(() => ({})).then((d) => {
         if (!r.ok || d.error) {
           if (d.error === "not-configured") ready.known = false;
@@ -142,7 +164,7 @@
     return statusP;
   }
   const ready = { known: null };
-  function isReady() { return status().then(() => !!ready.known); }
+  function isReady() { return status().then(() => !!ready.known || !!userKey()); }
 
   /* Check one film right now; everyone sees the answer from then on. */
   function scan(tt) {
@@ -160,11 +182,11 @@
   const PICKS_KEY = "iris_ai_picks_v1";
   function picks(force) {
     const t = taste();
-    const sig = day() + ":" + Math.floor(FL.store.watched().length / 5);
+    const sig = day() + ":" + Math.floor(FL.store.watched().length / 3) + ":p2";
     const had = storage.get(PICKS_KEY, null);
     const toFilms = (d) => ({ understood: d.understood || "", picks: (d.picks || []).map((x) => ({ film: filmFor(x), why: x.why })).filter((x) => x.film && !FL.store.state(x.film.id).watched) });
     if (!force && had && had.sig === sig && had.data) return Promise.resolve(toFilms(had.data));
-    return post({ picks: 1, taste: t }).then((d) => {
+    return post({ picks: 1, taste: t, trending: FL.taste ? FL.taste.trending() : [] }).then((d) => {
       storage.set(PICKS_KEY, { sig, data: { understood: d.understood, picks: d.picks } });
       return toFilms(d);
     });
@@ -185,9 +207,29 @@
     });
   }
 
+  /* "Will I like it?": the AI's verdict on one title for you, kept 14 days per title on this device. */
+  const MATCH_KEY = "iris_ai_match_v1";
+  function aiMatch(film, meta) {
+    const all = storage.get(MATCH_KEY, {});
+    const sig = FL.store.watched().length >> 2; // ask again once you've watched a few more
+    const had = all[film.id];
+    if (had && had.sig === sig && Date.now() - had.t < 14 * 864e5) return Promise.resolve(had.d);
+    const m = meta || {};
+    return post({ match: { title: film.title, year: film.year, kind: film.type, genres: (m.genres && m.genres.length ? m.genres : film.genres) || [],
+      directors: m.directors || [], cast: (m.cast || []).slice(0, 8), language: FL.catalogue.filmLang(film), rating: film.rating || m.rating || 0, desc: (m.desc || film.desc || "").slice(0, 500) },
+      taste: taste() }).then((d) => {
+      all[film.id] = { sig, t: Date.now(), d };
+      const ks = Object.keys(all);
+      if (ks.length > 300) ks.sort((a, b) => all[a].t - all[b].t).slice(0, 60).forEach((k) => delete all[k]);
+      storage.set(MATCH_KEY, all);
+      return d;
+    });
+  }
+
   /* ---------- Ask Iris ---------- */
 
   function taste() {
+    if (FL.taste) return FL.taste.forAI();
     const get = (e) => FL.catalogue.get(e.id);
     const watched = FL.store.watched().map((e) => ({ e, f: get(e) })).filter((x) => x.f);
     const label = (f) => f.title + (f.year ? " (" + f.year + ")" : "");
@@ -234,5 +276,5 @@
   /* Reads like a description rather than a title: worth offering first. */
   const wordy = (q) => q.trim().split(/\s+/).length >= 4 || /\b(like|similar|about|where|movies?|films?|shows?|series|something|recommend|best|feel.?good|funny|scary)\b/i.test(q);
 
-  FL.ai = { check, merge, badge, usable, ask, wordy, taste, scan, picks, insight, status, isReady, model, MODELS };
+  FL.ai = { check, merge, badge, usable, ask, wordy, taste, scan, picks, insight, status, isReady, model, MODELS, userKey, validKey, autoCheck, aiMatch };
 })(window.FL = window.FL || {});

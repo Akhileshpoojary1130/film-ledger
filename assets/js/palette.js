@@ -466,7 +466,15 @@
 
   /* AI: what's connected, the last daily run, recent fixes (real examples), and which model to try first. */
   function aiHtml(st) {
-    const modelRow = '<div class="setting-row"><span>Model first<small>Tried first for your AI searches, picks and scans; the other takes over if it’s busy</small></span>' +
+    const k = FL.ai.userKey();
+    const keyRow = '<div class="setting-row setting-stack"><span>Your Gemini key' + (k ? ' <span class="set-on">Added</span>' : "") +
+        "<small>Optional. Free from Google AI Studio. Your AI requests then use your own key, with no daily limit, and films you open are checked on their own. Kept on this device only.</small></span>" +
+        (k ? '<div class="ai-key-row"><code>' + esc(k.slice(0, 6) + "…" + k.slice(-4)) + '</code><button type="button" class="btn btn-sm btn-ghost" data-set="ai-key-remove">Remove</button></div>'
+          : '<form class="ai-key-row" data-ai-key><input class="input" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…" aria-label="Your Gemini API key"><button class="btn btn-sm btn-primary" type="submit">Save</button></form>') +
+      "</div>" +
+      (k ? '<div class="setting-row"><span>Auto-check<small>Films you open that haven’t been checked get checked by AI right away, for everyone</small></span>' +
+        FL.ui.segmented("aiauto", [["on", "On"], ["off", "Off"]], FL.ai.autoCheck() ? "on" : "off") + "</div>" : "");
+    const modelRow = keyRow + '<div class="setting-row"><span>Model first<small>Tried first for your AI searches, picks and scans; the other takes over if it’s busy</small></span>' +
       FL.ui.segmented("aimodel", FL.ai.MODELS, FL.ai.model()) + "</div>";
     if (st === null) return '<div class="setting-row"><span>Status<small>Checking…</small></span>' + FL.ui.loader(18) + "</div>" + modelRow;
     if (!st || !st.ai) {
@@ -534,6 +542,15 @@
     );
 
     if (FL.ai) FL.ai.status(true).then((st) => { const b = $("[data-aiset]", m.el); if (b) b.innerHTML = aiHtml(st); });
+    m.el.addEventListener("submit", (e) => {
+      if (!e.target.matches("[data-ai-key]")) return;
+      e.preventDefault();
+      const v = e.target.querySelector("input").value.trim();
+      if (!FL.ai.validKey(v)) { toast("That doesn’t look like a Gemini key. It starts with AIza."); return; }
+      FL.ai.userKey(v);
+      FL.ai.status().then((st) => { const b = $("[data-aiset]", m.el); if (b) b.innerHTML = aiHtml(st); });
+      toast("Key saved on this device. Films you open will be checked by AI.");
+    });
 
     function paintStorage() {
       FL.persist.storageProtected().then((p) => {
@@ -622,6 +639,14 @@
       }
       const sp = e.target.closest('[data-seg="searchspot"]');
       if (sp) { FL.theme.set({ searchSpot: sp.dataset.value }); repaintHome(); return; }
+      const aa = e.target.closest('[data-seg="aiauto"]');
+      if (aa) { FL.ai.autoCheck(aa.dataset.value === "on"); FL.ai.status().then((st) => { const b = $("[data-aiset]", m.el); if (b) b.innerHTML = aiHtml(st); }); return; }
+      if (e.target.closest('[data-set="ai-key-remove"]')) {
+        FL.ai.userKey("");
+        FL.ai.status().then((st) => { const b = $("[data-aiset]", m.el); if (b) b.innerHTML = aiHtml(st); });
+        toast("Your key is removed from this device.");
+        return;
+      }
       const am = e.target.closest('[data-seg="aimodel"]');
       if (am) { FL.ai.model(am.dataset.value); FL.ai.status().then((st) => { const b = $("[data-aiset]", m.el); if (b) b.innerHTML = aiHtml(st); }); return; }
       const dv = e.target.closest('[data-seg="devmode"]');

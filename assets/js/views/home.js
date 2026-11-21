@@ -322,7 +322,8 @@
         const why = new Map(d.picks.map((x) => [x.film.id, x.why]));
         slot.outerHTML = rail(icon("spark") + " AI picks for you", d.picks.map((x) => x.film), {
           id: "aipicks", cls: "ai-rail", sub: esc(d.understood || "Picked by AI from what you watch"),
-          caption: (f) => esc(why.get(f.id) || ""),
+          // Each pick wears your match from your own history, then the AI's reason.
+          caption: (f) => { const mt = FL.taste && FL.taste.match(f, FL.meta.cached(f)); return (mt ? '<b class="pick-m pick-' + mt.tone + '">' + mt.score + "% match</b> " : "") + esc(why.get(f.id) || ""); },
         });
         const box = el.querySelector('[data-rail-id="aipicks"]');
         if (box) {

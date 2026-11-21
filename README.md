@@ -156,15 +156,26 @@ Jobs** → **Run**. Settings → AI in the app shows what's connected, the last 
   loved and rated, and answers with up to ten real titles, each with a one-line reason.
 - **AI picks for you** — a Home row of a dozen picks from your taste, each saying why, refreshed daily (or *New picks*).
 - **AI read** — on Stats: a name for your taste, two sentences on how you watch, three tags and five films to try next.
-- Ask, picks and the AI read share 60 calls a day per visitor. Settings → AI → *Model first* picks which Flash-Lite
+- **Will you like it?** — on every film page, once you've watched three titles: a match ring (0–100) from your own
+  history, with reasons that name your films ("You rated Lage Raho Munna Bhai 9/10, and this is Rajkumar Hirani
+  again", "You love drama: 5 watched", "Horror usually isn't your thing"), then the AI's verdict (yes / maybe /
+  probably not) written word by word, kept 14 days per title on the device. AI picks wear the same match.
+- **Your taste** — on Stats: genres scored from how you rated, loved and rewatched (avoid ←→ love), the directors and
+  actors you keep coming back to, and how you watch (kinder or harsher than IMDb, blockbusters or hidden gems, typical
+  length, what you opened but haven't watched). `taste.js` builds it from your library plus signals kept on the
+  device (films you opened, trailers, plays) and feeds For you, AI picks, Ask Iris and "Will you like it?". AI picks
+  also get the newest popular titles Iris has, and use the ones that fit you.
+- **Your own Gemini key** — Settings → AI. Kept on the device and sent only with your own AI requests (the server uses
+  it for them and never stores it): no daily limit (400), and with *Auto-check* on, every film you open that hasn't
+  been checked is checked right away, for everyone.
+- Ask, picks, "Will you like it?" and the AI read share 60 calls a day per visitor. Settings → AI → *Model first* picks which Flash-Lite
   is tried first for them.
-- **Dev mode** — on by default (Settings → Developer to turn off). A small card in the bottom-right corner: every
-  request arrives as a spark that arcs from the cloud to the device with a glowing tail, coloured by what it carries
-  (accent data, pink pictures, amber app code, violet fonts, teal video), bigger for bigger replies, slower for slower
-  ones, bursting into a shower when it lands; a failed one turns red, stalls halfway and fizzles. Under it, throughput
-  over the last minute and totals (requests, data, average time, cache). Tap it for the mix by type, the slowest and
-  biggest request, and the last 40 requests by what they were for (never where they went). Drawn on canvas, idle
-  when nothing moves, no blur, so it doesn't make scrolling stutter.
+- **Dev mode** — on by default (Settings → Developer to turn off). A slim card in the bottom-right corner: every
+  request arrives as a spark that arcs from the cloud to the device trailing a tapered ribbon, coloured by what it
+  carries (accent data, pink pictures, amber app code, violet fonts, teal video), bigger for bigger replies, slower
+  for slower ones; the device's aperture blinks as it lands and a few sparks spill out; a failed one turns red,
+  stalls halfway and fizzles. One line under it: requests, data, average time, speed. Tap it for the mix by type and
+  the last 30 requests by what they were for (never where they went). Canvas, idle when nothing moves, no blur.
 
 ## Player
 
@@ -299,7 +310,8 @@ assets/js/
   ui.js               icons, cards, rails, rating, reveal & tilt motion, toasts, modals
   share.js            packing, QR codes (qrcode-generator), camera scanner (BarcodeDetector / jsQR), share links
   sync.js             sync: encryption, merging (newer wins, removals remembered), when to pull and push
-  ai.js               the AI check's fixes and badge on film pages, Ask Iris (taste summary, answers → Iris films)
+  taste.js            your taste profile (genre/people/language scores, style, signals), "Will you like it?" scoring
+  ai.js               the AI check's fixes and badge, scans and Auto-check, your own key, Ask Iris, AI picks, the AI verdict
   devmode.js          Dev mode's network card: sparks on canvas, throughput, totals, the request list
   anime.js            Sakura's data: AniList (cached, one request at a time), Zoro TV, episodes, title matching
   player.js           theatre player, server choice (fixed hosts + Vega's per-title links; anime hosts, Sub / Dub), auto-logging

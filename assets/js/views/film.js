@@ -218,6 +218,7 @@
     if (film.id !== requested) history.replaceState(null, "", "#/film/" + encodeURIComponent(film.id));
     document.title = film.title + (film.year ? " (" + film.year + ")" : "") + " · Iris";
     FL.store.pushRecent(film.id);
+    if (FL.taste) FL.taste.signal("view", film.id);
     if (film.remote) FL.remote.touch(film);
 
     let m = FL.meta.cached(film);
@@ -240,6 +241,7 @@
         "</div>" +
         '<div class="container film-body">' +
           '<div class="film-main">' +
+            '<section class="match" data-slot="match" hidden></section>' +
             '<section><h2 class="label">Overview</h2><p class="lede" data-slot="overview">' + (desc() ? esc(desc()) : '<span class="skeleton-line"></span><span class="skeleton-line"></span><span class="skeleton-line short"></span>') + "</p></section>" +
             '<section data-slot="where" hidden></section>' +
             '<section data-slot="trailer" hidden></section>' +
@@ -294,8 +296,13 @@
       FL.ai.check(tt).then((rec) => {
         if (!page.isConnected) return;
         if (!FL.ai.usable(rec)) {
-          // Not checked yet: offer to check it now, if AI is on for this site.
-          FL.ai.isReady().then((ok) => { if (ok && page.isConnected && !slot("ai").firstChild) slot("ai").innerHTML = scanButton(); });
+          // Not checked yet: offer to check it now, if AI is on for this site; with your own key and Auto-check on,
+          // just check it.
+          FL.ai.isReady().then((ok) => {
+            if (!ok || !page.isConnected || slot("ai").firstChild) return;
+            slot("ai").innerHTML = scanButton();
+            if (FL.ai.userKey() && FL.ai.autoCheck() && (!rec || rec.verdict !== "unsure")) scanNow(true);
+          });
           return;
         }
         aiRec = rec;
@@ -305,7 +312,7 @@
     }
     const scanButton = () => '<button type="button" class="ai-badge ai-scan" data-fa="ai-scan" title="Check this film’s details with AI">' + icon("spark") + "<span>Scan with AI</span></button>";
 
-    function scanNow() {
+    function scanNow(auto) {
       const tt = FL.meta.idFor(film);
       const btn = $('[data-fa="ai-scan"]', el);
       if (!tt || !btn || btn.disabled) return;
@@ -322,16 +329,78 @@
           slot("ai").innerHTML = FL.ai.badge(rec);
           if (raw) showMeta(raw);
           const n = Object.keys(rec.fixes || {}).length;
-          FL.ui.toast(n ? "AI fixed " + FL.util.plural(n, "detail") + " for everyone." : "AI checked it: everything looks right.");
+          if (n || !auto) FL.ui.toast(n ? "AI fixed " + FL.util.plural(n, "detail") + " for everyone." : "AI checked it: everything looks right.");
+          // Show what was checked or changed right away, at the top where the badge is.
+          if (!auto) {
+            const pop = $(".ai-pop", el);
+            if (pop) { pop.hidden = false; $('[data-fa="ai-badge"]', el).setAttribute("aria-expanded", "true"); }
+            if (slot("ai").getBoundingClientRect().top < 0) FL.motion ? FL.motion.scrollTo(0) : window.scrollTo({ top: 0, behavior: "smooth" });
+          }
         } else {
           slot("ai").innerHTML = "";
-          FL.ui.toast("The AI wasn’t sure about this one, so nothing changed.");
+          if (!auto) FL.ui.toast("The AI wasn’t sure about this one, so nothing changed.");
         }
       }).catch((err) => {
         if (!page.isConnected) return;
         hero.classList.remove("is-scanning");
         slot("ai").innerHTML = scanButton();
         FL.ui.toast(err.message);
+      });
+    }
+
+    /* Will you like it? Your match from your own history (instant), then the AI's verdict on top. */
+    let matchShown = -1;
+    let aiAsked = false;
+    function paintMatch() {
+      const box = slot("match");
+      if (!box || !FL.taste) return;
+      const res = FL.taste.match(film, m);
+      if (!res) { box.hidden = true; return; }
+      const first = matchShown < 0;
+      box.hidden = false;
+      box.className = "match match-" + res.tone;
+      if (first) {
+        box.innerHTML = '<div class="match-ring" aria-hidden="true"><svg viewBox="0 0 64 64"><circle class="mr-track" cx="32" cy="32" r="28"/>' +
+            '<circle class="mr-fill" cx="32" cy="32" r="28" pathLength="100"/></svg><b data-mcount>0</b><small>%</small></div>' +
+          '<div class="match-body"><p class="eyebrow">Will you like it?</p><h3 class="match-label" data-mlabel></h3><ul class="match-why" data-mwhy></ul>' +
+          '<div class="match-ai" data-mai hidden></div></div>';
+      }
+      $("[data-mlabel]", box).textContent = res.label;
+      $("[data-mwhy]", box).innerHTML = res.reasons.map((r, i) => '<li class="' + (r.sign > 0 ? "pos" : r.sign < 0 ? "neg" : "neu") + '" style="--i:' + i + '">' +
+        icon(r.sign > 0 ? "check" : r.sign < 0 ? "x" : "spark") + "<span>" + esc(r.text) + "</span></li>").join("");
+      if (Math.abs(res.score - matchShown) >= 2) {
+        const from = Math.max(0, matchShown);
+        matchShown = res.score;
+        const fill = $(".mr-fill", box);
+        requestAnimationFrame(() => fill.style.setProperty("--p", res.score));
+        const num = $("[data-mcount]", box);
+        const t0 = performance.now();
+        const step = (t) => {
+          const k = Math.min(1, (t - t0) / 1100);
+          num.textContent = Math.round(from + (res.score - from) * (1 - Math.pow(1 - k, 3)));
+          if (k < 1 && page.isConnected) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+      }
+      askAiMatch();
+    }
+
+    function askAiMatch() {
+      if (aiAsked || !FL.ai || !m || !m.directors || FL.store.watched().length < 5) return;
+      aiAsked = true;
+      const box = $("[data-mai]", slot("match"));
+      FL.ai.isReady().then((ok) => {
+        if (!ok || !page.isConnected || !box) return;
+        box.hidden = false;
+        box.innerHTML = '<p class="match-ai-wait">' + FL.ui.loader(14) + "AI is reading your taste…</p>";
+        FL.ai.aiMatch(film, m).then((d) => {
+          if (!page.isConnected) return;
+          let w = 0;
+          const words = (text) => esc(text).split(" ").map((x) => '<span class="mw" style="--w:' + (w++) + '">' + x + "</span>").join(" ");
+          box.innerHTML = '<p class="match-ai-head"><span class="match-ai-tag ai-v-' + esc(d.verdict) + '">' + icon("spark") + "AI · " +
+              (d.verdict === "yes" ? "Yes" : d.verdict === "no" ? "Probably not" : "Maybe") + "</span>" + words(d.headline) + "</p>" +
+            (d.reasons.length ? '<ul class="match-ai-why">' + d.reasons.map((r) => "<li>" + words(r) + "</li>").join("") + "</ul>" : "");
+        }).catch(() => { if (page.isConnected) box.hidden = true; });
       });
     }
 
@@ -345,6 +414,7 @@
         ? "Found on Vega. No synopsis is listed anywhere yet; Play finds it on Vega’s servers."
         : "No synopsis available.");
       paintCredits();
+      paintMatch();
       const tt = FL.meta.idFor(film);
       if (tt && !wdAsked) {
         wdAsked = true;
@@ -407,7 +477,7 @@
     }
 
     if (m) showMeta(m);
-    else setBackdrop();
+    else { setBackdrop(); paintMatch(); }
     FL.meta.details(film).then((meta) => { if (page.isConnected) showMeta(meta); });
 
     // Ask the web for instalments the bundle doesn't have ("Hera Pheri 3"), then redraw the series rail.
@@ -448,8 +518,8 @@
         } else {
           FL.store.setSeen(film, !st.watched);
         }
-      } else if ((name === "trailer" || name === "play-trailer") && m && m.trailer) playTrailer();
-      else if (name === "play") location.hash = "#/watch/" + encodeURIComponent(film.id);
+      } else if ((name === "trailer" || name === "play-trailer") && m && m.trailer) { if (FL.taste) FL.taste.signal("trailer", film.id); playTrailer(); }
+      else if (name === "play") { if (FL.taste) FL.taste.signal("play", film.id); location.hash = "#/watch/" + encodeURIComponent(film.id); }
       else if (name === "ai-scan") scanNow();
       else if (name === "ai-badge") {
         const pop = $(".ai-pop", el);

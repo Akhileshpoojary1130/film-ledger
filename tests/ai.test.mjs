@@ -199,6 +199,22 @@ test("picks and insight come back cleaned", () => withEnv(ENV, async () => {
   assert.equal(ins.headline, "A Hirani loyalist");
 }));
 
+test("a visitor's own key is used alone, and a bad one says so", () => withEnv(ENV, async () => {
+  const seen = [];
+  fakeWorld({ gemini: (u) => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ verdict: "yes", score: 88, headline: "Right up your street", reasons: ["You rated 3 Idiots 9/10", "Hirani again", "x", "y"] }) }] } }] })) });
+  const inner = globalThis.fetch;
+  globalThis.fetch = (u, init) => { if (String(u).includes("generativelanguage")) seen.push(init.headers["x-goog-api-key"]); return inner(u, init); };
+  const own = "AIza" + "x".repeat(35);
+  const r = await (await handler(new Request(BASE, { method: "POST", headers: { "x-gemini-key": own }, body: JSON.stringify({ match: { title: "PK", genres: ["Comedy"] }, taste: { genres: [{ name: "Comedy", score: 0.8, n: 12 }] } }) }))).json();
+  assert.equal(r.verdict, "yes");
+  assert.equal(r.reasons.length, 3);
+  assert.deepEqual(seen, [own]);
+  fakeWorld({ gemini: () => new Response("{}", { status: 400 }) });
+  const bad = await handler(new Request(BASE, { method: "POST", headers: { "x-gemini-key": own }, body: JSON.stringify({ ask: "x" }) }));
+  assert.equal(bad.status, 400);
+  assert.equal((await bad.json()).error, "bad-key");
+}));
+
 test("without a Gemini key, Ask Iris says it isn't set up", () => withEnv(Object.assign({}, ENV, { GEMINI_API_KEY: null }), async () => {
   fakeWorld();
   const r = await handler(new Request(BASE, { method: "POST", body: JSON.stringify({ ask: "anything" }) }));

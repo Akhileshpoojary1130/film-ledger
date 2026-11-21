@@ -382,6 +382,7 @@
         "</div></section>" +
       runtimeNote +
       (FL.ai && s.films >= 3 ? '<section class="panel ai-read" data-ai-read hidden></section>' : "") +
+      (all && FL.taste && s.films >= 3 ? tastePanel() : "") +
       timeline +
       '<div class="two-col">' +
         '<section class="panel"><header class="section-head"><div><h2 class="h3">Genres</h2><p class="sub">Films can count toward several</p></div></header>' + bars(s.genres) + "</section>" +
@@ -396,6 +397,40 @@
     fillAiRead(el, s, scope);
   }
 
+  /* Your taste: what you love and avoid, scored from your ratings, favourites and rewatches (not just counts), the
+     people you keep coming back to, and how you watch. The same profile drives For you, AI picks and "Will you like
+     it?". */
+  function tastePanel() {
+    const p = FL.taste.profile();
+    const g = p.genres.filter((x) => x.n >= 2).slice().sort((a, b) => b.score - a.score);
+    const shown = g.length > 9 ? g.slice(0, 6).concat(g.slice(-3)) : g;
+    const bar = (x) => {
+      const pct = Math.round(Math.abs(x.score) * 100);
+      return '<li class="dna-row"><span class="dna-name">' + esc(x.name) + "</span>" +
+        '<span class="dna-track"><i class="dna-fill ' + (x.score >= 0 ? "pos" : "neg") + '" style="--v:' + pct + '%"></i></span>' +
+        '<span class="dna-n">' + x.n + "</span></li>";
+    };
+    const people = p.people.filter((x) => x.score > 0.25).slice(0, 8);
+    const st = p.style;
+    const gapText = !st.vsImdb ? "Right in line with IMDb" : Math.abs(st.vsImdb) < 0.3 ? "Right in line with IMDb" : (st.vsImdb > 0 ? "Kinder" : "Harsher") + " than IMDb by " + Math.abs(st.vsImdb).toFixed(1);
+    return '<section class="panel taste-dna"><header class="section-head"><div><h2 class="h3">Your taste</h2>' +
+        '<p class="sub">Scored from how you rated, loved and rewatched, not just how much. It drives For you, AI picks and “Will you like it?”</p></div></header>' +
+      '<div class="dna-grid">' +
+        '<div><p class="label">Genres <small class="dna-scale"><span>avoid</span><span>love</span></small></p><ul class="dna-list">' + shown.map(bar).join("") + "</ul></div>" +
+        "<div>" +
+          (people.length ? '<p class="label">Your people</p><ul class="dna-people">' + people.map((x) =>
+            '<li><a href="' + FL.people.href(x.name, x.role === "director" ? "Director" : "") + '"><b>' + esc(x.name) + "</b><small>" + (x.role === "director" ? "Director" : "Actor") + " · " + x.n + " films</small></a></li>").join("") + "</ul>" : "") +
+          '<p class="label">How you watch</p><dl class="dna-style">' +
+            "<div><dt>You rate</dt><dd>" + esc(gapText) + "</dd></div>" +
+            (st.mainstream ? "<div><dt>You lean to</dt><dd>" + esc(st.mainstream) + "</dd></div>" : "") +
+            (st.runtime ? "<div><dt>Typical length</dt><dd>" + fmtRuntime(st.runtime) + "</dd></div>" : "") +
+            (p.languages.length ? "<div><dt>Languages</dt><dd>" + p.languages.slice(0, 3).map((l) => esc(l.name)).join(", ") + "</dd></div>" : "") +
+            (p.curious.length ? "<div><dt>Curious about</dt><dd>" + plural(p.curious.length, "title") + " you opened but haven’t watched</dd></div>" : "") +
+          "</dl>" +
+        "</div>" +
+      "</div></section>";
+  }
+
   /* The AI read: Gemini sums up how you watch, in two sentences and three tags, and names five films to try next.
      Once a day per scope (cached on the device), and only when AI is on for the site. */
   function fillAiRead(el, s, scope) {
@@ -408,6 +443,7 @@
       const names = (xs, n) => (xs || []).slice(0, n).map((x) => x.label || x.name || "").filter(Boolean);
       const topDay = s.weekdays.indexOf(Math.max(...s.weekdays));
       const stats = {
+        // (The full taste profile goes along too, from FL.ai's taste().)
         films: s.films, hours: Math.round(s.minutes / 60), genres: names(s.genres, 6), languages: names(s.languages, 4),
         decades: names(s.decades.slice().sort((a, b) => b.n - a.n), 4), directors: names(s.directors, 6),
         avgRating: s.rated ? +s.avgRating.toFixed(1) : 0, imdbGap: s.vsImdb ? +s.vsImdb.avg.toFixed(2) : 0,

@@ -248,13 +248,23 @@
 
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
 
+  /* Sections drift in as they arrive, but they start just before they reach the screen, and during a fast scroll (or
+     a jump) they simply appear: a fling never shows blank space that fades in after it. */
+  let lastY = window.scrollY, lastT = performance.now(), speed = 0;
+  window.addEventListener("scroll", () => {
+    const now = performance.now();
+    speed = Math.abs(window.scrollY - lastY) / Math.max(1, now - lastT); // px per ms
+    lastY = window.scrollY; lastT = now;
+  }, { passive: true });
   const revealObserver = "IntersectionObserver" in window ? new IntersectionObserver((entries) => {
+    const fast = speed > 1.2 && performance.now() - lastT < 160;
     entries.forEach((en) => {
       if (!en.isIntersecting) return;
+      if (fast) en.target.classList.add("instant");
       en.target.classList.add("in");
       revealObserver.unobserve(en.target);
     });
-  }, { rootMargin: "0px 0px -6% 0px" }) : null;
+  }, { rootMargin: "0px 0px 18% 0px" }) : null;
 
   function reveal(root) {
     if (!revealObserver || reduced.matches || (FL.theme && FL.theme.calm())) return;
