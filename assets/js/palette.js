@@ -56,6 +56,7 @@
     let webTimer = 0;
     let lastQ = "";
     const vegaHits = new Map(); // query -> Vega's films for it
+    const asked = new Map(); // query -> { busy } | { data } | { error }: Ask Iris answers
 
     /* A Vega result as an Iris film: the one Iris already has (same title and year), else a web title made from
        Vega's name, year and poster — its page fills in from IMDb, and Play finds it on Vega's servers. */
@@ -68,12 +69,13 @@
       });
     }
 
-    function filmItem(f, i) {
+    function filmItem(f, i, why) {
       const st = FL.store.state(f.id);
       const mark = st.watched ? icon("check", "i-ok") : st.episodes ? icon("tv", "i-ok") : st.listed ? icon("bookmark") : "";
       return '<div class="pal-item pal-film" role="option" id="pal-' + i + '" data-i="' + i + '">' +
         '<span class="pal-art">' + art(f) + "</span>" +
-        '<span class="pal-main"><strong>' + esc(f.title) + "</strong><small>" + FL.ui.metaLine(f) + (f.rating ? " · ★ " + f.rating.toFixed(1) : "") + "</small></span>" +
+        '<span class="pal-main"><strong>' + esc(f.title) + "</strong><small>" + FL.ui.metaLine(f) + (f.rating ? " · ★ " + f.rating.toFixed(1) : "") + "</small>" +
+          (why ? '<small class="pal-why">' + icon("spark") + esc(why) + "</small>" : "") + "</span>" +
         '<span class="pal-mark">' + mark + "</span></div>";
     }
 
@@ -103,6 +105,19 @@
         html += '<div class="pal-group">Go to</div>';
         COMMANDS.forEach((c) => { html += cmdItem(c, items.length); items.push({ cmd: c }); });
       } else {
+        // Ask Iris: an answer (or the wait for one) leads; otherwise the offer to ask leads when the query reads like
+        // a description, and follows the titles when it reads like a name.
+        const ai = FL.ai && q.length >= 3 ? asked.get(q) : null;
+        let askLater = false;
+        if (ai && ai.busy) html += '<div class="pal-group">Ask Iris</div><div class="pal-ai-wait">' + FL.ui.loader(22) + "<span>Thinking about “" + esc(q) + "”…</span></div>";
+        else if (ai && ai.error) html += '<div class="pal-group">Ask Iris</div><div class="pal-empty pal-ai-err">' + esc(ai.error) + "</div>";
+        else if (ai && ai.data) {
+          html += '<div class="pal-group">Ask Iris' + (ai.data.understood ? '<span class="pal-group-note">' + esc(ai.data.understood) + "</span>" : "") + "</div>";
+          if (!ai.data.picks.length) html += '<div class="pal-empty">No good match. Try describing it differently.</div>';
+          ai.data.picks.forEach((p) => { html += filmItem(p.film, items.length, p.why); items.push({ film: p.film }); });
+        } else if (FL.ai && q.length >= 3) {
+          if (FL.ai.wordy(q)) { html += askHtml(q); } else askLater = true;
+        }
         let res = FL.catalogue.searchAll(q, { limit: 8 });
         let fixed = "";
         if (!res.items.length) {
@@ -120,6 +135,7 @@
           html += cmdItem(all.cmd, items.length);
           items.push(all);
         }
+        if (askLater) html += askHtml(q);
         // Vega's catalogue: new and dubbed releases Iris doesn't have yet, playable on Vega's servers.
         const shown = new Set(items.filter((x) => x.film).map((x) => x.film.id));
         const vega = (vegaHits.get(q) || []).map(vegaFilm).filter((f) => f && !shown.has(f.id)).slice(0, 5);
@@ -133,7 +149,7 @@
           html += '<div class="pal-group">Commands</div>';
           cmds.forEach((c) => { html += cmdItem(c, items.length); items.push({ cmd: c }); });
         }
-        if (!items.length) html = '<div class="pal-empty">' + (busy.hidden ? "Nothing matches “" + esc(q) + "”." : "Looking further…") + "</div>";
+        if (!items.length && !ai) html = '<div class="pal-empty">' + (busy.hidden ? "Nothing matches “" + esc(q) + "”." : "Looking further…") + "</div>";
       }
       const keepActive = q === lastQ ? active : 0;
       lastQ = q;
@@ -141,6 +157,23 @@
       FL.ui.watchPosters(list);
       active = Math.min(keepActive, Math.max(0, items.length - 1));
       highlight();
+    }
+
+    function askHtml(q) {
+      const h = '<div class="pal-item pal-ask" role="option" id="pal-' + items.length + '" data-i="' + items.length + '"><span class="pal-icon">' + icon("spark") + "</span>" +
+        '<span class="pal-main"><strong>Ask Iris</strong><small>Find “' + esc(q) + "” with AI, picked for your taste</small></span>" + '<span class="pal-keys"><kbd>↵</kbd></span></div>';
+      items.push({ ask: q });
+      return h;
+    }
+
+    function runAsk(q) {
+      if (asked.has(q) && !asked.get(q).error) return;
+      asked.set(q, { busy: true });
+      update();
+      FL.ai.ask(q)
+        .then((data) => { asked.set(q, { data }); })
+        .catch((err) => { asked.set(q, { error: err.message }); })
+        .then(() => { if (paletteOpen && input.value.trim() === q) { lastQ = ""; update(); FL.ui.watchPosters(list); } });
     }
 
     /* Web results land a moment later and slot into the same list. */
@@ -175,6 +208,7 @@
       const it = items[i];
       if (!it) return;
       if (it.fill) { input.value = it.fill; update(); searchWeb(); return; }
+      if (it.ask) { runAsk(it.ask); return; }
       const q = input.value.trim();
       m.close();
       if (it.cmd) { it.cmd.run(); return; }
@@ -430,6 +464,43 @@
         '<ul class="server-list">' + serverRows() + '</ul><button type="button" class="btn btn-sm btn-ghost" data-set="recheck">Re-check</button></details>';
   }
 
+  /* AI: what's connected, the last daily run, recent fixes (real examples), and which model to try first. */
+  function aiHtml(st) {
+    const modelRow = '<div class="setting-row"><span>Model first<small>Tried first for your AI searches, picks and scans; the other takes over if it’s busy</small></span>' +
+      FL.ui.segmented("aimodel", FL.ai.MODELS, FL.ai.model()) + "</div>";
+    if (st === null) return '<div class="setting-row"><span>Status<small>Checking…</small></span>' + FL.ui.loader(18) + "</div>" + modelRow;
+    if (!st || !st.ai) {
+      return '<div class="setting-row"><span>Status <span class="set-off">Off</span><small>' + (st && !st.store ? "Needs the Upstash store (Relay) and " : "Needs ") +
+        "a Gemini key in Vercel: GEMINI_API_KEY, then redeploy</small></span></div>" + modelRow;
+    }
+    const n = (x) => (+x || 0).toLocaleString();
+    const last = st.last;
+    const when = last ? new Date(last.at) : null;
+    const lastLine = last
+      ? when.toLocaleDateString(undefined, { day: "numeric", month: "short" }) + ", " + when.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) +
+        " · " + n(last.checked) + " checked, " + n(last.fixed) + " fixed" + (last.unsure ? ", " + n(last.unsure) + " unsure" : "")
+      : "No run yet. The first runs at 6:00 or 18:00 India time";
+    const label = { directors: "Director", writers: "Writers", cast: "Cast", genres: "Genres", year: "Year", runtime: "Runtime", language: "Language", released: "Release" };
+    const show = (v, k) => (Array.isArray(v) ? (v.length ? v.join(", ") : "missing") : k === "runtime" && v ? v + " min" : v == null || v === "" ? "missing" : String(v));
+    const recent = (st.recent || []).slice(0, 8).map((r) => {
+      const k = Object.keys(r.fixes || {})[0];
+      return '<li><a href="#/film/' + encodeURIComponent(r.id) + '" data-close><b>' + esc(r.title || r.id) + (r.year ? " <small>" + r.year + "</small>" : "") + "</b>" +
+        (k ? "<span>" + label[k] + ": <s>" + esc(show((r.was || {})[k], k)) + "</s> → " + esc(show(r.fixes[k], k)) +
+          (Object.keys(r.fixes).length > 1 ? " +" + (Object.keys(r.fixes).length - 1) + " more" : "") + "</span>" : "") + "</a></li>";
+    }).join("");
+    return '<div class="setting-row"><span>Status <span class="set-on">On</span><small>' + n(st.keys) + " Gemini " + (st.keys === 1 ? "key" : "keys") + " · up to " + n(st.daily) + " films a day</small></span></div>" +
+      '<div class="setting-row"><span>Films checked<small>' + n(st.checked) + " checked for everyone" + (st.queued ? " · " + n(st.queued) + " waiting (ones people opened go first)" : "") + "</small></span></div>" +
+      '<div class="setting-row"><span>Last run<small>' + esc(lastLine) + "</small></span></div>" +
+      modelRow +
+      (recent ? '<details class="set-details" open><summary>Recent fixes</summary><ul class="ai-recent">' + recent + "</ul></details>" : "");
+  }
+
+  /* Dev mode: the live network card in the corner. Kept on this device only. */
+  function devHtml() {
+    return '<div class="setting-row"><span>Dev mode<small>Every request arrives as a spark, bottom right; tap the card for details</small></span>' +
+      FL.ui.segmented("devmode", [["on", "On"], ["off", "Off"]], FL.devmode.on ? "on" : "off") + "</div>";
+  }
+
   const phone = () => window.matchMedia("(max-width: 760px)").matches;
   const mouse = () => window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
@@ -453,12 +524,16 @@
         '<section data-sec="player"><h3 class="label">Player</h3><div class="set-group" data-playerset>' + playerHtml() + "</div></section>" +
         (FL.pet ? '<section data-sec="pals"><h3 class="label">Pause Pals</h3><p class="set-note">A friend who reminds you to drink water, stretch and rest your eyes</p><div data-petset>' + petHtml() + "</div></section>" : "") +
         '<section data-sec="storage"><h3 class="label">Backup</h3><div data-storage>' + storageHtml(FL.persist.status(), false) + "</div></section>" +
+        (FL.ai ? '<section data-sec="ai"><h3 class="label">AI</h3><p class="set-note">Daily fact-check of film details, Ask Iris, AI picks and the Stats read</p><div class="set-group" data-aiset>' + aiHtml(null) + "</div></section>" : "") +
+        (FL.devmode ? '<section data-sec="developer"><h3 class="label">Developer</h3><div class="set-group" data-devset>' + devHtml() + "</div></section>" : "") +
         '<section data-sec="maintenance"><h3 class="label">Maintenance</h3><p class="set-note">Reload missing posters, or start your library over</p><div class="btn-row">' +
           '<button type="button" class="btn btn-ghost" data-set="clear-cache">Clear artwork cache</button>' +
           '<button type="button" class="btn btn-danger-ghost" data-set="reset">Erase library…</button></div></section>' +
       "</div>",
       { cls: "modal-md", label: "Settings" }
     );
+
+    if (FL.ai) FL.ai.status(true).then((st) => { const b = $("[data-aiset]", m.el); if (b) b.innerHTML = aiHtml(st); });
 
     function paintStorage() {
       FL.persist.storageProtected().then((p) => {
@@ -547,6 +622,10 @@
       }
       const sp = e.target.closest('[data-seg="searchspot"]');
       if (sp) { FL.theme.set({ searchSpot: sp.dataset.value }); repaintHome(); return; }
+      const am = e.target.closest('[data-seg="aimodel"]');
+      if (am) { FL.ai.model(am.dataset.value); FL.ai.status().then((st) => { const b = $("[data-aiset]", m.el); if (b) b.innerHTML = aiHtml(st); }); return; }
+      const dv = e.target.closest('[data-seg="devmode"]');
+      if (dv) { FL.devmode.set(dv.dataset.value === "on"); $("[data-devset]", m.el).innerHTML = devHtml(); return; }
       const ht = e.target.closest('[data-seg="hovertrailer"]');
       if (ht) { FL.store.patchPref("appearance", { hoverTrailer: ht.dataset.value === "on" }); repaintHome(); return; }
       const mt = e.target.closest('[data-seg="moodtype"]');

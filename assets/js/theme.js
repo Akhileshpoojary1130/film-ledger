@@ -257,6 +257,31 @@
       "</svg>";
   }
 
+  /* The loader: a real lens diaphragm. The blades close down to a pinhole and open again, turning a little as they
+     close (as an iris does), while a thin arc of light sweeps the rim like a focus ring. Restrained on purpose: one
+     colour family, one rhythm. */
+  function aperture(size) {
+    const gap = Math.max(2.4, (100 / size) * 2.2);
+    const OPEN = 14, SHUT = 3.2;
+    const KS = 'calcMode="spline" keyTimes="0;.42;.58;1" keySplines=".7 0 .3 1;0 0 1 1;.7 0 .3 1"';
+    const dur = "2.4s";
+    const blades = [0, 1, 2, 3, 4, 5].map((i) => {
+      const a = blade(i, OPEN, gap), b = blade(i, SHUT, gap);
+      return '<path class="mark-b' + i + '" d="' + a + '"><animate attributeName="d" values="' + a + ";" + b + ";" + b + ";" + a + '" ' + KS + ' dur="' + dur + '" repeatCount="indefinite"/></path>';
+    }).join("");
+    const sw = f2(Math.max(1.6, (100 / size) * 1.1));
+    return '<svg class="mark ld-ap" viewBox="-58 -58 116 116" width="' + size + '" height="' + size + '" aria-hidden="true" focusable="false">' +
+      '<circle class="ld-track" r="55" fill="none" stroke-width="' + sw + '"/>' +
+      '<circle class="ld-arc" r="55" fill="none" stroke-width="' + sw + '" stroke-linecap="round" pathLength="100" stroke-dasharray="18 82">' +
+        '<animate attributeName="stroke-dasharray" values="6 94;40 60;6 94" ' + SPLINE + ' dur="' + dur + '" repeatCount="indefinite"/>' +
+        '<animateTransform attributeName="transform" type="rotate" from="-90" to="270" dur="1.6s" repeatCount="indefinite"/></circle>' +
+      '<g class="mark-blades">' + blades +
+        '<animateTransform attributeName="transform" type="rotate" values="0;-38;-38;0" ' + KS + ' dur="' + dur + '" repeatCount="indefinite"/></g>' +
+      '<circle class="mark-pupil" r="' + OPEN + '" stroke-width="' + sw + '"><animate attributeName="r" values="' + OPEN + ";" + SHUT + ";" + SHUT + ";" + OPEN + '" ' + KS + ' dur="' + dur + '" repeatCount="indefinite"/></circle>' +
+      '<circle class="mark-glint" cx="-4.8" cy="-5.3" r="2.6"><animate attributeName="opacity" values=".92;0;0;.92" ' + KS + ' dur="' + dur + '" repeatCount="indefinite"/></circle>' +
+      "</svg>";
+  }
+
   function bloom(o) {
     const r = 6 + 5 * o.open;
     const petals = [0, 1, 2, 3, 4].map((i) => '<path class="mark-b' + PETAL_SHADE[i] + '" d="' + petal(i, r) + '"' +
@@ -317,10 +342,36 @@
     } catch (e) { /* private mode: the fallback in index.html still applies the basics */ }
   }
 
+  /* Changing the look: the new colours open out in a circle from where you tapped, over 0.7 s (Calm motion: a quick
+     cross-fade). Other settings just apply. */
+  let tap = null;
+  document.addEventListener("pointerdown", (e) => { tap = { x: e.clientX, y: e.clientY, t: Date.now() }; }, true);
+  const LOOK = ["theme", "mode", "palette", "accent", "glass", "ambient"];
+
   function set(patch) {
-    FL.store.patchPref("appearance", patch);
-    apply();
-    if (FL.app) FL.app.rebuild();
+    const run = () => {
+      FL.store.patchPref("appearance", patch);
+      apply();
+      if (FL.app) FL.app.rebuild();
+    };
+    const visual = Object.keys(patch || {}).some((k) => LOOK.includes(k));
+    if (!visual || !document.startViewTransition || reducedMedia.matches || document.hidden) { run(); return; }
+    const p = tap && Date.now() - tap.t < 2000 ? tap : { x: innerWidth / 2, y: innerHeight / 2 };
+    const r = Math.hypot(Math.max(p.x, innerWidth - p.x), Math.max(p.y, innerHeight - p.y));
+    const soft = calm();
+    root.classList.add("theme-vt");
+    if (soft) root.classList.add("theme-vt-soft");
+    let vt;
+    try { vt = document.startViewTransition(run); } catch (e) { root.classList.remove("theme-vt", "theme-vt-soft"); run(); return; }
+    if (!soft) {
+      vt.ready.then(() => {
+        root.animate(
+          { clipPath: ["circle(0px at " + p.x + "px " + p.y + "px)", "circle(" + r + "px at " + p.x + "px " + p.y + "px)"] },
+          { duration: 720, easing: "cubic-bezier(.65, 0, .35, 1)", pseudoElement: "::view-transition-new(root)" }
+        );
+      }).catch(() => {});
+    }
+    vt.finished.catch(() => {}).then(() => root.classList.remove("theme-vt", "theme-vt-soft"));
   }
 
   media.addEventListener("change", () => {
@@ -333,7 +384,7 @@
   apply();
 
   FL.theme = {
-    THEMES, ACCENTS, PALETTES, PRESETS, GLASS, AMBIENT, SAKURA, apply, set, mark, markBlink, mode, accent, palette, glass, ambient, calm, app,
+    THEMES, ACCENTS, PALETTES, PRESETS, GLASS, AMBIENT, SAKURA, apply, set, mark, markBlink, aperture, mode, accent, palette, glass, ambient, calm, app,
     preview, parseHex, id: themeId, icons: () => (themeId() === "material" ? "material" : "line"),
   };
 })(window.FL = window.FL || {});

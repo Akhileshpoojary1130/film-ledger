@@ -381,6 +381,7 @@
           tile(s.favorites.toLocaleString(), "Favourites", "") +
         "</div></section>" +
       runtimeNote +
+      (FL.ai && s.films >= 3 ? '<section class="panel ai-read" data-ai-read hidden></section>' : "") +
       timeline +
       '<div class="two-col">' +
         '<section class="panel"><header class="section-head"><div><h2 class="h3">Genres</h2><p class="sub">Films can count toward several</p></div></header>' + bars(s.genres) + "</section>" +
@@ -392,6 +393,37 @@
       recordsPanel +
       "</div>";
     if (s.cast.length) FL.people.photos(s.cast.map((c) => c.name)).then(() => { if (el.querySelector(".face-list")) FL.people.paint(el); });
+    fillAiRead(el, s, scope);
+  }
+
+  /* The AI read: Gemini sums up how you watch, in two sentences and three tags, and names five films to try next.
+     Once a day per scope (cached on the device), and only when AI is on for the site. */
+  function fillAiRead(el, s, scope) {
+    const box = el.querySelector("[data-ai-read]");
+    if (!box) return;
+    FL.ai.isReady().then((ok) => {
+      if (!ok || !box.isConnected) { box.remove(); return; }
+      box.hidden = false;
+      box.innerHTML = '<div class="ai-read-wait">' + FL.ui.loader(30) + "<span>Reading your stats…</span></div>";
+      const names = (xs, n) => (xs || []).slice(0, n).map((x) => x.label || x.name || "").filter(Boolean);
+      const topDay = s.weekdays.indexOf(Math.max(...s.weekdays));
+      const stats = {
+        films: s.films, hours: Math.round(s.minutes / 60), genres: names(s.genres, 6), languages: names(s.languages, 4),
+        decades: names(s.decades.slice().sort((a, b) => b.n - a.n), 4), directors: names(s.directors, 6),
+        avgRating: s.rated ? +s.avgRating.toFixed(1) : 0, imdbGap: s.vsImdb ? +s.vsImdb.avg.toFixed(2) : 0,
+        nightOwl: (s.hours[4] + s.hours[5]) > (s.hours[1] + s.hours[2]), topDay: s.weekdays[topDay] ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][topDay] : "",
+      };
+      FL.ai.insight(String(scope), stats).then((d) => {
+        if (!box.isConnected) return;
+        box.innerHTML = '<header class="section-head"><div><p class="eyebrow ai-eyebrow">' + icon("spark") + "AI read</p>" +
+            '<h2 class="ai-read-head">' + esc(d.headline) + "</h2></div></header>" +
+          '<p class="ai-read-sum">' + esc(d.summary) + "</p>" +
+          (d.traits.length ? '<div class="ai-traits">' + d.traits.map((t) => "<span>" + esc(t) + "</span>").join("") + "</div>" : "") +
+          (d.picks.length ? '<p class="label ai-try">Try next</p><ul class="ai-try-list">' + d.picks.map((x) =>
+            '<li><a href="' + FL.ui.hrefFor(x.film) + '">' + FL.ui.art(x.film) + "<span><b>" + esc(x.film.title) + "</b><small>" + esc(x.why || "") + "</small></span></a></li>").join("") + "</ul>" : "");
+        FL.ui.watchPosters(box);
+      }).catch(() => { if (box.isConnected) box.remove(); });
+    });
   }
 
   FL.views = FL.views || {};

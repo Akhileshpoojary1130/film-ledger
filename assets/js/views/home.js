@@ -289,6 +289,7 @@
       tonight() +
       reasonRail("Up next in your series", next) +
       reasonRail("For you", forYou) +
+      (FL.ai ? '<section class="rail" data-rail-id="aipicks" hidden></section>' : "") +
       peopleSlots() +
       (FL.store.shows().length ? '<section class="rail" data-rail-id="newep"></section>' : "") +
       rail("Watch later", listed.slice(0, 24), { more: "#/library/watchlist", empty: FL.ui.empty("Your next favourite hasn’t been saved yet.", "Tap the bookmark on any poster.") }) +
@@ -300,9 +301,40 @@
     fillPeople(el);
     fillNewEpisodes(el);
     fillDubbed(el);
+    fillAiPicks(el);
     // The Artwork background takes its colours from tonight's first pick.
     const first = tonightPicks()[0];
     if (first) FL.ambient.art(FL.meta.backdrop(first.film) || FL.meta.posterCandidates(first.film, "small")[0]);
+  }
+
+  /* AI picks: a dozen Gemini picks from your taste, once a day per device. Shows only when AI is on for the site. */
+  function fillAiPicks(el, force) {
+    const slot = el.querySelector('[data-rail-id="aipicks"]');
+    if (!slot || FL.store.watched().length < 3) { if (slot) slot.remove(); return; }
+    FL.ai.isReady().then((ok) => {
+      if (!ok || !slot.isConnected) { slot.remove(); return; }
+      slot.hidden = false;
+      slot.innerHTML = '<header class="section-head"><div><h2 class="h2">' + icon("spark") + " AI picks for you</h2><p class=\"sub\">Choosing from everything you’ve watched…</p></div></header>" +
+        '<div class="ai-wait">' + FL.ui.loader(36) + "</div>";
+      FL.ai.picks(force).then((d) => {
+        if (!slot.isConnected) return;
+        if (!d.picks.length) { slot.remove(); return; }
+        const why = new Map(d.picks.map((x) => [x.film.id, x.why]));
+        slot.outerHTML = rail(icon("spark") + " AI picks for you", d.picks.map((x) => x.film), {
+          id: "aipicks", cls: "ai-rail", sub: esc(d.understood || "Picked by AI from what you watch"),
+          caption: (f) => esc(why.get(f.id) || ""),
+        });
+        const box = el.querySelector('[data-rail-id="aipicks"]');
+        if (box) {
+          box.querySelector(".section-tools").insertAdjacentHTML("afterbegin", '<button type="button" class="link-more" data-ai-repick>New picks' + icon("shuffle") + "</button>");
+          box.querySelector("[data-ai-repick]").addEventListener("click", () => {
+            box.outerHTML = '<section class="rail" data-rail-id="aipicks"></section>';
+            fillAiPicks(el, true);
+          });
+          FL.ui.watchPosters(box);
+        }
+      }).catch(() => { if (slot.isConnected) slot.remove(); });
+    });
   }
 
   /* Vega's newest Hindi dubbed films, once its catalogue has loaded. */

@@ -70,7 +70,8 @@
   function facts(film, m) {
     const bits = [];
     if (m && m.runtime) bits.push(fmtRuntime(m.runtime));
-    if (film.genres.length) bits.push(film.genres.slice(0, 3).join(", "));
+    const genres = m && m.ai && m.ai.fixes && m.ai.fixes.genres ? m.genres : film.genres;
+    if (genres.length) bits.push(genres.slice(0, 3).join(", "));
     if (m && m.directors.length) bits.push("Dir. " + m.directors.join(", "));
     return bits.length ? bits.map(esc).join('<span class="sep">·</span>') : "";
   }
@@ -226,6 +227,7 @@
       '<article class="film">' +
         '<div class="film-backdrop" aria-hidden="true"></div>' +
         '<div class="container film-hero">' +
+          '<div class="ai-slot" data-slot="ai"></div>' +
           '<div class="film-poster">' + art(film, { size: "medium", eager: true }) + "</div>" +
           '<div class="film-head">' +
             '<p class="eyebrow">' + [FL.catalogue.filmLang(film), FL.catalogue.yearLabel(film), film.universe].filter((x) => x && x !== "World").map(esc).join(" · ") +
@@ -282,8 +284,61 @@
       FL.people.photos(castNames(m, wd, wp), castRoles(m, wd, wp)).then(() => { if (page.isConnected) FL.people.paint(slot("credits")); });
     }
 
+    // The daily AI check: its fixes go over Cinemeta's details, and the badge goes top right.
+    let raw = null;
+    let aiRec = null;
+    function askAi() {
+      const tt = FL.meta.idFor(film);
+      if (!FL.ai || !tt || aiRec !== null) return;
+      aiRec = false; // asked
+      FL.ai.check(tt).then((rec) => {
+        if (!page.isConnected) return;
+        if (!FL.ai.usable(rec)) {
+          // Not checked yet: offer to check it now, if AI is on for this site.
+          FL.ai.isReady().then((ok) => { if (ok && page.isConnected && !slot("ai").firstChild) slot("ai").innerHTML = scanButton(); });
+          return;
+        }
+        aiRec = rec;
+        slot("ai").innerHTML = FL.ai.badge(rec);
+        if (raw) showMeta(raw);
+      });
+    }
+    const scanButton = () => '<button type="button" class="ai-badge ai-scan" data-fa="ai-scan" title="Check this film’s details with AI">' + icon("spark") + "<span>Scan with AI</span></button>";
+
+    function scanNow() {
+      const tt = FL.meta.idFor(film);
+      const btn = $('[data-fa="ai-scan"]', el);
+      if (!tt || !btn || btn.disabled) return;
+      btn.disabled = true;
+      btn.innerHTML = FL.ui.loader(16) + "<span>Scanning…</span>";
+      const hero = $(".film-hero", el);
+      hero.style.setProperty("--sweep", hero.offsetHeight + "px");
+      hero.classList.add("is-scanning");
+      FL.ai.scan(tt).then((rec) => {
+        if (!page.isConnected) return;
+        hero.classList.remove("is-scanning");
+        if (FL.ai.usable(rec)) {
+          aiRec = rec;
+          slot("ai").innerHTML = FL.ai.badge(rec);
+          if (raw) showMeta(raw);
+          const n = Object.keys(rec.fixes || {}).length;
+          FL.ui.toast(n ? "AI fixed " + FL.util.plural(n, "detail") + " for everyone." : "AI checked it: everything looks right.");
+        } else {
+          slot("ai").innerHTML = "";
+          FL.ui.toast("The AI wasn’t sure about this one, so nothing changed.");
+        }
+      }).catch((err) => {
+        if (!page.isConnected) return;
+        hero.classList.remove("is-scanning");
+        slot("ai").innerHTML = scanButton();
+        FL.ui.toast(err.message);
+      });
+    }
+
     function showMeta(meta) {
-      m = meta;
+      raw = meta;
+      m = FL.ai && aiRec ? FL.ai.merge(meta, aiRec) : meta;
+      askAi();
       slot("facts").innerHTML = facts(film, m);
       slot("scores").innerHTML = scores(film, m);
       slot("overview").textContent = desc() || (/^vega-/.test(film.id)
@@ -395,9 +450,17 @@
         }
       } else if ((name === "trailer" || name === "play-trailer") && m && m.trailer) playTrailer();
       else if (name === "play") location.hash = "#/watch/" + encodeURIComponent(film.id);
+      else if (name === "ai-scan") scanNow();
+      else if (name === "ai-badge") {
+        const pop = $(".ai-pop", el);
+        const btn = $('[data-fa="ai-badge"]', el);
+        if (pop) { pop.hidden = !pop.hidden; btn.setAttribute("aria-expanded", String(!pop.hidden)); }
+      }
     }
 
     function onClick(ev) {
+      const pop = $(".ai-pop", el);
+      if (pop && !pop.hidden && !ev.target.closest(".ai-slot")) { pop.hidden = true; $('[data-fa="ai-badge"]', el).setAttribute("aria-expanded", "false"); }
       const b = ev.target.closest("[data-fa]");
       if (!b) return;
       const a = b.dataset.fa;

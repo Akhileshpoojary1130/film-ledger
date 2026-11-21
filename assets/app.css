@@ -814,6 +814,21 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 
 .loader { display: inline-flex; align-items: center; gap: 10px; color: var(--text-3); }
 .mark-spin { animation: spin 14s linear infinite; }
+
+/* The loader: a lens diaphragm closing to a pinhole and opening again, with a thin arc sweeping the rim (theme.js
+   aperture()). One colour family, one rhythm; a soft glow behind is the only extra. */
+.ld { --ls: 28px; position: relative; display: inline-grid; place-items: center; width: var(--ls); height: var(--ls); }
+.ld > .mark { position: relative; z-index: 1; overflow: visible; }
+.ld-ap .ld-track { stroke: color-mix(in oklab, var(--accent) 16%, transparent); }
+.ld-ap .ld-arc { stroke: var(--accent); filter: drop-shadow(0 0 3px color-mix(in oklab, var(--accent) 60%, transparent)); }
+.ld-glow {
+  position: absolute; inset: -20%; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--accent) 22%, transparent), transparent 75%);
+  animation: ldPulse 2.4s cubic-bezier(0.7, 0, 0.3, 1) infinite;
+}
+@keyframes ldPulse { 0%, 100% { opacity: 0.25; transform: scale(0.92); } 50% { opacity: 0.7; transform: scale(1.04); } }
+@media (prefers-reduced-motion: reduce) { .ld-glow { animation: none; } }
+}
 .rail-loading, .page-loading { display: grid; place-items: center; min-height: 180px; }
 .page-loading { min-height: 50vh; }
 .year-more { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 40px; padding: 24px 0 8px; font-size: 13px; color: var(--text-3); }
@@ -829,6 +844,14 @@ textarea.input { height: auto; padding: 10px 12px; line-height: 1.5; resize: ver
 /* The aperture sits at the exact centre of the screen (the word hangs below it), so the opening that reveals the app
    grows from the aperture itself; the aperture flies toward you as it opens. */
 .boot-inner { position: relative; display: grid; place-items: center; animation: bootIn 0.6s var(--ease-out) both; }
+.boot-inner::before, .boot-inner::after { content: ""; position: absolute; inset: -22px; border-radius: 50%; pointer-events: none; }
+.boot-inner::before {
+  background: conic-gradient(from 0deg, color-mix(in oklab, var(--accent) 12%, transparent) 0 70%, var(--accent) 96%, color-mix(in oklab, var(--accent) 12%, transparent) 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1px));
+  animation: spin 1.6s cubic-bezier(0.5, 0.15, 0.5, 0.85) infinite;
+}
+.boot-inner::after { inset: -46px; z-index: -1; background: radial-gradient(closest-side, color-mix(in oklab, var(--accent) 18%, transparent), transparent 70%); animation: ldPulse 2.4s ease-in-out infinite; }
 .boot-word {
   position: absolute; top: calc(100% + 16px); left: 50%; transform: translateX(-50%); white-space: nowrap;
   font-family: var(--word); font-style: var(--word-style); font-weight: var(--word-weight); font-size: 30px;
@@ -2923,3 +2946,166 @@ html.lenis, html.lenis body { height: auto; }
 .setting-stack > :not(span):not(label) { min-width: 0; }
 /* Settings: one short line under a section's name, saying what it's for. */
 .set-note { margin: -4px 0 12px; font-size: 12px; color: var(--text-3); }
+
+
+/* ---------- Dev mode: sparks arriving, bottom right (devmode.js) ---------- */
+/* No backdrop blur on purpose: a blurred fixed panel has to be re-blurred every frame you scroll under it. */
+
+.devnet {
+  --dn-w: 252px;
+  position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 185; width: var(--dn-w); max-width: calc(100vw - 20px);
+  padding: 8px 10px 10px; border-radius: 18px; color: var(--text-2); font-size: 11px; line-height: 1.3; box-sizing: border-box;
+  background: color-mix(in oklab, var(--s1, #141416) 94%, transparent);
+  border: 1px solid color-mix(in oklab, var(--line) 80%, transparent);
+  box-shadow: 0 1px 0 color-mix(in oklab, #fff 6%, transparent) inset, 0 14px 34px rgba(0, 0, 0, 0.38);
+  contain: layout paint; overflow: hidden;
+  opacity: 0; transform: translateY(14px) scale(0.97); transition: opacity 0.3s, transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.devnet.is-in { opacity: 1; transform: none; }
+.devnet.is-open { --dn-w: 300px; }
+@media (max-width: 760px) { .devnet { right: 10px; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); --dn-w: 228px; } .devnet.is-open { --dn-w: min(320px, calc(100vw - 20px)); } }
+.devnet-head {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 2px 2px 6px; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left;
+}
+.devnet-live { display: inline-flex; align-items: center; gap: 5px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #3EE08F; }
+.devnet-live i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 6px currentColor; animation: dnLive 1.6s ease-in-out infinite; }
+.devnet.is-paused .devnet-live { color: var(--text-3); }
+.devnet.is-paused .devnet-live i { animation: none; box-shadow: none; }
+.devnet-title { flex: 1; min-width: 0; font-weight: 600; color: var(--text); font-size: 12px; }
+.devnet-rate { font-variant-numeric: tabular-nums; color: var(--text-2); white-space: nowrap; }
+.devnet-chev { flex: none; color: var(--text-3); transform: rotate(180deg); transition: transform 0.3s; }
+.devnet.is-open .devnet-chev { transform: none; }
+.devnet-stage { position: relative; height: 54px; margin: 0 -2px; border-radius: 12px; background: color-mix(in oklab, var(--bg, #000) 55%, transparent); overflow: hidden; }
+.devnet-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.devnet-node { position: absolute; top: 50%; display: grid; place-items: center; width: 26px; height: 26px; margin-top: -13px; border-radius: 50%; background: var(--s3, #2a2a2e); color: var(--text-2); z-index: 1; }
+.devnet-cloud { left: 13px; margin-left: -13px; }
+.devnet-device { right: 13px; margin-right: -13px; box-shadow: 0 0 0 0 transparent; }
+.devnet-device.is-hit { animation: dnHit 0.45s ease-out; }
+.devnet-spark { display: block; width: 100%; height: 26px; margin-top: 6px; }
+.devnet-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin: 6px 0 0; }
+.devnet-stats div { min-width: 0; padding: 5px 5px; border-radius: 9px; background: color-mix(in oklab, var(--s2, #1f1f22) 70%, transparent); }
+.devnet-stats dt { font-size: 9px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.devnet-stats dd { margin: 1px 0 0; font-size: 11.5px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.devnet-fails { margin: 6px 0 0; color: #FF4D5E; font-weight: 600; }
+.devnet-more { margin-top: 8px; }
+.devnet-mix { display: flex; gap: 2px; height: 6px; border-radius: 99px; overflow: hidden; }
+.devnet-mix i { display: block; min-width: 3px; }
+.devnet-legend { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 7px 0 2px; }
+.devnet-legend span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.devnet-legend i { width: 7px; height: 7px; border-radius: 50%; }
+.devnet-legend b { color: var(--text); font-weight: 600; }
+.devnet-legend small { color: var(--text-3); }
+.devnet-best { display: grid; gap: 2px; margin: 6px 0; color: var(--text-3); }
+.devnet-best b { color: var(--text-2); font-weight: 600; }
+.devnet-log { max-height: 210px; overflow-y: auto; margin: 0; padding: 0; list-style: none; overscroll-behavior: contain; scrollbar-width: thin; }
+.devnet-log li { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 5px 0; border-top: 1px solid color-mix(in oklab, var(--line) 55%, transparent); }
+.devnet-log li > i { width: 7px; height: 7px; border-radius: 50%; }
+.devnet-what { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); font-weight: 500; }
+.devnet-what small { margin-left: 6px; color: var(--text-3); font-weight: 400; }
+.devnet-num { font-variant-numeric: tabular-nums; color: var(--text-2); text-align: right; white-space: nowrap; }
+.devnet-log li.is-fail .devnet-what, .devnet-log li.is-fail .devnet-num { color: #FF4D5E; }
+.devnet-empty { display: block !important; text-align: center; color: var(--text-3); }
+.devnet-actions { display: flex; gap: 6px; margin-top: 8px; }
+.devnet-actions button { flex: 1; padding: 5px 0; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--text-2); font: inherit; cursor: pointer; }
+.devnet-actions button:hover { color: var(--text); border-color: var(--text-3); }
+@keyframes dnLive { 50% { opacity: 0.35; } }
+@keyframes dnHit { 0% { transform: scale(1); } 35% { transform: scale(1.14); box-shadow: 0 0 14px 2px color-mix(in oklab, var(--accent) 55%, transparent); } 100% { transform: scale(1); } }
+
+/* ---------- AI: the "AI checked" badge on film pages, and Ask Iris in search ---------- */
+
+.ai-slot { position: absolute; top: 12px; right: var(--gutter, 24px); z-index: 3; display: flex; flex-direction: column; align-items: flex-end; }
+.ai-slot:empty { display: none; }
+.ai-badge {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 6px 9px; border-radius: 999px; cursor: pointer;
+  font: inherit; font-size: 12px; font-weight: 600; letter-spacing: 0.01em; color: var(--text);
+  background: color-mix(in oklab, var(--s2) 75%, transparent); -webkit-backdrop-filter: blur(16px) saturate(170%); backdrop-filter: blur(16px) saturate(170%);
+  border: 1px solid color-mix(in oklab, var(--accent) 45%, var(--line)); position: relative; overflow: hidden;
+  animation: aiIn 0.5s var(--ease-out, ease-out) both;
+}
+.ai-badge .icon, .ai-badge svg { width: 15px; height: 15px; color: var(--accent); fill: currentColor; }
+/* A sheen sweeps across once in a while, like a scanner passing over the card. */
+.ai-badge::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-120%);
+  background: linear-gradient(100deg, transparent 30%, color-mix(in oklab, var(--accent) 35%, transparent) 50%, transparent 70%);
+  animation: aiSheen 4.5s 1s ease-in-out infinite;
+}
+.ai-pop {
+  width: min(340px, calc(100vw - 32px)); margin-top: 8px; padding: 12px 14px; border-radius: 14px; font-size: 13px; color: var(--text-2);
+  background: color-mix(in oklab, var(--s2) 92%, transparent); -webkit-backdrop-filter: blur(20px) saturate(170%); backdrop-filter: blur(20px) saturate(170%);
+  border: 1px solid var(--line); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4); animation: aiIn 0.25s var(--ease-out, ease-out) both;
+}
+.ai-pop[hidden] { display: none; }
+.ai-pop-head { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font-weight: 600; color: var(--text); }
+.ai-pop-head svg, .ai-pop-head .icon { width: 15px; height: 15px; color: var(--accent); fill: currentColor; }
+.ai-pop ul { margin: 0; padding: 0; list-style: none; }
+.ai-pop li { display: grid; grid-template-columns: 92px 1fr; gap: 8px; padding: 5px 0; border-top: 1px solid var(--line); }
+.ai-pop li b { font-weight: 600; color: var(--text); }
+.ai-pop li s { opacity: 0.6; }
+.ai-pop p { margin: 0; }
+.ai-pop-foot { margin-top: 10px !important; font-size: 11px; opacity: 0.7; }
+@media (max-width: 760px) { .ai-slot { top: 6px; right: 12px; } .ai-badge { font-size: 11px; padding: 5px 10px 5px 8px; } }
+@keyframes aiIn { from { opacity: 0; transform: translateY(-4px) scale(0.96); } }
+@keyframes aiSheen { 0% { transform: translateX(-120%); } 30%, 100% { transform: translateX(120%); } }
+[data-motion="calm"] .ai-badge::after { animation: none; }
+
+.pal-why { display: flex; align-items: center; gap: 4px; color: var(--accent) !important; }
+.pal-why svg, .pal-why .icon { width: 12px; height: 12px; fill: currentColor; flex: none; }
+.pal-ask .pal-icon { color: var(--accent); }
+.pal-ask strong { background: linear-gradient(90deg, var(--text), var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.pal-ai-wait { display: flex; align-items: center; gap: 12px; padding: 14px 16px; color: var(--text-2); font-size: 13px; }
+.pal-ai-err { color: var(--text-2); }
+
+
+/* Changing the look: theme.js reveals the new colours in a circle from the tap. Nothing else moves meanwhile. */
+.theme-vt * { view-transition-name: none !important; }
+.theme-vt::view-transition-old(root), .theme-vt::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+.theme-vt-soft::view-transition-old(root) { animation: 0.28s ease both fadeOutVT; }
+.theme-vt-soft::view-transition-new(root) { animation: 0.28s ease both fadeInVT; }
+@keyframes fadeOutVT { to { opacity: 0; } }
+@keyframes fadeInVT { from { opacity: 0; } }
+
+/* Scan with AI: while it checks, a thin line of light sweeps down the film's header like a scanner. */
+.ai-scan { border-style: dashed; }
+.ai-scan:disabled { cursor: progress; border-style: solid; }
+.ai-scan .ld { --ls: 16px; }
+.film-hero.is-scanning::after {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; z-index: 2; pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--accent) 30%, #fff 50%, var(--accent) 70%, transparent);
+  box-shadow: 0 0 18px 4px color-mix(in oklab, var(--accent) 45%, transparent);
+  animation: aiSweep 1.6s cubic-bezier(0.6, 0, 0.4, 1) infinite;
+}
+@keyframes aiSweep { 0% { transform: translateY(0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(var(--sweep, 320px)); opacity: 0; } }
+
+.ai-rail .h2 svg, .ai-rail .h2 .icon, [data-rail-id="aipicks"] .h2 svg, [data-rail-id="aipicks"] .h2 .icon { width: 0.8em; height: 0.8em; color: var(--accent); fill: currentColor; vertical-align: -0.05em; }
+.ai-wait, .ai-read-wait { display: flex; align-items: center; gap: 14px; min-height: 120px; padding: 0 4px; color: var(--text-2); font-size: 13px; }
+.ai-read-wait { min-height: 72px; }
+[data-ai-repick] { border: 0; background: none; font: inherit; cursor: pointer; }
+
+.ai-read { position: relative; overflow: hidden; }
+.ai-read::before {
+  content: ""; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none; padding: 1px;
+  background: linear-gradient(135deg, color-mix(in oklab, var(--accent) 60%, transparent), transparent 40%, transparent 60%, color-mix(in oklab, var(--accent) 30%, transparent));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+}
+.ai-eyebrow { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); }
+.ai-eyebrow svg, .ai-eyebrow .icon { width: 14px; height: 14px; fill: currentColor; }
+.ai-read-head { margin: 2px 0 0; font-family: var(--display); font-weight: var(--display-weight); letter-spacing: var(--display-track); font-size: clamp(22px, 3vw, 30px); color: var(--text); }
+.ai-read-sum { max-width: 70ch; margin: 8px 0 12px; color: var(--text-2); line-height: 1.55; }
+.ai-traits { display: flex; flex-wrap: wrap; gap: 6px; }
+.ai-traits span { padding: 4px 11px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--text); background: color-mix(in oklab, var(--accent) 16%, transparent); border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent); }
+.ai-try { margin: 16px 0 8px; }
+.ai-try-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.ai-try-list a { display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 12px; color: inherit; text-decoration: none; background: color-mix(in oklab, var(--s2) 60%, transparent); }
+.ai-try-list a:hover { background: var(--s2); }
+.ai-try-list .art { flex: none; width: 44px; border-radius: 6px; }
+.ai-try-list span { min-width: 0; }
+.ai-try-list b { display: block; color: var(--text); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-try-list small { display: block; color: var(--text-3); font-size: 12px; }
+
+.set-off { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; background: var(--s3); color: var(--text-2); font-size: 11px; font-weight: 600; vertical-align: 1px; }
+.ai-recent { margin: 6px 0 0; padding: 0; list-style: none; }
+.ai-recent a { display: grid; gap: 1px; padding: 7px 0; border-top: 1px solid var(--line); color: inherit; text-decoration: none; }
+.ai-recent b { color: var(--text); font-weight: 600; font-size: 13px; }
+.ai-recent b small { color: var(--text-3); font-weight: 400; }
+.ai-recent span { font-size: 12px; color: var(--text-2); }
+.ai-recent s { opacity: 0.6; }

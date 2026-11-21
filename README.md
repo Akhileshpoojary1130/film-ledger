@@ -133,6 +133,39 @@ project (all environments), then redeploy. That adds `KV_REST_API_URL` and `KV_R
 reads (`UPSTASH_REDIS_REST_URL` / `_TOKEN` and custom prefixes work too). Until then the Sync card says it isn't
 switched on, and the one-time copy still works.
 
+**AI (once, for whoever deploys Iris):** in Vercel → the project → **Settings → Environment Variables**, add a free
+Gemini key from Google AI Studio as `GEMINI_API_KEY`. More keys go in `GEMINI_API_KEY_2` … `GEMINI_API_KEY_10`: calls
+take turns across them, and a key that hits its daily limit hands over to the next. Also add `CRON_SECRET` (any long
+random text, so only Vercel can start the daily run), then redeploy. AI uses the Upstash store above (free plan) and
+Gemini's free tier, so nothing costs money. Optional: `AI_DAILY` (films checked a day, default 500), `AI_RUNS` (runs a
+day, default 2, matching `vercel.json`), `GEMINI_MODEL` (default `gemini-3.5-flash-lite`), `GEMINI_FALLBACK_MODELS`
+(default `gemini-3.1-flash-lite`). To start the first run without waiting: Vercel → the project → **Settings → Cron
+Jobs** → **Run**. Settings → AI in the app shows what's connected, the last run and the latest fixes.
+
+## AI
+
+- **AI checked** — twice a day (`vercel.json` crons, 06:00 and 18:00 India time) Iris checks 250 films, 500 a day:
+  the ones people opened that haven't been checked first, then the bundled catalogue from the most-voted down. It reads
+  each film's details from Cinemeta (director, writers, lead cast, genres, year, runtime, release date) and asks Gemini
+  Flash-Lite to correct only what it is sure is wrong or missing. The answers live in the shared store, so everyone
+  sees the same corrected details. The film page shows an **AI checked** badge at the top right; tap it for what
+  changed (old → new) and when. A film not checked yet has **Scan with AI** there instead: it checks that film right
+  away (a line of light sweeps the header while it does), for everyone. 25 scans a day per visitor.
+- **Ask Iris** — in search (`⌘K` or the top bar), describe what you want ("feel-good Hindi comedy like 3 Idiots", "the
+  film where a man hides a body under a police station") and press Enter on *Ask Iris*. It reads what you've watched,
+  loved and rated, and answers with up to ten real titles, each with a one-line reason.
+- **AI picks for you** — a Home row of a dozen picks from your taste, each saying why, refreshed daily (or *New picks*).
+- **AI read** — on Stats: a name for your taste, two sentences on how you watch, three tags and five films to try next.
+- Ask, picks and the AI read share 60 calls a day per visitor. Settings → AI → *Model first* picks which Flash-Lite
+  is tried first for them.
+- **Dev mode** — on by default (Settings → Developer to turn off). A small card in the bottom-right corner: every
+  request arrives as a spark that arcs from the cloud to the device with a glowing tail, coloured by what it carries
+  (accent data, pink pictures, amber app code, violet fonts, teal video), bigger for bigger replies, slower for slower
+  ones, bursting into a shower when it lands; a failed one turns red, stalls halfway and fizzles. Under it, throughput
+  over the last minute and totals (requests, data, average time, cache). Tap it for the mix by type, the slowest and
+  biggest request, and the last 40 requests by what they were for (never where they went). Drawn on canvas, idle
+  when nothing moves, no blur, so it doesn't make scrolling stutter.
+
 ## Player
 
 Third-party embed hosts inside an iframe: VidLink, 2Embed, Videasy, VidSrc — and **Vega**, strong on Hindi and
@@ -239,6 +272,8 @@ api/vega.js           Vercel Edge function: finds a title on Vega and returns it
 api/sync.js           Vercel Edge function: keeps each synced library (ciphertext) in the project's Upstash Redis
 api/where.js          Vercel Edge function: streaming services for a title in India (JustWatch)
 api/anime.js          Vercel Edge function: Zoro TV's search, newest episodes, a series' episodes and each episode's players
+api/ai.js             Vercel Edge function: the daily AI check of film details (cron) and Ask Iris, on Gemini Flash-Lite
+vercel.json           the two daily crons for api/ai.js
 tests/                unit tests (node --test), live server check, in-browser page sweep
 tools/build-series.mjs  builds data/series.js from Wikidata (about a minute)
 tools/build-vega.mjs  builds data/vega.js: Vega's catalogue (Hindi dubbed, web series, Bollywood, Hollywood, South,
@@ -264,6 +299,8 @@ assets/js/
   ui.js               icons, cards, rails, rating, reveal & tilt motion, toasts, modals
   share.js            packing, QR codes (qrcode-generator), camera scanner (BarcodeDetector / jsQR), share links
   sync.js             sync: encryption, merging (newer wins, removals remembered), when to pull and push
+  ai.js               the AI check's fixes and badge on film pages, Ask Iris (taste summary, answers → Iris films)
+  devmode.js          Dev mode's network card: sparks on canvas, throughput, totals, the request list
   anime.js            Sakura's data: AniList (cached, one request at a time), Zoro TV, episodes, title matching
   player.js           theatre player, server choice (fixed hosts + Vega's per-title links; anime hosts, Sub / Dub), auto-logging
   pet.js              Pause Pals: break reminders, the companions and their moves, the sitting timer
@@ -294,7 +331,8 @@ node --test tests/*.test.mjs
 Unit tests for the Vega lookup (reading Vega's titles, matching names written differently — K.G.F / KGF — search
 spellings, episode labels, link clean-up, dead-link detection, download buttons), the sync store (setup detection,
 revisions, two devices writing at once, against an in-memory Redis), Zoro TV's pages (cards, sub and dub players,
-episode lists, newest episodes) and the icon font subset. No network.
+episode lists, newest episodes), the AI endpoint (catalogue walk, the daily run against fake Cinemeta and Gemini,
+fix clean-up, model fallback, Ask Iris and its daily limit) and the icon font subset. No network.
 
 ```bash
 node tests/servers.mjs

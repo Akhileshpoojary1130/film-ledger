@@ -80,7 +80,10 @@
 
   /* The aperture, animated — used wherever something is loading. */
   function loader(size, label) {
-    return '<span class="loader" role="status"' + (label ? ' aria-label="' + esc(label) + '"' : "") + ">" + FL.theme.mark({ size: size || 28, open: 1, animate: true, cls: "mark-spin" }) + "</span>";
+    const s = size || 28;
+    return '<span class="loader" role="status"' + (label ? ' aria-label="' + esc(label) + '"' : "") + ">" +
+      '<span class="ld" style="--ls:' + s + 'px" aria-hidden="true"><span class="ld-glow"></span>' +
+      (FL.theme.app() === "sakura" ? FL.theme.mark({ size: s, open: 1, animate: true, cls: "mark-spin" }) : FL.theme.aperture(s)) + "</span></span>";
   }
 
   /* ---------- stars ---------- */
