@@ -262,11 +262,24 @@
 
   const showMeta = new Map(); // tt -> Promise<{ seasons, episodes, … }>
 
+  /* TVmaze's episode list for an IMDb id: it often has a new season days or weeks before Cinemeta does (Dhindora's
+     second season, out 20 Nov 2026, while Cinemeta still said "Ended" after season one). Never rejects. */
+  function tvmazeEpisodes(tt) {
+    const wait = (ms) => new Promise((r) => setTimeout(() => r(null), ms));
+    const job = fetchJSON("https://api.tvmaze.com/lookup/shows?imdb=" + tt, { timeout: 8000 })
+      .then((sh) => (sh && sh.id ? fetchJSON("https://api.tvmaze.com/shows/" + sh.id + "/episodes", { timeout: 8000 })
+        .then((eps) => ({ status: sh.status || "", episodes: Array.isArray(eps) ? eps : [] })) : null))
+      .catch(() => null);
+    return Promise.race([job, wait(9000)]);
+  }
+  const plainText = (html) => String(html || "").replace(/<[^>]*>/g, " ").replace(/&amp;/g, "&").replace(/&#0?39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/\s+/g, " ").trim();
+
   /* Full show record with every episode — fetched live so new seasons appear on their own. */
   function show(tt) {
     if (showMeta.has(tt)) return showMeta.get(tt);
-    const p = queue(() => fetchJSON(CINEMETA + "/meta/series/" + tt + ".json", { timeout: 20000 }))
-      .then((d) => {
+    const maze = /^tt\d+$/.test(tt) ? tvmazeEpisodes(tt) : Promise.resolve(null);
+    const p = Promise.all([queue(() => fetchJSON(CINEMETA + "/meta/series/" + tt + ".json", { timeout: 20000 })), maze])
+      .then(([d, tvm]) => {
         const m = d && d.meta;
         if (!m) throw new Error("missing");
         const today = new Date().toISOString().slice(0, 10);
@@ -278,6 +291,18 @@
           }))
           .map((v) => Object.assign(v, { aired: !!v.date && v.date <= today }))
           .sort((a, b) => a.s - b.s || a.e - b.e);
+        // Episodes TVmaze lists that Cinemeta doesn't yet (a new season, this week's episode) join the list.
+        let added = 0;
+        ((tvm && tvm.episodes) || []).forEach((x) => {
+          const s = +x.season;
+          const e = +x.number;
+          if (!(s > 0 && e > 0) || episodes.some((v) => v.s === s && v.e === e)) return;
+          const date = String(x.airdate || "").slice(0, 10);
+          episodes.push({ s, e, title: x.name || "", date, aired: !!date && date <= today,
+            thumb: x.image && x.image.medium ? String(x.image.medium).replace(/^http:/, "https:") : "", overview: plainText(x.summary).slice(0, 400) });
+          added++;
+        });
+        if (added) episodes.sort((a, b) => a.s - b.s || a.e - b.e);
         const seasons = Array.from(new Set(episodes.map((v) => v.s))).sort((a, b) => (a || 999) - (b || 999));
         const entry = FL.catalogue.get(tt) || FL.catalogue.addRemote(fromMeta(Object.assign({ type: "series" }, m)) || { imdbId: tt, type: "series", title: m.name });
         FL.catalogue.updateRemote(entry, {
@@ -285,9 +310,11 @@
           desc: String(m.description || "").slice(0, 600), year: parseInt(m.releaseInfo, 10) || 0,
         });
         entry.tmdb = m.moviedb_id || 0;
-        entry.status = m.status || "";
+        // A new season means it isn't over, whatever Cinemeta still says.
+        const status = added && tvm.status === "Running" ? "Continuing" : m.status || "";
+        entry.status = status;
         return {
-          film: entry, tmdb: m.moviedb_id || 0, seasons, episodes, cast: (m.cast || []).slice(0, 8), status: m.status || "",
+          film: entry, tmdb: m.moviedb_id || 0, seasons, episodes, cast: (m.cast || []).slice(0, 8), status,
           runtime: parseInt(m.runtime, 10) || 0, trailer: (m.trailers && m.trailers[0] && m.trailers[0].source) || "",
           backdrop: m.background || "",
         };

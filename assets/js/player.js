@@ -309,10 +309,10 @@
         !state.show.episodes.some((x) => x.s === state.ep.s && x.e === state.ep.e && x.aired)) score += 60;
       // MixDrop fronts its player with adult ads: last resort.
       if (/^vg-mxdrop/.test(s.id)) score -= 40;
-      // Indian series and shows: 2Embed and Videasy carry most of them (Bigg Boss, KBC, Panchayat, Kota Factory…);
-      // VidLink often has the wrong show or none, so it waits.
+      // Indian series and shows: 2Embed and Videasy carry most of them (Bigg Boss, KBC, Panchayat, Kota Factory, both
+      // seasons of Dhindora); VidLink and VidFast, which go by TMDB, often have the wrong show or none, so they wait.
       if (state.ep && film && (film.lang === "Hindi" || film.lang === "OtherIndian" || /India/.test(film.country || ""))) {
-        score += { "2embed": 18, videasy: 10, vidlink: -25 }[s.id] || 0;
+        score += { "2embed": 18, videasy: 10, vidlink: -25, vidfast: -25 }[s.id] || 0;
       }
       return [score, s];
     }).sort((a, b) => b[0] - a[0]).map((x) => x[1]);
