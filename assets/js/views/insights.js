@@ -238,15 +238,21 @@
   document.addEventListener("scroll", hideTip, { passive: true });
 
   /* Vertical columns with labels under each; only the peak carries a value label. */
+  /* Every bar is scaled to the tallest. Its number floats just above it (out of the layout: in it, the tallest bar's
+     number used to squeeze that bar, so 14 drew shorter than 13). Every bar is numbered when there's room; dense
+     charts number only the tallest. */
   function columns(values, labels, tips, opts) {
     const o = opts || {};
     const max = Math.max(1, ...values);
     const peak = values.indexOf(Math.max(...values));
     return '<div class="cols' + (o.dense ? " cols-dense" : "") + '" role="img" aria-label="' + esc(o.label || "") + '">' +
-      values.map((v, i) => '<div class="col" tabindex="0" data-tip="' + esc(tips[i]) + '">' +
-        '<div class="col-plot">' + (i === peak && v ? '<span class="col-val">' + v + "</span>" : "") +
-        '<span class="col-bar' + (v ? "" : " is-zero") + '" style="height:' + (v / max) * 100 + '%"></span></div>' +
-        '<span class="col-label">' + esc(labels[i]) + "</span></div>").join("") + "</div>";
+      values.map((v, i) => {
+        const pct = (v / max) * 100;
+        const num = v && (i === peak || !o.dense) ? '<span class="col-val' + (i === peak ? " is-peak" : "") + '" style="bottom:calc(' + pct + '% + 4px)">' + v + "</span>" : "";
+        return '<div class="col" tabindex="0" data-tip="' + esc(tips[i]) + '">' +
+          '<div class="col-plot">' + num + '<span class="col-bar' + (v ? "" : " is-zero") + '" style="height:' + pct + '%"></span></div>' +
+          '<span class="col-label">' + esc(labels[i]) + "</span></div>";
+      }).join("") + "</div>";
   }
 
   /* Ranked horizontal bars; value at the tip, label on the left. */
